@@ -63,3 +63,37 @@ CREATE TABLE IF NOT EXISTS retail_sale_return_items (
 INSERT INTO accounts (account_code,account_name,is_active)
 SELECT '4200','Retur Penjualan',1
 WHERE NOT EXISTS (SELECT 1 FROM accounts WHERE account_code='4200');
+
+CREATE TABLE IF NOT EXISTS distributor_sales_returns (
+  id BIGINT PRIMARY KEY AUTO_INCREMENT,
+  return_code VARCHAR(60) NOT NULL,
+  sales_report_id BIGINT NOT NULL,
+  distributor_id BIGINT NOT NULL,
+  return_date DATE NOT NULL,
+  total DECIMAL(18,2) NOT NULL DEFAULT 0,
+  cost_total DECIMAL(18,2) NOT NULL DEFAULT 0,
+  status VARCHAR(20) NOT NULL DEFAULT 'POSTED',
+  notes VARCHAR(500) NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE KEY uq_distributor_sales_return_code (return_code),
+  KEY idx_distributor_sales_return_report (sales_report_id),
+  KEY idx_distributor_sales_return_date (return_date)
+);
+
+CREATE TABLE IF NOT EXISTS distributor_sales_return_items (
+  id BIGINT PRIMARY KEY AUTO_INCREMENT,
+  distributor_sales_return_id BIGINT NOT NULL,
+  sales_report_id BIGINT NOT NULL,
+  sales_report_item_id BIGINT NOT NULL,
+  product_id BIGINT NOT NULL,
+  product_name_snapshot VARCHAR(150) NOT NULL,
+  quantity DECIMAL(15,3) NOT NULL,
+  unit_price DECIMAL(15,2) NOT NULL,
+  unit_cost DECIMAL(15,2) NOT NULL,
+  refund_total DECIMAL(18,2) NOT NULL,
+  cost_total DECIMAL(18,2) NOT NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  KEY idx_distributor_return_item_return (distributor_sales_return_id),
+  KEY idx_distributor_return_item_report_item (sales_report_item_id),
+  KEY idx_distributor_return_item_report (sales_report_id)
+);
