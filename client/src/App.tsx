@@ -50,7 +50,8 @@ export default function App() {
       {active==='Dashboard'?<Dashboard apiStatus={apiStatus} user={user}/>:
        active==='Produk & Persediaan'?<Products token={token}/>:
        active==='Pembelian'?<Purchases token={token}/>:
-       active==='Titipan Distributor'?<AdminConsignments token={token}/>:\n        active==='Kasir Retail'?<RetailSales token={token}/>:
+       active==='Titipan Distributor'?<AdminConsignments token={token}/>:
+        active==='Kasir Retail'?<RetailSales token={token}/>:
        active==='Kas & Pengeluaran'?<Expenses token={token}/>:
        active==='Laporan'?<ProfitLoss token={token}/>:
        active==='Penjualan'||active==='Utang & Piutang'?<ReviewCenter token={token}/>:
