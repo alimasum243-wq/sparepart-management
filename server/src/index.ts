@@ -655,7 +655,7 @@ app.post("/api/retail/sales", async (req,res) => {
   const saleDate=String(req.body?.sale_date||"");
   const cashAccountId=Number(req.body?.cash_account_id);
   const rawItems=req.body?.items;
-  if(!/^\\d{4}-\\d{2}-\\d{2}$/.test(saleDate)||!Number.isInteger(cashAccountId)||cashAccountId<1||!Array.isArray(rawItems)||rawItems.length<1||rawItems.length>100){
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(saleDate)||!Number.isInteger(cashAccountId)||cashAccountId<1||!Array.isArray(rawItems)||rawItems.length<1||rawItems.length>100){
     return res.status(400).json({ok:false,message:"Tanggal, akun kas/bank, dan rincian barang wajib diisi dengan benar."});
   }
   const items=rawItems.map((x:any)=>({productId:Number(x.product_id),quantity:Number(x.quantity),unitPrice:Number(x.unit_price)}));
