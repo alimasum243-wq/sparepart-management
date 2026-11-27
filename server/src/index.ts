@@ -891,6 +891,7 @@ app.get("/api/dashboard/summary", async (_req,res) => {
       ) r ON r.purchase_id=p.id WHERE p.status='POSTED'`);
     const [receivable]=await pool.query<RowDataPacket[]>(`
       SELECT GREATEST(COALESCE((SELECT SUM(i.line_total) FROM distributor_sales_reports r JOIN distributor_sales_report_items i ON i.report_id=r.id WHERE r.status='APPROVED'),0)-
+      COALESCE((SELECT SUM(total) FROM distributor_sales_returns WHERE status='POSTED'),0)-
       COALESCE((SELECT SUM(amount) FROM distributor_payment_submissions WHERE status='VERIFIED'),0),0) total`);
     const [expenses]=await pool.query<RowDataPacket[]>(`SELECT COALESCE(SUM(amount),0) total FROM expenses WHERE DATE_FORMAT(expense_date,'%Y-%m')=DATE_FORMAT(CURRENT_DATE(),'%Y-%m')`);
     res.json({ok:true,as_of:new Date().toISOString().slice(0,10),retail_sales_today:Number(retail[0].total),purchases_month:Number(purchases[0].total),supplier_payables:Number(supplierDebt[0].total),distributor_receivables:Number(receivable[0].total),expenses_month:Number(expenses[0].total)});
@@ -1038,7 +1039,7 @@ app.post("/api/returns/retail-sale",async(req,res)=>{
 
 app.post("/api/returns/distributor-sale",async(req,res)=>{
  const reportId=Number(req.body?.sales_report_id),date=String(req.body?.return_date||""),items=req.body?.items;
- if(!Number.isInteger(reportId)||reportId<1||!/^\\d{4}-\\d{2}-\\d{2}$/.test(date)||!Array.isArray(items)||!items.length||items.length>100)
+ if(!Number.isInteger(reportId)||reportId<1||!/^\d{4}-\d{2}-\d{2}$/.test(date)||!Array.isArray(items)||!items.length||items.length>100)
   return res.status(400).json({ok:false,message:"Laporan distributor, tanggal retur, dan rincian barang wajib diisi."});
  const normalized=items.map((x:any)=>({reportItemId:Number(x.sales_report_item_id),quantity:Number(x.quantity)}));
  if(normalized.some((x:any)=>!Number.isInteger(x.reportItemId)||x.reportItemId<1||!Number.isFinite(x.quantity)||x.quantity<=0)||new Set(normalized.map((x:any)=>x.reportItemId)).size!==normalized.length)
@@ -1095,6 +1096,7 @@ app.get("/api/transactions/history",async(req,res)=>{
     UNION ALL SELECT e.expense_date,e.expense_code,'PENGELUARAN',e.category,e.amount,'POSTED',e.description FROM expenses e
     UNION ALL SELECT r.report_date,r.report_code,'PENJUALAN DISTRIBUTOR',d.distributor_name,SUM(i.line_total),r.status,r.notes FROM distributor_sales_reports r JOIN distributors d ON d.id=r.distributor_id JOIN distributor_sales_report_items i ON i.report_id=r.id GROUP BY r.id,r.report_date,r.report_code,d.distributor_name,r.status,r.notes
     UNION ALL SELECT ps.payment_date,ps.submission_code,'PEMBAYARAN DISTRIBUTOR',d.distributor_name,ps.amount,ps.status,ps.proof_reference FROM distributor_payment_submissions ps JOIN distributors d ON d.id=ps.distributor_id
+    UNION ALL SELECT dr.return_date,dr.return_code,'RETUR PENJUALAN DISTRIBUTOR',d.distributor_name,dr.total,dr.status,dr.notes FROM distributor_sales_returns dr JOIN distributors d ON d.id=dr.distributor_id
    ) history WHERE transaction_date BETWEEN ? AND ? ORDER BY transaction_date DESC,transaction_code DESC LIMIT 1000
   `,[from,to]);
   res.json({ok:true,transactions:rows});
@@ -1115,6 +1117,7 @@ app.get("/api/reports/operational",async(req,res)=>{
     UNION ALL SELECT 'PENGELUARAN',amount,expense_date FROM expenses
     UNION ALL SELECT 'PENJUALAN DISTRIBUTOR',SUM(i.line_total),r.report_date FROM distributor_sales_reports r JOIN distributor_sales_report_items i ON i.report_id=r.id WHERE r.status='APPROVED' GROUP BY r.id,r.report_date
     UNION ALL SELECT 'PEMBAYARAN DISTRIBUTOR',amount,payment_date FROM distributor_payment_submissions WHERE status='VERIFIED'
+    UNION ALL SELECT 'RETUR PENJUALAN DISTRIBUTOR',-total,return_date FROM distributor_sales_returns WHERE status='POSTED'
    ) tx WHERE transaction_date BETWEEN ? AND ? GROUP BY transaction_type ORDER BY transaction_type
   `,[from,to]);
   const [journal]=await pool.query<RowDataPacket[]>(`
