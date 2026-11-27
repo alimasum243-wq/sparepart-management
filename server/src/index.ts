@@ -694,7 +694,7 @@ app.post("/api/retail/sales", async (req,res) => {
       );
       const available=Number(stocks[0]?.stock_qty||0);
       if((totalQty.get(item.productId)||0)>available) throw new Error(`Stok gudang ${products[0].product_name} tidak cukup. Tersedia ${available} ${products[0].unit||"pcs"}.`);
-      const unitCost=Number(products[0].average_cost||products[0].purchase_cost||0);
+      const averageCost=Number(products[0].average_cost||0),purchaseCost=Number(products[0].purchase_cost||0);const unitCost=averageCost>0?averageCost:purchaseCost;
       if(!Number.isFinite(unitCost)||unitCost<0) throw new Error(`HPP ${products[0].product_name} tidak valid.`);
       const lineTotal=Math.round(item.quantity*item.unitPrice*100)/100;
       const lineCost=Math.round(item.quantity*unitCost*100)/100;
