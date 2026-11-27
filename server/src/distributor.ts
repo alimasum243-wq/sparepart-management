@@ -194,6 +194,24 @@ const [reportBalances]=await conn.execute<RowDataPacket[]>(`
  ORDER BY r.report_date,r.id
  FOR UPDATE
 `,[Number(p.distributor_id)]);
+// Backfill only the subledger allocation of historical verified payments that predate allocation support.
+const [legacyPayments]=await conn.execute<RowDataPacket[]>(`SELECT id,amount FROM distributor_payment_submissions WHERE distributor_id=? AND status='VERIFIED' ORDER BY payment_date,id FOR UPDATE`,[Number(p.distributor_id)]);
+const [existingAllocations]=await conn.execute<RowDataPacket[]>(`SELECT a.payment_submission_id,SUM(a.allocated_amount) allocated_total FROM distributor_payment_allocations a JOIN distributor_payment_submissions ps ON ps.id=a.payment_submission_id WHERE ps.distributor_id=? AND ps.status='VERIFIED' GROUP BY a.payment_submission_id`,[Number(p.distributor_id)]);
+for(const legacy of legacyPayments){
+ let legacyRemaining=money2(Number(legacy.amount)-Number(existingAllocations.find((a:any)=>Number(a.payment_submission_id)===Number(legacy.id))?.allocated_total||0));
+ if(legacyRemaining<=0)continue;
+ for(const report of reportBalances){
+  const due=money2(Number(report.sales_total)-Number(report.allocated_total));
+  if(due<=0)continue;
+  const allocated=money2(Math.min(due,legacyRemaining));
+  if(allocated>0){
+   await conn.execute(`INSERT INTO distributor_payment_allocations (payment_submission_id,sales_report_id,allocated_amount) VALUES (?,?,?)`,[Number(legacy.id),Number(report.id),allocated]);
+   report.allocated_total=money2(Number(report.allocated_total)+allocated);
+   legacyRemaining=money2(legacyRemaining-allocated);
+  }
+  if(legacyRemaining<=0)break;
+ }
+}
 let remaining=paymentAmount;
 const allocationRows:Array<{reportId:number;amount:number}>=[];
 for(const report of reportBalances){
