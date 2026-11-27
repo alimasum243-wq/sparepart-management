@@ -875,6 +875,27 @@ app.post("/api/supplier-payments", async (req,res) => {
   } finally { conn.release(); }
 });
 
+// Ringkasan dashboard berbasis transaksi yang sudah diposting.
+app.get("/api/dashboard/summary", async (_req,res) => {
+  try {
+    const [retail]=await pool.query<RowDataPacket[]>(`SELECT COALESCE(SUM(total),0) total FROM retail_sales WHERE status='POSTED' AND sale_date=CURRENT_DATE()`);
+    const [purchases]=await pool.query<RowDataPacket[]>(`SELECT COALESCE(SUM(grand_total),0) total FROM purchases WHERE status='POSTED' AND DATE_FORMAT(purchase_date,'%Y-%m')=DATE_FORMAT(CURRENT_DATE(),'%Y-%m')`);
+    const [supplierDebt]=await pool.query<RowDataPacket[]>(`
+      SELECT COALESCE(SUM(GREATEST(p.grand_total-COALESCE(a.paid,0),0)),0) total
+      FROM purchases p LEFT JOIN (
+        SELECT purchase_id,SUM(allocated_amount) paid FROM supplier_payment_allocations GROUP BY purchase_id
+      ) a ON a.purchase_id=p.id WHERE p.status='POSTED'`);
+    const [receivable]=await pool.query<RowDataPacket[]>(`
+      SELECT GREATEST(COALESCE((SELECT SUM(i.line_total) FROM distributor_sales_reports r JOIN distributor_sales_report_items i ON i.report_id=r.id WHERE r.status='APPROVED'),0)-
+      COALESCE((SELECT SUM(amount) FROM distributor_payment_submissions WHERE status='VERIFIED'),0),0) total`);
+    const [expenses]=await pool.query<RowDataPacket[]>(`SELECT COALESCE(SUM(amount),0) total FROM expenses WHERE DATE_FORMAT(expense_date,'%Y-%m')=DATE_FORMAT(CURRENT_DATE(),'%Y-%m')`);
+    res.json({ok:true,as_of:new Date().toISOString().slice(0,10),retail_sales_today:Number(retail[0].total),purchases_month:Number(purchases[0].total),supplier_payables:Number(supplierDebt[0].total),distributor_receivables:Number(receivable[0].total),expenses_month:Number(expenses[0].total)});
+  } catch(error) {
+    console.error("Gagal memuat ringkasan dashboard:",error);
+    res.status(500).json({ok:false,message:"Gagal memuat ringkasan dashboard."});
+  }
+});
+
 const dateSchema = z.string().regex(
   /^\d{4}-\d{2}-\d{2}$/,
   "Tanggal harus YYYY-MM-DD"
