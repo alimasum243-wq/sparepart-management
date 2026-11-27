@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState, type FormEvent } from 'react'
 import {
   LayoutDashboard, Package, ShoppingCart, Truck, ReceiptText, Wallet,
   Users, BarChart3, Menu, X, ShieldCheck, Database, ChevronRight,
-  Plus, Trash2, RefreshCw, Save, AlertCircle, CheckCircle2, LogOut, Pencil, Power
+  Plus, Trash2, RefreshCw, Save, AlertCircle, CheckCircle2, LogOut, Pencil, Power, RotateCcw, History, Download
 } from 'lucide-react'
 
 const API = import.meta.env.VITE_API_URL || (import.meta.env.DEV ? `${window.location.protocol}//${window.location.hostname}:4000` : "")
@@ -15,7 +15,7 @@ type Options = { suppliers:Supplier[]; products:Product[]; locations:Location[] 
 const nav = [
   {label:'Dashboard',icon:LayoutDashboard},{label:'Produk & Persediaan',icon:Package},{label:'Pembelian',icon:ShoppingCart},
   {label:'Titipan Distributor',icon:Truck},{label:'Kasir Retail',icon:ReceiptText},{label:'Penjualan',icon:ReceiptText},{label:'Utang & Piutang',icon:Users},
-  {label:'Kas & Pengeluaran',icon:Wallet},{label:'Laporan',icon:BarChart3}
+  {label:'Kas & Pengeluaran',icon:Wallet},{label:'Retur Barang',icon:RotateCcw},{label:'Histori Transaksi',icon:History},{label:'Laporan',icon:BarChart3}
 ]
 const money = (n:number) => new Intl.NumberFormat('id-ID',{style:'currency',currency:'IDR',maximumFractionDigits:0}).format(Number(n)||0)
 const today = () => new Date().toLocaleDateString('en-CA')
@@ -53,6 +53,8 @@ export default function App() {
        active==='Titipan Distributor'?<AdminConsignments token={token}/>:
         active==='Kasir Retail'?<RetailSales token={token}/>:
        active==='Kas & Pengeluaran'?<Expenses token={token}/>:
+       active==='Retur Barang'?<Returns token={token}/>:
+       active==='Histori Transaksi'?<TransactionHistory token={token}/>:
        active==='Laporan'?<ProfitLoss token={token}/>:
        active==='Penjualan'?<ReviewCenter token={token}/>:
        active==='Utang & Piutang'?<SupplierPayments token={token}/>:
@@ -144,6 +146,41 @@ function RetailSales({token}:{token:string}){
 }
 
 function Expenses({token}:{token:string}){const [date,setDate]=useState(today());const [category,setCategory]=useState('Operasional');const [description,setDescription]=useState('');const [amount,setAmount]=useState('');const [method,setMethod]=useState('CASH');const [message,setMessage]=useState('');const [error,setError]=useState('');const [busy,setBusy]=useState(false);async function submit(e:FormEvent){e.preventDefault();setBusy(true);setError('');setMessage('');try{const d=await request('/api/expenses',token,{method:'POST',body:JSON.stringify({expense_date:date,category,description,amount:Number(amount),payment_method:method})});setMessage(`${d.message} Nomor: ${d.expense_code}`);setAmount('');setDescription('')}catch(e){setError(e instanceof Error?e.message:'Gagal mencatat pengeluaran')}finally{setBusy(false)}}return <section className="panel purchase-panel"><div className="form-section-title"><span>01</span><div><h3>Catat pengeluaran usaha</h3><p>Transaksi akan membentuk jurnal beban dan mengurangi kas/bank</p></div></div>{error&&<div className="form-alert error-alert">{error}</div>}{message&&<div className="form-alert success-alert">{message}</div>}<form onSubmit={submit} className="form-grid"><label className="field">Tanggal *<input type="date" value={date} onChange={e=>setDate(e.target.value)} required/></label><label className="field">Kategori *<input value={category} onChange={e=>setCategory(e.target.value)} required/></label><label className="field">Nominal *<input type="number" min="1" step="1" value={amount} onChange={e=>setAmount(e.target.value)} required/></label><label className="field">Sumber pembayaran<select value={method} onChange={e=>setMethod(e.target.value)}><option value="CASH">Kas</option><option value="BANK">Bank</option></select></label><label className="field full-field">Keterangan<input value={description} onChange={e=>setDescription(e.target.value)}/></label><button className="primary-button" disabled={busy}>{busy?'Menyimpan...':'Simpan pengeluaran'}</button></form></section>}
+
+function Returns({token}:{token:string}){
+ const [data,setData]=useState<any>({purchase_items:[],sale_items:[]});const [mode,setMode]=useState<'PURCHASE'|'SALE'>('PURCHASE');
+ const [sourceId,setSourceId]=useState('');const [itemId,setItemId]=useState('');const [quantity,setQuantity]=useState('1');const [date,setDate]=useState(today());const [notes,setNotes]=useState('');
+ const [error,setError]=useState('');const [message,setMessage]=useState('');const [busy,setBusy]=useState(false);
+ async function load(){try{const d=await request('/api/returns/options',token);setData(d);setError('')}catch(e){setError(e instanceof Error?e.message:'Gagal memuat data retur')}}
+ useEffect(()=>{load()},[]);
+ const rows=mode==='PURCHASE'?data.purchase_items:data.sale_items;
+ const sources=Array.from(new Map(rows.map((r:any)=>[Number(mode==='PURCHASE'?r.id:r.sale_id),{id:Number(mode==='PURCHASE'?r.id:r.sale_id),label:mode==='PURCHASE'?r.purchase_code:r.sale_code}])).values());
+ const selected=rows.filter((r:any)=>String(mode==='PURCHASE'?r.id:r.sale_id)===sourceId);
+ const chosen=selected.find((r:any)=>String(mode==='PURCHASE'?r.purchase_item_id:r.sale_item_id)===itemId);
+ async function submit(e:FormEvent){e.preventDefault();if(!chosen)return;setBusy(true);setError('');setMessage('');try{const path=mode==='PURCHASE'?'/api/returns/purchase':'/api/returns/retail-sale';const payload=mode==='PURCHASE'?{purchase_id:Number(sourceId),return_date:date,notes,items:[{purchase_item_id:Number(itemId),quantity:Number(quantity)}]}:{sale_id:Number(sourceId),return_date:date,notes,items:[{retail_sale_item_id:Number(itemId),quantity:Number(quantity)}]};const d=await request(path,token,{method:'POST',body:JSON.stringify(payload)});setMessage(mode==='PURCHASE'?d.message+' Nilai retur '+money(Number(d.return.total)):d.message+' Refund '+money(Number(d.return.refund_total)));setQuantity('1');setNotes('');await load()}catch(e){setError(e instanceof Error?e.message:'Retur gagal dicatat')}finally{setBusy(false)}}
+ return <section className="purchase-page"><div className="purchase-intro"><div><span className="eyebrow">RETUR BARANG</span><h2>Retur pembelian dan penjualan</h2><p>Retur mengubah stok gudang dan jurnal secara bersamaan. Jumlah dibatasi oleh sisa barang yang belum pernah diretur.</p></div><button className="secondary-button" onClick={load}><RefreshCw size={15}/> Muat ulang</button></div>
+ {error&&<div className="form-alert error-alert">{error}</div>}{message&&<div className="form-alert success-alert"><CheckCircle2 size={17}/>{message}</div>}
+ <form className="panel purchase-panel" onSubmit={submit}><div className="form-grid"><label className="field">Jenis retur<select value={mode} onChange={e=>{setMode(e.target.value as any);setSourceId('');setItemId('')}}><option value="PURCHASE">Retur pembelian ke pemasok</option><option value="SALE">Retur penjualan retail dari pelanggan</option></select></label>
+ <label className="field">Nomor transaksi asal *<select value={sourceId} onChange={e=>{setSourceId(e.target.value);setItemId('')}} required><option value="">Pilih transaksi</option>{sources.map((x:any)=><option key={x.id} value={x.id}>{x.label}</option>)}</select></label>
+ <label className="field">Tanggal retur *<input type="date" value={date} onChange={e=>setDate(e.target.value)} required/></label></div>
+ <label className="field">Barang yang diretur *<select value={itemId} onChange={e=>setItemId(e.target.value)} required><option value="">Pilih barang</option>{selected.map((x:any)=><option key={mode==='PURCHASE'?x.purchase_item_id:x.sale_item_id} value={mode==='PURCHASE'?x.purchase_item_id:x.sale_item_id}>{x.product_name_snapshot} — sisa {Number(x.remaining_qty).toLocaleString('id-ID')} {mode==='PURCHASE'?'· HPP '+money(Number(x.unit_cost)):'· Harga '+money(Number(x.unit_price))}</option>)}</select></label>
+ <div className="form-grid"><label className="field">Jumlah retur *<input type="number" min="0.001" max={chosen?Number(chosen.remaining_qty):undefined} step="0.001" value={quantity} onChange={e=>setQuantity(e.target.value)} required/></label><label className="field">Catatan<input value={notes} onChange={e=>setNotes(e.target.value)} placeholder="Alasan/kondisi barang"/></label></div>
+ {chosen&&<div className="review-row"><span>{mode==='PURCHASE'?'Nilai pengurang utang pemasok':'Estimasi refund pelanggan'}</span><strong>{money(Number(quantity||0)*Number(mode==='PURCHASE'?chosen.unit_cost:chosen.unit_price))}</strong></div>}
+ <button className="primary-button" disabled={busy||!chosen||Number(quantity)<=0||Number(quantity)>Number(chosen.remaining_qty)}>{busy?'Menyimpan retur...':'Simpan retur'}</button></form></section>
+}
+
+function TransactionHistory({token}:{token:string}){
+ const [from,setFrom]=useState(new Date(new Date().getFullYear(),0,1).toLocaleDateString('en-CA'));const [to,setTo]=useState(today());
+ const [rows,setRows]=useState<any[]>([]);const [error,setError]=useState('');
+ async function load(){setError('');try{const d=await request(`/api/transactions/history?from=${from}&to=${to}`,token);setRows(d.transactions||[])}catch(e){setError(e instanceof Error?e.message:'Gagal memuat histori')}}
+ useEffect(()=>{load()},[]);
+ function exportCsv(){const header=['Tanggal','Nomor','Jenis','Pihak','Nominal','Status','Keterangan'];const lines=[header,...rows.map(r=>[r.transaction_date,r.transaction_code,r.transaction_type,r.party_name,r.amount,r.status,r.description||''])];const csv='\\uFEFF'+lines.map(line=>line.map(v=>'"'+String(v??'').replaceAll('"','""')+'"').join(',')).join('\\r\\n');const url=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8;'}));const a=document.createElement('a');a.href=url;a.download=`histori-transaksi-${from}-${to}.csv`;a.click();URL.revokeObjectURL(url)}
+ return <section className="panel purchase-panel"><div className="section-head"><div><span className="eyebrow">BUKU TRANSAKSI</span><h2>Histori transaksi</h2><p>Pembelian, penjualan retail, retur, pembayaran pemasok, dan pengeluaran.</p></div><button className="secondary-button" onClick={exportCsv} disabled={!rows.length}><Download size={15}/> Ekspor CSV</button></div>
+ <div className="form-grid"><label className="field">Dari tanggal<input type="date" value={from} onChange={e=>setFrom(e.target.value)}/></label><label className="field">Sampai tanggal<input type="date" value={to} onChange={e=>setTo(e.target.value)}/></label><button className="primary-button" onClick={load}>Tampilkan</button></div>
+ {error&&<div className="form-alert error-alert">{error}</div>}<p>{rows.length} transaksi ditemukan (maksimal 1.000 baris).</p>
+ <div className="table-wrap"><table><thead><tr><th>Tanggal</th><th>Nomor</th><th>Jenis</th><th>Pihak</th><th>Nominal</th><th>Status</th></tr></thead><tbody>{rows.map((r,i)=><tr key={r.transaction_code+'-'+i}><td>{String(r.transaction_date).slice(0,10)}</td><td>{r.transaction_code}</td><td>{r.transaction_type}</td><td>{r.party_name||'-'}</td><td>{money(Number(r.amount))}</td><td>{r.status}</td></tr>)}</tbody></table></div>
+ </section>
+}
 
 function ProfitLoss({token}:{token:string}){const [from,setFrom]=useState(`${new Date().getFullYear()}-01-01`);const [to,setTo]=useState(today());const [data,setData]=useState<any>(null);const [error,setError]=useState('');async function load(){setError('');try{setData(await request(`/api/admin/reports/profit-loss?from=${from}&to=${to}`,token))}catch(e){setError(e instanceof Error?e.message:'Gagal mengambil laporan')}}useEffect(()=>{load()},[]);return <section className="panel purchase-panel"><div className="form-section-title"><span>01</span><div><h3>Laporan laba-rugi</h3><p>Berdasarkan jurnal berstatus POSTED pada periode terpilih</p></div></div><div className="form-grid"><label className="field">Dari tanggal<input type="date" value={from} onChange={e=>setFrom(e.target.value)}/></label><label className="field">Sampai tanggal<input type="date" value={to} onChange={e=>setTo(e.target.value)}/></label><button className="primary-button" onClick={load}>Tampilkan laporan</button></div>{error&&<div className="form-alert error-alert">{error}</div>}{data&&<><div className="status-grid"><article className="status-card"><div><span>Pendapatan</span><strong>{money(Number(data.revenue))}</strong></div></article><article className="status-card"><div><span>Beban dan HPP</span><strong>{money(Number(data.expenses))}</strong></div></article><article className="status-card"><div><span>Laba / (rugi)</span><strong>{money(Number(data.net_profit))}</strong></div></article></div><div className="review-list">{(data.accounts||[]).map((a:any)=><div className="review-row" key={a.account_code}><div><strong>{a.account_code} — {a.account_name}</strong></div><strong>{money(Number(a.net_amount))}</strong></div>)}</div><p className="notice">Laporan hanya mencakup transaksi yang sudah dibukukan ke jurnal. Pastikan seluruh transaksi dan beban usaha telah dicatat.</p></>}</section>}
 
