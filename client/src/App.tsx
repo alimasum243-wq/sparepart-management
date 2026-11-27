@@ -1,0 +1,348 @@
+import { useEffect, useMemo, useState, type FormEvent } from 'react'
+import {
+  LayoutDashboard, Package, ShoppingCart, Truck, ReceiptText, Wallet,
+  Users, BarChart3, Menu, X, ShieldCheck, Database, ChevronRight,
+  Plus, Trash2, RefreshCw, Save, AlertCircle, CheckCircle2, LogOut, Pencil, Power
+} from 'lucide-react'
+
+const API = import.meta.env.VITE_API_URL || (import.meta.env.DEV ? `${window.location.protocol}//${window.location.hostname}:4000` : "")
+type User = { id:number; username:string; full_name?:string; role:string; distributor_id?:number|null }
+type Supplier = { id:number; supplier_code?:string; supplier_name:string }
+type Product = { id:number; sku:string; product_name:string; purchase_cost:string|number; distributor_price?:string|number; retail_price?:string|number; unit?:string; stock_qty?:string|number; is_active?:number }
+type Location = { id:number; location_code:string; location_name:string; location_type:string }
+type Item = { product_id:string; quantity:string; unit_cost:string }
+type Options = { suppliers:Supplier[]; products:Product[]; locations:Location[] }
+const nav = [
+  {label:'Dashboard',icon:LayoutDashboard},{label:'Produk & Persediaan',icon:Package},{label:'Pembelian',icon:ShoppingCart},
+  {label:'Titipan Distributor',icon:Truck},{label:'Penjualan',icon:ReceiptText},{label:'Utang & Piutang',icon:Users},
+  {label:'Kas & Pengeluaran',icon:Wallet},{label:'Laporan',icon:BarChart3}
+]
+const money = (n:number) => new Intl.NumberFormat('id-ID',{style:'currency',currency:'IDR',maximumFractionDigits:0}).format(Number(n)||0)
+const today = () => new Date().toLocaleDateString('en-CA')
+async function request(path:string, token:string, init:RequestInit={}) {
+  const response = await fetch(`${API}${path}`,{...init,headers:{...(init.headers||{}),Authorization:`Bearer ${token}`,'Content-Type':'application/json'}})
+  const data = await response.json().catch(()=>({ok:false,message:'Respons server tidak valid.'}))
+  if(!response.ok || data.ok===false) throw new Error(data.message||'Permintaan gagal.')
+  return data
+}
+
+export default function App() {
+  const [token,setToken]=useState(localStorage.getItem('sparepart_token')||'')
+  const [user,setUser]=useState<User|null>(null)
+  const [active,setActive]=useState('Dashboard')
+  const [menuOpen,setMenuOpen]=useState(false)
+  const [apiStatus,setApiStatus]=useState<'checking'|'ok'|'error'>('checking')
+  const [authLoading,setAuthLoading]=useState(Boolean(token))
+  const [authError,setAuthError]=useState('')
+  useEffect(()=>{fetch(`${API}/api/health`).then(r=>{if(!r.ok)throw new Error();return r.json()}).then(()=>setApiStatus('ok')).catch(()=>setApiStatus('error'))},[])
+  useEffect(()=>{if(!token){setAuthLoading(false);return} request('/api/auth/me',token).then(d=>setUser(d.user)).catch(()=>{localStorage.removeItem('sparepart_token');setToken('');setUser(null)}).finally(()=>setAuthLoading(false))},[token])
+  async function login(username:string,password:string){setAuthError('');try{const r=await fetch(`${API}/api/auth/login`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username,password})});const d=await r.json();if(!r.ok||!d.ok)throw new Error(d.message||'Login gagal.');localStorage.setItem('sparepart_token',d.token);setToken(d.token);setUser(d.user)}catch(e){setAuthError(e instanceof Error?e.message:'Login gagal.')}}
+  function logout(){localStorage.removeItem('sparepart_token');setToken('');setUser(null);setActive('Dashboard')}
+  if(authLoading)return <div className="panel loading-panel">Memeriksa sesi masuk...</div>
+  if(!token||!user)return <Login onLogin={login} error={authError} apiStatus={apiStatus}/>
+  if(user.role==='DISTRIBUTOR')return <DistributorPortal token={token} user={user} onLogout={logout}/>
+  return <div className="shell">
+    <aside className={`sidebar ${menuOpen?'open':''}`}><div className="brand"><div className="brand-mark">HU</div><div><strong>Sparepart</strong><small>Manajemen Hj. Umiyati</small></div><button className="mobile-close" onClick={()=>setMenuOpen(false)} aria-label="Tutup menu"><X size={20}/></button></div>
+      <div className="nav-caption">MENU UTAMA</div><nav>{nav.map(item=>{const Icon=item.icon;return <button key={item.label} className={`nav-item ${active===item.label?'selected':''}`} onClick={()=>{setActive(item.label);setMenuOpen(false)}}><Icon size={18}/><span>{item.label}</span>{active===item.label&&<ChevronRight size={16} className="nav-arrow"/>}</button>})}</nav>
+      <div className="sidebar-bottom"><ShieldCheck size={16}/><span>Masuk sebagai pemilik</span></div></aside>
+    {menuOpen&&<button className="scrim" onClick={()=>setMenuOpen(false)} aria-label="Tutup navigasi"/>}
+    <main className="main"><header className="topbar"><button className="menu-toggle" onClick={()=>setMenuOpen(true)} aria-label="Buka menu"><Menu/></button><div><span className="eyebrow">SISTEM MANAJEMEN USAHA</span><h1>{active==='Dashboard'?'Panel Operasional':active}</h1></div><div className="connection"><span className={`dot ${apiStatus==='ok'?'ok':apiStatus==='error'?'error':''}`}/><span>{apiStatus==='ok'?'API terhubung':apiStatus==='error'?'API belum terhubung':'Memeriksa API'}</span></div><button className="secondary-button" onClick={logout}><LogOut size={15}/> Keluar</button></header>
+      {active==='Dashboard'?<Dashboard apiStatus={apiStatus} user={user}/>:
+       active==='Produk & Persediaan'?<Products token={token}/>:
+       active==='Pembelian'?<Purchases token={token}/>:
+       active==='Titipan Distributor'?<AdminConsignments token={token}/>:
+       active==='Kas & Pengeluaran'?<Expenses token={token}/>:
+       active==='Laporan'?<ProfitLoss token={token}/>:
+       active==='Penjualan'||active==='Utang & Piutang'?<ReviewCenter token={token}/>:
+       <section className="panel coming"><div className="panel-icon"><Package size={24}/></div><h2>{active}</h2><p>Modul ini masih dalam tahap implementasi. Data transaksi tidak diubah dari halaman ini.</p><span className="tag">Dalam pembangunan</span></section>}
+      <footer>Sparepart Management System <span>•</span> MVP 0.3.0</footer></main></div>
+}
+
+function Login({onLogin,error,apiStatus}:{onLogin:(u:string,p:string)=>void;error:string;apiStatus:string}){
+ const [username,setUsername]=useState('');const [password,setPassword]=useState('')
+ return <div className="login-screen"><form className="panel login-card" onSubmit={e=>{e.preventDefault();onLogin(username,password)}}><div className="brand-mark">HU</div><span className="eyebrow">SISTEM MANAJEMEN USAHA</span><h1>Masuk ke Sparepart</h1><p>Gunakan akun pemilik atau distributor yang sudah dibuat.</p>{error&&<div className="form-alert error-alert"><AlertCircle size={17}/>{error}</div>}<label className="field">Username<input autoComplete="username" value={username} onChange={e=>setUsername(e.target.value)} required/></label><label className="field">Password<input type="password" autoComplete="current-password" value={password} onChange={e=>setPassword(e.target.value)} required/></label><button className="primary-button" type="submit">Masuk</button><small>Status server: {apiStatus==='ok'?'terhubung':apiStatus==='error'?'belum terhubung':'memeriksa'}</small></form></div>
+}
+function Dashboard({apiStatus,user}:{apiStatus:string;user:User}){return <><section className="welcome"><div><span className="eyebrow light">RINGKASAN USAHA</span><h2>Selamat datang, {user.full_name||user.username}</h2><p>Pantau persediaan, transaksi, dan pencatatan keuangan usaha.</p></div><div className="welcome-icon"><LayoutDashboard size={34}/></div></section><div className="notice"><ShieldCheck size={19}/><div><strong>Kontrol transaksi aktif</strong><p>Penjualan distributor baru dibukukan setelah disetujui. Pembayaran baru masuk kas setelah diverifikasi.</p></div></div><section className="section-head"><div><h2>Status sistem</h2><p>Pemeriksaan koneksi aplikasi</p></div></section><div className="status-grid"><article className="status-card"><div className="status-icon blue"><Database/></div><div><span>Backend API</span><strong>{apiStatus==='ok'?'Aktif':'Perlu diperiksa'}</strong></div></article><article className="status-card"><div className="status-icon green"><ShieldCheck/></div><div><span>Akun aktif</span><strong>Pemilik</strong></div></article></div><section className="panel next-panel"><div><span className="eyebrow">PENGINGAT AKUNTANSI</span><h2>Periksa laporan sebelum tutup buku</h2><p>Pastikan pembelian, pengeluaran, penjualan distributor, dan pembayaran telah dicatat serta diverifikasi.</p></div><div className="step-number">✓</div></section></>}
+
+function AdminConsignments({token}:{token:string}){
+ const [distributors,setDistributors]=useState<any[]>([]);const [products,setProducts]=useState<Product[]>([]);const [items,setItems]=useState([{product_id:'',quantity:'1'}]);const [distributorId,setDistributorId]=useState('');const [date,setDate]=useState(today());const [notes,setNotes]=useState('');const [name,setName]=useState('');const [phone,setPhone]=useState('');const [address,setAddress]=useState('');const [username,setUsername]=useState('');const [password,setPassword]=useState('');const [message,setMessage]=useState('');const [error,setError]=useState('');const [busy,setBusy]=useState(false)
+ async function load(){try{const [d,p]=await Promise.all([request('/api/admin/distributors',token),request('/api/admin/products',token)]);setDistributors(d.distributors||[]);setProducts(p.products||[])}catch(e){setError(e instanceof Error?e.message:'Gagal memuat data')}}
+ useEffect(()=>{load()},[])
+ async function create(e:FormEvent){e.preventDefault();setBusy(true);setError('');setMessage('');try{const d=await request('/api/admin/distributors',token,{method:'POST',body:JSON.stringify({distributor_name:name,phone,address,username,password})});setMessage(`Akun distributor ${d.distributor.distributor_name} berhasil dibuat.`);setName('');setPhone('');setAddress('');setUsername('');setPassword('');await load()}catch(e){setError(e instanceof Error?e.message:'Gagal membuat akun')}finally{setBusy(false)}}
+ async function dispatch(e:FormEvent){e.preventDefault();setBusy(true);setError('');setMessage('');try{const d=await request('/api/admin/consignments',token,{method:'POST',body:JSON.stringify({distributor_id:Number(distributorId),delivery_date:date,notes,items:items.map(i=>({product_id:Number(i.product_id),quantity:Number(i.quantity)}))})});setMessage(`Titipan ${d.delivery.delivery_code} berhasil dicatat. Ini perpindahan stok, bukan penjualan.`);setItems([{product_id:'',quantity:'1'}]);setNotes('')}catch(e){setError(e instanceof Error?e.message:'Gagal mencatat titipan')}finally{setBusy(false)}}
+ return <section className="purchase-page"><div className="purchase-intro"><div><span className="eyebrow">KELOLA MITRA</span><h2>Akun dan barang titipan distributor</h2><p>Buat akun distributor, lalu catat perpindahan stok dari gudang ke lokasi titipan.</p></div><button className="secondary-button" onClick={load}><RefreshCw size={15}/> Muat ulang</button></div>{error&&<div className="form-alert error-alert">{error}</div>}{message&&<div className="form-alert success-alert"><CheckCircle2 size={17}/>{message}</div>}
+ <form className="panel purchase-panel" onSubmit={create}><div className="form-section-title"><span>01</span><div><h3>Buat akun distributor</h3><p>Username harus unik dan password minimal 10 karakter</p></div></div><div className="form-grid"><label className="field">Nama distributor *<input value={name} onChange={e=>setName(e.target.value)} required/></label><label className="field">Nomor telepon<input value={phone} onChange={e=>setPhone(e.target.value)}/></label><label className="field">Alamat<input value={address} onChange={e=>setAddress(e.target.value)}/></label><label className="field">Username *<input value={username} onChange={e=>setUsername(e.target.value)} required minLength={4}/></label><label className="field">Password sementara *<input type="password" value={password} onChange={e=>setPassword(e.target.value)} required minLength={10}/></label></div><button className="primary-button" disabled={busy}>Buat akun distributor</button></form>
+ <form className="panel purchase-panel" onSubmit={dispatch}><div className="form-section-title"><span>02</span><div><h3>Kirim barang titipan</h3><p>Stok tetap menjadi milik usaha sampai terjual</p></div></div><div className="form-grid"><label className="field">Distributor *<select value={distributorId} onChange={e=>setDistributorId(e.target.value)} required><option value="">Pilih distributor</option>{distributors.map(d=><option key={d.id} value={d.id}>{d.distributor_name}</option>)}</select></label><label className="field">Tanggal pengiriman *<input type="date" value={date} onChange={e=>setDate(e.target.value)} required/></label><label className="field full-field">Catatan<input value={notes} onChange={e=>setNotes(e.target.value)}/></label></div>{items.map((it,i)=><div className="item-fields" key={i}><label className="field">Produk<select value={it.product_id} onChange={e=>setItems(a=>a.map((x,j)=>j===i?{...x,product_id:e.target.value}:x))} required><option value="">Pilih produk</option>{products.map(p=><option key={p.id} value={p.id}>{p.product_name} ({p.sku})</option>)}</select></label><label className="field">Jumlah<input type="number" min="1" step="1" value={it.quantity} onChange={e=>setItems(a=>a.map((x,j)=>j===i?{...x,quantity:e.target.value}:x))} required/></label><button type="button" className="remove-button" onClick={()=>setItems(a=>a.length===1?a:a.filter((_,j)=>j!==i))}>Hapus</button></div>)}<button type="button" className="add-item-button" onClick={()=>setItems(a=>[...a,{product_id:'',quantity:'1'}])}><Plus size={15}/> Tambah produk</button><button className="primary-button" disabled={busy||!distributorId||!products.length}>Catat pengiriman titipan</button></form>
+ <ReviewCenter token={token}/></section>
+}
+
+function ReviewCenter({token}:{token:string}){
+ const [reports,setReports]=useState<any[]>([]);const [payments,setPayments]=useState<any[]>([]);const [cash,setCash]=useState<any[]>([]);const [cashId,setCashId]=useState('');const [error,setError]=useState('');const [message,setMessage]=useState('')
+ async function load(){try{const [r,p,c]=await Promise.all([request('/api/admin/sales-reports',token),request('/api/admin/payments',token),request('/api/admin/cash-accounts',token)]);setReports(r.reports||[]);setPayments(p.payments||[]);setCash(c.accounts||[]);if(!cashId&&c.accounts?.length)setCashId(String(c.accounts[0].id))}catch(e){setError(e instanceof Error?e.message:'Gagal memuat laporan')}}
+ useEffect(()=>{load()},[])
+ async function act(path:string,body:any={}){setError('');setMessage('');try{const d=await request(path,token,{method:'POST',body:JSON.stringify(body)});setMessage(d.message||'Berhasil diproses.');await load()}catch(e){setError(e instanceof Error?e.message:'Gagal memproses')}}
+ return <section className="panel purchase-panel"><div className="section-head"><div><h2>Verifikasi transaksi distributor</h2><p>Laporan penjualan dan pembayaran yang dikirim mitra</p></div><button className="secondary-button" onClick={load}><RefreshCw size={15}/> Muat ulang</button></div>{error&&<div className="form-alert error-alert">{error}</div>}{message&&<div className="form-alert success-alert">{message}</div>}<h3>Laporan penjualan</h3>{reports.length===0?<p>Belum ada laporan penjualan.</p>:reports.map(r=><div className="review-row" key={r.id}><div><strong>{r.report_code} — {r.distributor_name}</strong><small>{String(r.report_date).slice(0,10)} · {money(Number(r.sales_total))} · Status: {r.status}</small></div>{r.status==='SUBMITTED'&&<button className="primary-button" onClick={()=>act(`/api/admin/sales-reports/${r.id}/approve`)}>Setujui</button>}</div>)}<h3>Pembayaran distributor</h3>{payments.length===0?<p>Belum ada laporan pembayaran.</p>:payments.map(p=><div className="review-row" key={p.id}><div><strong>{p.submission_code} — {p.distributor_name}</strong><small>{String(p.payment_date).slice(0,10)} · {money(Number(p.amount))} · {p.proof_reference||'Tanpa referensi'} · {p.status}</small></div>{p.status==='PENDING'&&<div className="review-actions"><select value={cashId} onChange={e=>setCashId(e.target.value)} aria-label="Akun penerimaan">{cash.map(c=><option key={c.id} value={c.id}>{c.account_name}</option>)}</select><button className="primary-button" onClick={()=>act(`/api/admin/payments/${p.id}/verify`,{cash_account_id:Number(cashId)})}>Verifikasi</button><button className="secondary-button" onClick={()=>{const reason=window.prompt('Alasan penolakan pembayaran:');if(reason?.trim())act(`/api/admin/payments/${p.id}/reject`,{reason})}}>Tolak</button></div>}</div>)}</section>
+}
+
+function Expenses({token}:{token:string}){const [date,setDate]=useState(today());const [category,setCategory]=useState('Operasional');const [description,setDescription]=useState('');const [amount,setAmount]=useState('');const [method,setMethod]=useState('CASH');const [message,setMessage]=useState('');const [error,setError]=useState('');const [busy,setBusy]=useState(false);async function submit(e:FormEvent){e.preventDefault();setBusy(true);setError('');setMessage('');try{const d=await request('/api/expenses',token,{method:'POST',body:JSON.stringify({expense_date:date,category,description,amount:Number(amount),payment_method:method})});setMessage(`${d.message} Nomor: ${d.expense_code}`);setAmount('');setDescription('')}catch(e){setError(e instanceof Error?e.message:'Gagal mencatat pengeluaran')}finally{setBusy(false)}}return <section className="panel purchase-panel"><div className="form-section-title"><span>01</span><div><h3>Catat pengeluaran usaha</h3><p>Transaksi akan membentuk jurnal beban dan mengurangi kas/bank</p></div></div>{error&&<div className="form-alert error-alert">{error}</div>}{message&&<div className="form-alert success-alert">{message}</div>}<form onSubmit={submit} className="form-grid"><label className="field">Tanggal *<input type="date" value={date} onChange={e=>setDate(e.target.value)} required/></label><label className="field">Kategori *<input value={category} onChange={e=>setCategory(e.target.value)} required/></label><label className="field">Nominal *<input type="number" min="1" step="1" value={amount} onChange={e=>setAmount(e.target.value)} required/></label><label className="field">Sumber pembayaran<select value={method} onChange={e=>setMethod(e.target.value)}><option value="CASH">Kas</option><option value="BANK">Bank</option></select></label><label className="field full-field">Keterangan<input value={description} onChange={e=>setDescription(e.target.value)}/></label><button className="primary-button" disabled={busy}>{busy?'Menyimpan...':'Simpan pengeluaran'}</button></form></section>}
+
+function ProfitLoss({token}:{token:string}){const [from,setFrom]=useState(`${new Date().getFullYear()}-01-01`);const [to,setTo]=useState(today());const [data,setData]=useState<any>(null);const [error,setError]=useState('');async function load(){setError('');try{setData(await request(`/api/admin/reports/profit-loss?from=${from}&to=${to}`,token))}catch(e){setError(e instanceof Error?e.message:'Gagal mengambil laporan')}}useEffect(()=>{load()},[]);return <section className="panel purchase-panel"><div className="form-section-title"><span>01</span><div><h3>Laporan laba-rugi</h3><p>Berdasarkan jurnal berstatus POSTED pada periode terpilih</p></div></div><div className="form-grid"><label className="field">Dari tanggal<input type="date" value={from} onChange={e=>setFrom(e.target.value)}/></label><label className="field">Sampai tanggal<input type="date" value={to} onChange={e=>setTo(e.target.value)}/></label><button className="primary-button" onClick={load}>Tampilkan laporan</button></div>{error&&<div className="form-alert error-alert">{error}</div>}{data&&<><div className="status-grid"><article className="status-card"><div><span>Pendapatan</span><strong>{money(Number(data.revenue))}</strong></div></article><article className="status-card"><div><span>Beban dan HPP</span><strong>{money(Number(data.expenses))}</strong></div></article><article className="status-card"><div><span>Laba / (rugi)</span><strong>{money(Number(data.net_profit))}</strong></div></article></div><div className="review-list">{(data.accounts||[]).map((a:any)=><div className="review-row" key={a.account_code}><div><strong>{a.account_code} — {a.account_name}</strong></div><strong>{money(Number(a.net_amount))}</strong></div>)}</div><p className="notice">Laporan hanya mencakup transaksi yang sudah dibukukan ke jurnal. Pastikan seluruh transaksi dan beban usaha telah dicatat.</p></>}</section>}
+
+function DistributorPortal({token,user,onLogout}:{token:string;user:User;onLogout:()=>void}){const [stock,setStock]=useState<any[]>([]);const [summary,setSummary]=useState<any>({});const [items,setItems]=useState([{product_id:'',quantity_sold:'1'}]);const [date,setDate]=useState(today());const [notes,setNotes]=useState('');const [amount,setAmount]=useState('');const [paymentDate,setPaymentDate]=useState(today());const [method,setMethod]=useState('TRANSFER');const [proof,setProof]=useState('');const [error,setError]=useState('');const [message,setMessage]=useState('');const [busy,setBusy]=useState(false)
+ async function load(){try{const [s,r]=await Promise.all([request('/api/distributor/stock',token),request('/api/distributor/summary',token)]);setStock(s.items||[]);setSummary(r)}catch(e){setError(e instanceof Error?e.message:'Gagal memuat portal')}}useEffect(()=>{load()},[])
+ async function sendSales(e:FormEvent){e.preventDefault();setBusy(true);setError('');setMessage('');try{const d=await request('/api/distributor/sales-reports',token,{method:'POST',body:JSON.stringify({report_date:date,notes,items:items.map(i=>({product_id:Number(i.product_id),quantity_sold:Number(i.quantity_sold)}))})});setMessage(d.message);setItems([{product_id:'',quantity_sold:'1'}]);await load()}catch(e){setError(e instanceof Error?e.message:'Gagal mengirim laporan')}finally{setBusy(false)}}
+ async function sendPayment(e:FormEvent){e.preventDefault();setBusy(true);setError('');setMessage('');try{const d=await request('/api/distributor/payments',token,{method:'POST',body:JSON.stringify({payment_date:paymentDate,amount:Number(amount),payment_method:method,proof_reference:proof})});setMessage(d.message);setAmount('');setProof('');await load()}catch(e){setError(e instanceof Error?e.message:'Gagal mengirim pembayaran')}finally{setBusy(false)}}
+ return <div className="distributor-screen"><header className="topbar"><div><span className="eyebrow">PORTAL DISTRIBUTOR</span><h1>{user.full_name||user.username}</h1></div><button className="secondary-button" onClick={onLogout}><LogOut size={15}/> Keluar</button></header>{error&&<div className="form-alert error-alert">{error}</div>}{message&&<div className="form-alert success-alert">{message}</div>}<div className="status-grid"><article className="status-card"><div><span>Total penjualan disetujui</span><strong>{money(Number(summary.sales_total))}</strong></div></article><article className="status-card"><div><span>Pembayaran terverifikasi</span><strong>{money(Number(summary.paid_total))}</strong></div></article><article className="status-card"><div><span>Menunggu verifikasi</span><strong>{money(Number(summary.pending_payment))}</strong></div></article><article className="status-card"><div><span>Sisa piutang</span><strong>{money(Number(summary.receivable))}</strong></div></article></div><section className="panel purchase-panel"><div className="section-head"><div><h2>Stok titipan saya</h2><p>Barang yang masih tercatat berada pada Anda</p></div><button className="secondary-button" onClick={load}><RefreshCw size={15}/> Muat ulang</button></div>{stock.length===0?<p>Belum ada stok titipan tersedia.</p>:stock.map(s=><div className="review-row" key={s.product_id}><div><strong>{s.product_name}</strong><small>{s.sku}</small></div><strong>{s.stock_qty} {s.unit||'pcs'}</strong></div>)}</section><form className="panel purchase-panel" onSubmit={sendSales}><h2>Kirim laporan penjualan</h2><p>Laporan menunggu persetujuan pemilik sebelum mengurangi stok dan menjadi penjualan.</p><label className="field">Tanggal laporan<input type="date" value={date} onChange={e=>setDate(e.target.value)} required/></label>{items.map((it,i)=><div className="item-fields" key={i}><label className="field">Produk<select value={it.product_id} onChange={e=>setItems(a=>a.map((x,j)=>j===i?{...x,product_id:e.target.value}:x))} required><option value="">Pilih stok</option>{stock.map(s=><option key={s.product_id} value={s.product_id}>{s.product_name} — tersedia {s.stock_qty}</option>)}</select></label><label className="field">Terjual<input type="number" min="1" step="1" value={it.quantity_sold} onChange={e=>setItems(a=>a.map((x,j)=>j===i?{...x,quantity_sold:e.target.value}:x))} required/></label><button type="button" className="remove-button" onClick={()=>setItems(a=>a.length===1?a:a.filter((_,j)=>j!==i))}>Hapus</button></div>)}<button type="button" className="add-item-button" onClick={()=>setItems(a=>[...a,{product_id:'',quantity_sold:'1'}])}><Plus size={15}/> Tambah produk</button><label className="field">Catatan<input value={notes} onChange={e=>setNotes(e.target.value)}/></label><button className="primary-button" disabled={busy||!stock.length}>Kirim laporan penjualan</button></form><form className="panel purchase-panel" onSubmit={sendPayment}><h2>Laporkan pembayaran</h2><p>Pembayaran belum dianggap diterima sampai diverifikasi pemilik.</p><div className="form-grid"><label className="field">Tanggal pembayaran<input type="date" value={paymentDate} onChange={e=>setPaymentDate(e.target.value)} required/></label><label className="field">Nominal<input type="number" min="1" value={amount} onChange={e=>setAmount(e.target.value)} required/></label><label className="field">Metode<select value={method} onChange={e=>setMethod(e.target.value)}><option value="TRANSFER">Transfer</option><option value="CASH">Tunai</option><option value="OTHER">Lainnya</option></select></label><label className="field">Referensi / tautan bukti<input value={proof} onChange={e=>setProof(e.target.value)} placeholder="Nomor transaksi atau URL"/></label></div><button className="primary-button" disabled={busy}>Kirim laporan pembayaran</button></form></div>
+}
+
+function Products({token}:{token:string}) {
+  const empty={sku:'',product_name:'',unit:'pcs',purchase_cost:'0',distributor_price:'0',retail_price:'0'}
+  const [rows,setRows]=useState<Product[]>([]); const [loading,setLoading]=useState(true); const [saving,setSaving]=useState(false)
+  const [error,setError]=useState(''); const [message,setMessage]=useState(''); const [form,setForm]=useState(empty); const [editing,setEditing]=useState<number|null>(null)
+  async function load(){setLoading(true);setError('');try{const d=await request('/api/products',token);setRows(d.products||[])}catch(e){setError(e instanceof Error?e.message:'Gagal memuat produk')}finally{setLoading(false)}}
+  useEffect(()=>{load()},[])
+  function reset(){setForm(empty);setEditing(null)}
+  async function save(e:FormEvent){e.preventDefault();setSaving(true);setError('');setMessage('');try{const body={...form,purchase_cost:Number(form.purchase_cost),distributor_price:Number(form.distributor_price),retail_price:Number(form.retail_price)};const d=await request(editing?`/api/products/${editing}`:'/api/products',token,{method:editing?'PUT':'POST',body:JSON.stringify(body)});setMessage(d.message);reset();await load()}catch(e){setError(e instanceof Error?e.message:'Gagal menyimpan produk')}finally{setSaving(false)}}
+  async function toggle(p:Product){const active=Number(p.is_active)===1; if(!window.confirm(`${active?'Nonaktifkan':'Aktifkan'} produk ${p.product_name}?`))return;try{const d=await request(`/api/products/${p.id}/status`,token,{method:'PATCH',body:JSON.stringify({is_active:!active})});setMessage(d.message);await load()}catch(e){setError(e instanceof Error?e.message:'Gagal mengubah status produk')}}
+  function edit(p:Product){setEditing(p.id);setForm({sku:p.sku,product_name:p.product_name,unit:p.unit||'pcs',purchase_cost:String(p.purchase_cost||0),distributor_price:String(p.distributor_price||0),retail_price:String(p.retail_price||0)});window.scrollTo({top:0,behavior:'smooth'})}
+  return <section className="purchase-page">
+    <div className="purchase-intro"><div><span className="eyebrow">MASTER BARANG</span><h2>Produk & Persediaan</h2><p>Tambah produk, perbarui harga, dan pantau jumlah stok gudang.</p></div><button className="secondary-button" onClick={load} disabled={loading}><RefreshCw size={15}/> Muat ulang</button></div>
+    {error&&<div className="form-alert error-alert">{error}</div>}{message&&<div className="form-alert success-alert">{message}</div>}
+    <form className="panel purchase-panel" onSubmit={save}><div className="form-section-title"><span>01</span><div><h3>{editing?'Ubah produk':'Tambah produk baru'}</h3><p>SKU boleh dikosongkan; sistem akan membuatkannya otomatis.</p></div></div>
+      <div className="form-grid"><label className="field">Nama produk *<input value={form.product_name} onChange={e=>setForm({...form,product_name:e.target.value})} required maxLength={150}/></label><label className="field">SKU<input value={form.sku} onChange={e=>setForm({...form,sku:e.target.value})} placeholder="Otomatis jika kosong" maxLength={50}/></label><label className="field">Satuan *<input value={form.unit} onChange={e=>setForm({...form,unit:e.target.value})} required/></label><label className="field">Harga beli<input type="number" min="0" value={form.purchase_cost} onChange={e=>setForm({...form,purchase_cost:e.target.value})} required/></label><label className="field">Harga distributor<input type="number" min="0" value={form.distributor_price} onChange={e=>setForm({...form,distributor_price:e.target.value})} required/></label><label className="field">Harga ecer<input type="number" min="0" value={form.retail_price} onChange={e=>setForm({...form,retail_price:e.target.value})} required/></label></div>
+      <div className="modal-actions"><button type="button" className="secondary-button" onClick={reset}>Bersihkan</button><button className="primary-button" disabled={saving}>{saving?'Menyimpan...':editing?'Simpan perubahan':'Tambah produk'}</button></div>
+    </form>
+    <section className="panel purchase-panel"><div className="section-head"><div><h2>Daftar produk</h2><p>{rows.length} produk terdaftar, termasuk yang nonaktif</p></div></div>{loading?<p className="muted">Memuat produk...</p>:rows.length===0?<p className="muted">Belum ada produk. Tambahkan melalui formulir di atas.</p>:<div className="product-table-wrap"><table className="product-table"><thead><tr><th>Produk</th><th>Stok</th><th>Harga beli</th><th>Status</th><th>Aksi</th></tr></thead><tbody>{rows.map(p=><tr key={p.id}><td><strong>{p.product_name}</strong><small>{p.sku} · {p.unit||'pcs'}</small></td><td>{Number(p.stock_qty||0).toLocaleString('id-ID')}</td><td>{money(Number(p.purchase_cost))}</td><td><span className="tag">{Number(p.is_active)===1?'Aktif':'Nonaktif'}</span></td><td><div className="product-actions"><button className="secondary-button" type="button" onClick={()=>edit(p)} disabled={Number(p.is_active)!==1}><Pencil size={14}/> Edit</button><button className="secondary-button" type="button" onClick={()=>toggle(p)}><Power size={14}/> {Number(p.is_active)===1?'Nonaktifkan':'Aktifkan'}</button></div></td></tr>)}</tbody></table></div>}</section>
+  </section>
+}
+
+function Purchases({token}:{token:string}) {
+  const [options, setOptions] = useState<Options>({ suppliers: [], products: [], locations: [] })
+  const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState('')
+  const [success, setSuccess] = useState('')
+  const [supplierId, setSupplierId] = useState('')
+  const [purchaseDate, setPurchaseDate] = useState(new Date().toISOString().slice(0, 10))
+  const [invoice, setInvoice] = useState('')
+  const [notes, setNotes] = useState('')
+  const [paymentMethod, setPaymentMethod] = useState<'CASH'|'CREDIT'>('CASH')
+  const [supplierModalOpen, setSupplierModalOpen] = useState(false)
+  const [supplierName, setSupplierName] = useState('')
+  const [supplierCode, setSupplierCode] = useState('')
+  const [savingSupplier, setSavingSupplier] = useState(false)
+  const [items, setItems] = useState<Item[]>([{ product_id: '', quantity: '1', unit_cost: '' }])
+
+  async function importKakAli() {
+    const confirmed=window.confirm('Impor belanja KAK ALI-2.xlsx sekarang? Sistem akan membuat pemasok/produk yang belum ada, menambah stok, dan mencatat pembayaran tunai Rp37.335.000. Jangan jalankan jika transaksi ini sudah pernah dimasukkan.');
+    if(!confirmed)return;
+    setSaving(true);setError('');setSuccess('');
+    const dateKey=purchaseDate.replaceAll('-','');
+    const suppliers=[
+      {supplier_name:'INDORAYA',invoice_no:`KAK-ALI-INDORAYA-${dateKey}`,items:[
+        {product_name:'tatakan rinai K4',quantity:800,unit_cost:9000},
+        {product_name:'tatakan rinai k6',quantity:700,unit_cost:10000},
+        {product_name:'tatakan multi bulat',quantity:350,unit_cost:9000},
+        {product_name:'tatakan matahri',quantity:100,unit_cost:13000},
+        {product_name:'catok pngaman',quantity:100,unit_cost:6500},
+        {product_name:'knop kuniz',quantity:1000,unit_cost:950},
+        {product_name:'tungku todachi',quantity:200,unit_cost:9000},
+        {product_name:'knop rinai abs',quantity:200,unit_cost:1300}
+      ]},
+      {supplier_name:'UD ADI JUWANA',invoice_no:`KAK-ALI-ADI-JUWANA-${dateKey}`,items:[
+        {product_name:'burner rinnai RK super 90gr',quantity:250,unit_cost:17000},
+        {product_name:'burner rinai rb B',quantity:250,unit_cost:13000},
+        {product_name:'burner rk w1',quantity:250,unit_cost:13000},
+        {product_name:'burner bgx tebal',quantity:150,unit_cost:28500}
+      ]}
+    ];
+    try{const d=await request('/api/purchases/import-batch',token,{method:'POST',body:JSON.stringify({purchase_date:purchaseDate,suppliers})});setSuccess(`${d.message} Total ${money(Number(d.total))}. Nomor pembelian: ${(d.purchases||[]).map((x:any)=>x.purchase_code).join(', ')}`);await loadOptions()}
+    catch(e){setError(e instanceof Error?e.message:'Gagal mengimpor belanja Excel')}
+    finally{setSaving(false)}
+  }
+
+  async function loadOptions() {
+    setLoading(true); setError('')
+    try {
+      const response = await fetch(`${API}/api/purchases/options`, { headers: { Authorization: `Bearer ${token}` } })
+      const data = await response.json()
+      if (!response.ok || !data.ok) throw new Error(data.message || 'Gagal mengambil data pemasok dan produk.')
+      setOptions({ suppliers: data.suppliers || [], products: data.products || [], locations: data.locations || [] })
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Tidak dapat terhubung ke server.')
+    } finally { setLoading(false) }
+  }
+
+  useEffect(() => { loadOptions() }, [])
+
+  const total = useMemo(() => items.reduce((sum, item) => sum + (Number(item.quantity) || 0) * (Number(item.unit_cost) || 0), 0), [items])
+  const warehouse = options.locations.find(l => l.location_type === 'WAREHOUSE') || options.locations[0]
+
+  function updateItem(index: number, key: keyof Item, value: string) {
+    setItems(current => current.map((item, i) => {
+      if (i !== index) return item
+      if (key === 'product_id') {
+        const product = options.products.find(p => String(p.id) === value)
+        return { ...item, product_id: value, unit_cost: product ? String(product.purchase_cost ?? '') : item.unit_cost }
+      }
+      return { ...item, [key]: value }
+    }))
+  }
+
+  function addItem() { setItems(current => [...current, { product_id: '', quantity: '1', unit_cost: '' }]) }
+  function removeItem(index: number) { setItems(current => current.length === 1 ? current : current.filter((_, i) => i !== index)) }
+
+  async function createSupplier() {
+    const name = supplierName.trim()
+    const code = supplierCode.trim()
+
+    if (!name) {
+      setError('Nama pemasok wajib diisi.')
+      return
+    }
+
+    setSavingSupplier(true)
+    setError('')
+
+    try {
+      const response = await fetch(`${API}/api/suppliers`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({
+          supplier_name: name,
+          supplier_code: code || undefined
+        })
+      })
+
+      const data = await response.json()
+
+      if (!response.ok || !data.ok) {
+        throw new Error(data.message || 'Gagal menambahkan pemasok.')
+      }
+
+      await loadOptions()
+      setSupplierId(String(data.supplier.id))
+      setSupplierName('')
+      setSupplierCode('')
+      setSupplierModalOpen(false)
+      setSuccess(`Pemasok "${data.supplier.supplier_name}" berhasil ditambahkan.`)
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Terjadi kesalahan saat menambahkan pemasok.')
+    } finally {
+      setSavingSupplier(false)
+    }
+  }
+
+  async function submit(event: FormEvent) {
+    event.preventDefault(); setError(''); setSuccess('')
+    if (!supplierId) { setError('Pilih pemasok terlebih dahulu.'); return }
+    const validItems = items.filter(i => i.product_id && Number(i.quantity) > 0 && Number(i.unit_cost) >= 0)
+    if (!validItems.length) { setError('Tambahkan minimal satu barang dengan jumlah dan harga yang benar.'); return }
+    setSaving(true)
+    try {
+      const response = await fetch(`${API}/api/purchases`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({
+          supplier_id: Number(supplierId), purchase_date: purchaseDate,
+          supplier_invoice_no: invoice || undefined,
+          notes: notes || undefined, payment_method: paymentMethod,
+          items: validItems.map(i => ({ product_id: Number(i.product_id), quantity: Number(i.quantity), unit_cost: Number(i.unit_cost) }))
+        })
+      })
+      const data = await response.json()
+      if (!response.ok || !data.ok) throw new Error(data.message || data.error || 'Transaksi gagal disimpan.')
+      setSuccess(`Pembelian berhasil disimpan${data.purchase?.purchase_code ? ` dengan nomor ${data.purchase.purchase_code}` : ''}. Stok masuk ke ${warehouse?.location_name || 'gudang'}.`)
+      setInvoice(''); setNotes('')
+      setItems([{ product_id: '', quantity: '1', unit_cost: '' }])
+      await loadOptions()
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Terjadi kesalahan saat menyimpan transaksi.')
+    } finally { setSaving(false) }
+  }
+
+  return <section className="purchase-page">
+    <div className="purchase-intro">
+      <div><span className="eyebrow">BARANG MASUK</span><h2>Catat pembelian dari pemasok</h2><p>Barang yang diterima akan menambah stok Gudang Sukoanyar dan memperbarui HPP rata-rata bergerak.</p></div>
+      <div className="purchase-header-actions"><button className="secondary-button" type="button" onClick={importKakAli} disabled={saving}><Package size={15}/> {saving?'Mengimpor...':'Impor belanja KAK ALI'}</button><button className="secondary-button" type="button" onClick={loadOptions} disabled={loading}><RefreshCw size={15}/> Muat ulang</button></div>
+    </div>
+
+    {error && <div className="form-alert error-alert"><AlertCircle size={18}/><span>{error}</span></div>}
+    {success && <div className="form-alert success-alert"><CheckCircle2 size={18}/><span>{success}</span></div>}
+
+    {loading ? <div className="panel loading-panel">Memuat data pemasok dan produk...</div> :
+    options.suppliers.length === 0 || options.products.length === 0 ?
+      <div className="panel empty-state">
+        <Package size={30}/>
+        <h3>Data pemasok atau produk belum tersedia</h3>
+        <p>Daftar pemasok atau produk belum tersedia. Tambahkan produk di menu Produk & Persediaan, atau gunakan tombol Impor belanja KAK ALI di bagian atas untuk memasukkan data Excel yang sudah diterima.</p>
+        <button className="primary-button" type="button" onClick={loadOptions}><RefreshCw size={16}/> Periksa lagi</button>
+      </div> :
+      <form onSubmit={submit}>
+        <div className="panel purchase-panel">
+          <div className="form-section-title"><span>01</span><div><h3>Informasi pembelian</h3><p>Data pemasok dan dokumen pembelian</p></div></div>
+          <div className="form-grid">
+            <div className="field full-field">
+              <div className="supplier-field-head">
+                <span>Pemasok *</span>
+                <button type="button" className="inline-add-button" onClick={() => { setError(''); setSupplierModalOpen(true) }}>
+                  <Plus size={14}/> Tambah Pemasok
+                </button>
+              </div>
+              <select value={supplierId} onChange={e => setSupplierId(e.target.value)} required>
+                <option value="">Pilih pemasok</option>
+                {options.suppliers.map(s => <option key={s.id} value={s.id}>{s.supplier_name}{s.supplier_code ? ` (${s.supplier_code})` : ''}</option>)}
+              </select>
+            </div>
+            <label className="field">Tanggal pembelian *
+              <input type="date" value={purchaseDate} onChange={e => setPurchaseDate(e.target.value)} required/>
+            </label>
+            <label className="field">No. faktur pemasok
+              <input value={invoice} onChange={e => setInvoice(e.target.value)} placeholder="Opsional"/>
+            </label>
+            <label className="field">Catatan
+              <input value={notes} onChange={e => setNotes(e.target.value)} placeholder="Opsional"/>
+            </label>
+          </div>
+          <div className="warehouse-note"><Database size={17}/><div><strong>Lokasi penerimaan: {warehouse?.location_name || 'Gudang Sukoanyar'}</strong><small>Stok pembelian otomatis masuk ke gudang utama.</small></div></div>
+          <label className="field" style={{marginTop:16}}>Status pembayaran *
+            <select value={paymentMethod} onChange={e=>setPaymentMethod(e.target.value as 'CASH'|'CREDIT')}>
+              <option value="CASH">Lunas — dibayar tunai</option>
+              <option value="CREDIT">Belum lunas — utang pemasok</option>
+            </select>
+          </label>
+          {paymentMethod==='CASH' && <div className="cash-note"><CheckCircle2 size={17}/><div><strong>Pembayaran tunai langsung dicatat</strong><small>Kas berkurang dan transaksi pembelian tercatat lunas.</small></div></div>}
+        </div>
+
+        <div className="panel purchase-panel items-panel">
+          <div className="form-section-title"><span>02</span><div><h3>Rincian barang</h3><p>Jumlah dan harga beli dapat diubah sebelum disimpan</p></div></div>
+          <div className="purchase-items">
+            {items.map((item, index) => {
+              const product = options.products.find(p => String(p.id) === item.product_id)
+              const lineTotal = (Number(item.quantity) || 0) * (Number(item.unit_cost) || 0)
+              return <div className="purchase-item" key={index}>
+                <div className="item-topline"><strong>Barang {index + 1}</strong><button type="button" className="remove-button" onClick={() => removeItem(index)} disabled={items.length === 1}><Trash2 size={15}/> Hapus</button></div>
+                <label className="field">Nama barang *
+                  <select value={item.product_id} onChange={e => updateItem(index, 'product_id', e.target.value)} required>
+                    <option value="">Pilih barang</option>
+                    {options.products.map(p => <option key={p.id} value={p.id}>{p.product_name} — {p.sku}</option>)}
+                  </select>
+                </label>
+                <div className="item-fields">
+                  <label className="field">Jumlah *
+                    <input type="number" min="0.001" step="0.001" value={item.quantity} onChange={e => updateItem(index, 'quantity', e.target.value)} required/>
+                  </label>
+                  <label className="field">Harga beli / pcs *
+                    <input type="number" min="0" step="1" value={item.unit_cost} onChange={e => updateItem(index, 'unit_cost', e.target.value)} required/>
+                  </label>
+                </div>
+                {product && <div className="item-total"><span>Subtotal barang</span><strong>{money(lineTotal)}</strong></div>}
+              </div>
+            })}
+          </div>
+          <button type="button" className="add-item-button" onClick={addItem}><Plus size={16}/> Tambah barang</button>
+          <div className="purchase-total"><span>Total pembelian</span><strong>{money(total)}</strong></div>
+        </div>
+        <div className="submit-row"><span>Periksa kembali jumlah dan harga sebelum menyimpan.</span><button className="primary-button" type="submit" disabled={saving || !supplierId || !options.products.length}><Save size={17}/>{saving ? 'Menyimpan...' : 'Simpan pembelian'}</button></div>
+      </form>}
+  </section>
+}
