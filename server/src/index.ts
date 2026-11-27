@@ -922,7 +922,18 @@ app.get("/api/returns/options",async (_req,res)=>{
    WHERE s.status='POSTED' AND si.quantity>COALESCE(r.returned_qty,0)
    ORDER BY s.sale_date DESC,s.id DESC
   `);
-  res.json({ok:true,purchase_items:purchases,sale_items:sales});
+  const [distributorSales]=await pool.query<RowDataPacket[]>(`
+   SELECT r.id report_id,r.report_code,r.report_date,r.distributor_id,d.distributor_name,
+     i.id report_item_id,i.product_id,i.product_name_snapshot,i.quantity_sold quantity,
+     i.unit_price_snapshot unit_price,i.unit_cost_snapshot unit_cost,
+     GREATEST(i.quantity_sold-COALESCE(x.returned_qty,0),0) remaining_qty
+   FROM distributor_sales_reports r JOIN distributors d ON d.id=r.distributor_id
+   JOIN distributor_sales_report_items i ON i.report_id=r.id
+   LEFT JOIN (SELECT sales_report_item_id,SUM(quantity) returned_qty FROM distributor_sales_return_items GROUP BY sales_report_item_id) x ON x.sales_report_item_id=i.id
+   WHERE r.status='APPROVED' AND i.quantity_sold>COALESCE(x.returned_qty,0)
+   ORDER BY r.report_date DESC,r.id DESC
+  `);
+  res.json({ok:true,purchase_items:purchases,sale_items:sales,distributor_sale_items:distributorSales});
  }catch(error){console.error("Gagal memuat opsi retur:",error);res.status(500).json({ok:false,message:"Gagal memuat data faktur dan penjualan untuk retur. Pastikan migrasi 006 sudah dijalankan."});}
 });
 
@@ -1023,6 +1034,50 @@ app.post("/api/returns/retail-sale",async(req,res)=>{
   await conn.execute(`INSERT INTO journal_lines (journal_entry_id,account_id,debit,credit,description) VALUES (?,?,?,0,'Pengembalian uang penjualan'),(?,?,0,?,'Pengurangan kas/bank untuk refund'),(?,?,?,0,'Persediaan dari barang retur'),(?,?,0,?,'Pembalikan HPP barang retur')`,[j.insertId,returnsAccount,refund,j.insertId,cash[0].ledger_id,refund,j.insertId,inventory,cost,j.insertId,cogs,cost]);
   await conn.commit();res.status(201).json({ok:true,message:"Retur penjualan berhasil dicatat. Refund, stok, dan jurnal sudah diperbarui.",return:{id:ret.insertId,return_code:code,refund_total:refund,cost_total:cost}});
  }catch(error){await conn.rollback();res.status(400).json({ok:false,message:error instanceof Error?error.message:"Retur penjualan gagal."});}finally{conn.release();}
+});
+
+app.post("/api/returns/distributor-sale",async(req,res)=>{
+ const reportId=Number(req.body?.sales_report_id),date=String(req.body?.return_date||""),items=req.body?.items;
+ if(!Number.isInteger(reportId)||reportId<1||!/^\\d{4}-\\d{2}-\\d{2}$/.test(date)||!Array.isArray(items)||!items.length||items.length>100)
+  return res.status(400).json({ok:false,message:"Laporan distributor, tanggal retur, dan rincian barang wajib diisi."});
+ const normalized=items.map((x:any)=>({reportItemId:Number(x.sales_report_item_id),quantity:Number(x.quantity)}));
+ if(normalized.some((x:any)=>!Number.isInteger(x.reportItemId)||x.reportItemId<1||!Number.isFinite(x.quantity)||x.quantity<=0)||new Set(normalized.map((x:any)=>x.reportItemId)).size!==normalized.length)
+  return res.status(400).json({ok:false,message:"Rincian retur distributor tidak valid atau barang tercantum ganda."});
+ const conn=await pool.getConnection();
+ try{
+  await conn.beginTransaction();
+  const [reports]=await conn.execute<RowDataPacket[]>(`SELECT id,report_code,distributor_id FROM distributor_sales_reports WHERE id=? AND status='APPROVED' FOR UPDATE`,[reportId]);
+  if(!reports.length)throw new Error("Laporan distributor tidak ditemukan atau belum disetujui.");
+  const [location]=await conn.execute<RowDataPacket[]>(`SELECT id FROM stock_locations WHERE distributor_id=? AND location_type='DISTRIBUTOR' AND is_active=1 LIMIT 1 FOR UPDATE`,[reports[0].distributor_id]);
+  if(!location.length)throw new Error("Lokasi stok distributor tidak ditemukan atau tidak aktif.");
+  const [accounts]=await conn.query<RowDataPacket[]>(`SELECT id,account_code FROM accounts WHERE account_code IN ('4200','1200','1300','5100') AND is_active=1`);
+  const accountId=(code:string)=>Number(accounts.find((a:any)=>String(a.account_code)===code)?.id||0);
+  const returnsAccount=accountId("4200"),receivable=accountId("1200"),inventory=accountId("1300"),cogs=accountId("5100");
+  if(!returnsAccount||!receivable||!inventory||!cogs)throw new Error("Akun retur penjualan, piutang, persediaan, atau HPP belum tersedia.");
+  let refund=0,cost=0;const prepared:any[]=[];
+  for(const item of normalized){
+   const [rows]=await conn.execute<RowDataPacket[]>(`
+    SELECT i.id,i.product_id,i.product_name_snapshot,i.quantity_sold,i.unit_price_snapshot,i.unit_cost_snapshot,
+      COALESCE((SELECT SUM(x.quantity) FROM distributor_sales_return_items x WHERE x.sales_report_item_id=i.id),0) returned_qty
+    FROM distributor_sales_report_items i WHERE i.id=? AND i.report_id=? FOR UPDATE`,[item.reportItemId,reportId]);
+   if(!rows.length)throw new Error("Barang bukan bagian dari laporan distributor yang dipilih.");
+   const line=rows[0],remaining=Number(line.quantity_sold)-Number(line.returned_qty);
+   if(item.quantity>remaining+0.000001)throw new Error(`Jumlah retur ${line.product_name_snapshot} melebihi sisa yang dapat diretur (${remaining}).`);
+   const refundLine=Math.round(item.quantity*Number(line.unit_price_snapshot)*100)/100,costLine=Math.round(item.quantity*Number(line.unit_cost_snapshot)*100)/100;
+   refund=Math.round((refund+refundLine)*100)/100;cost=Math.round((cost+costLine)*100)/100;prepared.push({...item,line,refundLine,costLine});
+  }
+  const code=`RJD-${Date.now()}-${randomUUID().slice(0,6).toUpperCase()}`;
+  const [ret]=await conn.execute<ResultSetHeader>(`INSERT INTO distributor_sales_returns (return_code,sales_report_id,distributor_id,return_date,total,cost_total,status,notes) VALUES (?,?,?,?,?,?,'POSTED',?)`,[code,reportId,reports[0].distributor_id,date,refund,cost,String(req.body?.notes||"").slice(0,500)||null]);
+  for(let i=0;i<prepared.length;i++){
+   const x=prepared[i];
+   await conn.execute(`INSERT INTO distributor_sales_return_items (distributor_sales_return_id,sales_report_id,sales_report_item_id,product_id,product_name_snapshot,quantity,unit_price,unit_cost,refund_total,cost_total) VALUES (?,?,?,?,?,?,?,?,?,?)`,[ret.insertId,reportId,x.reportItemId,x.line.product_id,x.line.product_name_snapshot,x.quantity,x.line.unit_price_snapshot,x.line.unit_cost_snapshot,x.refundLine,x.costLine]);
+   await conn.execute(`INSERT INTO stock_movements (movement_code,product_id,from_location_id,to_location_id,movement_type,quantity,unit_cost,reference_type,reference_id,note,created_by_user_id) VALUES (?, ?, NULL, ?,'DISTRIBUTOR_SALE_RETURN_IN', ?, ?, 'DISTRIBUTOR_SALE_RETURN', ?, ?, ?)`,[`${code}-${i+1}`,x.line.product_id,Number(location[0].id),x.quantity,x.line.unit_cost_snapshot,ret.insertId,`Retur penjualan distributor ${code}`,(req as any).identity?.id||null]);
+  }
+  const journalCode=`JU-${Date.now()}-${randomUUID().slice(0,6).toUpperCase()}`;
+  const [j]=await conn.execute<ResultSetHeader>(`INSERT INTO journal_entries (journal_code,journal_date,source_type,source_id,description,status) VALUES (?,?, 'DISTRIBUTOR_SALE_RETURN', ?, ?, 'POSTED')`,[journalCode,date,ret.insertId,`Retur penjualan distributor ${reports[0].report_code}`]);
+  await conn.execute(`INSERT INTO journal_lines (journal_entry_id,account_id,debit,credit,description) VALUES (?,?,?,0,'Retur penjualan distributor'),(?,?,0,?,'Pengurangan piutang distributor'),(?,?,?,0,'Persediaan barang retur distributor'),(?,?,0,?,'Pembalikan HPP barang retur distributor')`,[j.insertId,returnsAccount,refund,j.insertId,receivable,refund,j.insertId,inventory,cost,j.insertId,cogs,cost]);
+  await conn.commit();res.status(201).json({ok:true,message:"Retur penjualan distributor berhasil dicatat. Stok titipan, piutang, dan jurnal telah disesuaikan.",return:{id:ret.insertId,return_code:code,refund_total:refund,cost_total:cost}});
+ }catch(error){await conn.rollback();res.status(400).json({ok:false,message:error instanceof Error?error.message:"Retur distributor gagal dicatat."});}finally{conn.release();}
 });
 
 // Histori gabungan transaksi operasional.
