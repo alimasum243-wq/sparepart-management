@@ -964,6 +964,11 @@ app.post("/api/returns/purchase",async(req,res)=>{
    await conn.execute(`INSERT INTO purchase_return_items (purchase_return_id,purchase_item_id,product_id,product_name_snapshot,quantity,unit_cost,line_total) VALUES (?,?,?,?,?,?,?)`,[ret.insertId,x.purchaseItemId,x.line.product_id,x.line.product_name_snapshot,x.quantity,x.line.unit_cost,x.amount]);
    await conn.execute(`INSERT INTO stock_movements (movement_code,product_id,from_location_id,to_location_id,movement_type,quantity,unit_cost,reference_type,reference_id,note) VALUES (?,?,?,NULL,'PURCHASE_RETURN_OUT',?,?,'PURCHASE_RETURN',?,?)`,[`${code}-${i+1}`,x.line.product_id,WAREHOUSE_ID,x.quantity,x.line.unit_cost,ret.insertId,`Retur pembelian ${code}`]);
   }
+  for(const productId of new Set(prepared.map((x:any)=>Number(x.line.product_id)))){
+   const [balance]=await conn.execute<RowDataPacket[]>(`SELECT COALESCE(SUM(CASE WHEN to_location_id IS NOT NULL THEN quantity ELSE 0 END),0)-COALESCE(SUM(CASE WHEN from_location_id IS NOT NULL THEN quantity ELSE 0 END),0) qty,COALESCE(SUM(CASE WHEN to_location_id IS NOT NULL THEN quantity*unit_cost ELSE 0 END),0)-COALESCE(SUM(CASE WHEN from_location_id IS NOT NULL THEN quantity*unit_cost ELSE 0 END),0) value FROM stock_movements WHERE product_id=?`,[productId]);
+   const qty=Number(balance[0].qty||0),value=Number(balance[0].value||0);
+   await conn.execute(`UPDATE products SET average_cost=? WHERE id=?`,[qty>0?Math.round(value/qty*100)/100:0,productId]);
+  }
   const journalCode=`JU-${Date.now()}-${randomUUID().slice(0,6).toUpperCase()}`;
   const [j]=await conn.execute<ResultSetHeader>(`INSERT INTO journal_entries (journal_code,journal_date,source_type,source_id,description,status) VALUES (?,?, 'PURCHASE_RETURN', ?, ?, 'POSTED')`,[journalCode,date,ret.insertId,`Retur pembelian ${purchases[0].purchase_code}`]);
   await conn.execute(`INSERT INTO journal_lines (journal_entry_id,account_id,debit,credit,description) VALUES (?,?,?,0,'Pengurangan utang pemasok karena retur'),(?,?,0,?,'Pengurangan persediaan karena retur')`,[j.insertId,payable[0].id,total,j.insertId,inventory[0].id,total]);
@@ -1028,6 +1033,8 @@ app.get("/api/transactions/history",async(req,res)=>{
     UNION ALL SELECT rr.return_date,rr.return_code,'RETUR PENJUALAN','Pelanggan',rr.refund_total,rr.status,rr.notes FROM retail_sale_returns rr
     UNION ALL SELECT sp.payment_date,sp.payment_code,'PEMBAYARAN PEMASOK',s.supplier_name,sp.amount,'POSTED',sp.notes FROM supplier_payments sp JOIN suppliers s ON s.id=sp.supplier_id
     UNION ALL SELECT e.expense_date,e.expense_code,'PENGELUARAN',e.category,e.amount,'POSTED',e.description FROM expenses e
+    UNION ALL SELECT r.report_date,r.report_code,'PENJUALAN DISTRIBUTOR',d.distributor_name,SUM(i.line_total),r.status,r.notes FROM distributor_sales_reports r JOIN distributors d ON d.id=r.distributor_id JOIN distributor_sales_report_items i ON i.report_id=r.id GROUP BY r.id,r.report_date,r.report_code,d.distributor_name,r.status,r.notes
+    UNION ALL SELECT ps.payment_date,ps.submission_code,'PEMBAYARAN DISTRIBUTOR',d.distributor_name,ps.amount,ps.status,ps.proof_reference FROM distributor_payment_submissions ps JOIN distributors d ON d.id=ps.distributor_id
    ) history WHERE transaction_date BETWEEN ? AND ? ORDER BY transaction_date DESC,transaction_code DESC LIMIT 1000
   `,[from,to]);
   res.json({ok:true,transactions:rows});
@@ -1046,6 +1053,8 @@ app.get("/api/reports/operational",async(req,res)=>{
     UNION ALL SELECT 'RETUR PENJUALAN',-refund_total,return_date FROM retail_sale_returns WHERE status='POSTED'
     UNION ALL SELECT 'PEMBAYARAN PEMASOK',amount,payment_date FROM supplier_payments
     UNION ALL SELECT 'PENGELUARAN',amount,expense_date FROM expenses
+    UNION ALL SELECT 'PENJUALAN DISTRIBUTOR',SUM(i.line_total),r.report_date FROM distributor_sales_reports r JOIN distributor_sales_report_items i ON i.report_id=r.id WHERE r.status='APPROVED' GROUP BY r.id,r.report_date
+    UNION ALL SELECT 'PEMBAYARAN DISTRIBUTOR',amount,payment_date FROM distributor_payment_submissions WHERE status='VERIFIED'
    ) tx WHERE transaction_date BETWEEN ? AND ? GROUP BY transaction_type ORDER BY transaction_type
   `,[from,to]);
   const [journal]=await pool.query<RowDataPacket[]>(`
