@@ -1013,6 +1013,11 @@ app.post("/api/returns/retail-sale",async(req,res)=>{
    await conn.execute(`INSERT INTO retail_sale_return_items (retail_sale_return_id,retail_sale_item_id,product_id,product_name_snapshot,quantity,unit_price,unit_cost,refund_total,cost_total) VALUES (?,?,?,?,?,?,?,?,?)`,[ret.insertId,x.saleItemId,x.line.product_id,x.line.product_name_snapshot,x.quantity,x.line.unit_price,x.line.unit_cost,x.refundLine,x.costLine]);
    await conn.execute(`INSERT INTO stock_movements (movement_code,product_id,from_location_id,to_location_id,movement_type,quantity,unit_cost,reference_type,reference_id,note) VALUES (?,?,NULL,?,'RETAIL_SALE_RETURN_IN',?,?,'RETAIL_SALE_RETURN',?,?)`,[`${code}-${i+1}`,x.line.product_id,WAREHOUSE_ID,x.quantity,x.line.unit_cost,ret.insertId,`Retur penjualan retail ${code}`]);
   }
+  for(const productId of new Set(prepared.map((x:any)=>Number(x.line.product_id)))){
+   const [balance]=await conn.execute<RowDataPacket[]>(`SELECT COALESCE(SUM(CASE WHEN to_location_id IS NOT NULL THEN quantity ELSE 0 END),0)-COALESCE(SUM(CASE WHEN from_location_id IS NOT NULL THEN quantity ELSE 0 END),0) qty,COALESCE(SUM(CASE WHEN to_location_id IS NOT NULL THEN quantity*unit_cost ELSE 0 END),0)-COALESCE(SUM(CASE WHEN from_location_id IS NOT NULL THEN quantity*unit_cost ELSE 0 END),0) value FROM stock_movements WHERE product_id=?`,[productId]);
+   const qty=Number(balance[0].qty||0),value=Number(balance[0].value||0);
+   await conn.execute(`UPDATE products SET average_cost=? WHERE id=?`,[qty>0?Math.round(value/qty*100)/100:0,productId]);
+  }
   const journalCode=`JU-${Date.now()}-${randomUUID().slice(0,6).toUpperCase()}`;
   const [j]=await conn.execute<ResultSetHeader>(`INSERT INTO journal_entries (journal_code,journal_date,source_type,source_id,description,status) VALUES (?,?, 'RETAIL_SALE_RETURN', ?, ?, 'POSTED')`,[journalCode,date,ret.insertId,`Retur penjualan ${sales[0].sale_code}`]);
   await conn.execute(`INSERT INTO journal_lines (journal_entry_id,account_id,debit,credit,description) VALUES (?,?,?,0,'Pengembalian uang penjualan'),(?,?,0,?,'Pengurangan kas/bank untuk refund'),(?,?,?,0,'Persediaan dari barang retur'),(?,?,0,?,'Pembalikan HPP barang retur')`,[j.insertId,returnsAccount,refund,j.insertId,cash[0].ledger_id,refund,j.insertId,inventory,cost,j.insertId,cogs,cost]);
