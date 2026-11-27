@@ -761,6 +761,120 @@ app.post('/api/expenses', async (req,res) => {
   finally { conn.release(); }
 });
 
+
+// Pembayaran utang pemasok: dapat dicicil dan dialokasikan ke beberapa faktur.
+app.get("/api/supplier-payments/outstanding", async (_req,res) => {
+  try {
+    const [rows] = await pool.query<RowDataPacket[]>(`
+      SELECT p.id AS purchase_id,p.purchase_code,p.supplier_invoice_no,p.purchase_date,
+        p.supplier_id,s.supplier_name,p.grand_total,
+        COALESCE(a.allocated_total,0) AS paid_total,
+        GREATEST(p.grand_total-COALESCE(a.allocated_total,0),0) AS outstanding
+      FROM purchases p
+      JOIN suppliers s ON s.id=p.supplier_id
+      LEFT JOIN (
+        SELECT spa.purchase_id,SUM(spa.allocated_amount) AS allocated_total
+        FROM supplier_payment_allocations spa
+        JOIN supplier_payments sp ON sp.id=spa.supplier_payment_id
+        GROUP BY spa.purchase_id
+      ) a ON a.purchase_id=p.id
+      WHERE p.status='POSTED'
+        AND p.grand_total>COALESCE(a.allocated_total,0)
+      ORDER BY p.purchase_date,p.id
+    `);
+    res.json({ok:true,purchases:rows});
+  } catch(error) {
+    console.error("Gagal memuat utang pemasok:",error);
+    res.status(500).json({ok:false,message:"Gagal memuat daftar utang pemasok."});
+  }
+});
+
+app.post("/api/supplier-payments", async (req,res) => {
+  const date=String(req.body?.payment_date||"");
+  const supplierId=Number(req.body?.supplier_id);
+  const cashAccountId=Number(req.body?.cash_account_id);
+  const method=String(req.body?.payment_method||"CASH").toUpperCase();
+  const allocations=req.body?.allocations;
+  if(!/^\\d{4}-\\d{2}-\\d{2}$/.test(date) ||
+     !Number.isInteger(supplierId)||supplierId<1 ||
+     !Number.isInteger(cashAccountId)||cashAccountId<1 ||
+     !["CASH","BANK"].includes(method) ||
+     !Array.isArray(allocations)||allocations.length<1||allocations.length>100) {
+    return res.status(400).json({ok:false,message:"Tanggal, pemasok, akun kas/bank, dan alokasi faktur wajib diisi dengan benar."});
+  }
+  const normalized=allocations.map((x:any)=>({purchaseId:Number(x.purchase_id),amount:Number(x.amount)}));
+  if(normalized.some((x:any)=>!Number.isInteger(x.purchaseId)||x.purchaseId<1||!Number.isFinite(x.amount)||x.amount<=0) ||
+     new Set(normalized.map((x:any)=>x.purchaseId)).size!==normalized.length) {
+    return res.status(400).json({ok:false,message:"Rincian alokasi tidak valid atau faktur tercantum lebih dari sekali."});
+  }
+  const total=Math.round(normalized.reduce((sum:number,x:any)=>sum+x.amount,0)*100)/100;
+  const conn=await pool.getConnection();
+  try {
+    await conn.beginTransaction();
+    const [supplier]=await conn.execute<RowDataPacket[]>(
+      `SELECT id FROM suppliers WHERE id=? AND is_active=1 FOR UPDATE`,[supplierId]
+    );
+    if(!supplier.length) throw new Error("Pemasok tidak ditemukan atau tidak aktif.");
+    const [cash]=await conn.execute<RowDataPacket[]>(
+      `SELECT id,account_type FROM cash_accounts WHERE id=? AND is_active=1 FOR UPDATE`,[cashAccountId]
+    );
+    if(!cash.length) throw new Error("Akun kas/bank tidak aktif atau tidak ditemukan.");
+    const accountCode=String(cash[0].account_type).toUpperCase()==="BANK"?"1110":"1100";
+    if(method!==(accountCode==="1110"?"BANK":"CASH")) throw new Error("Metode pembayaran tidak sesuai dengan akun kas/bank yang dipilih.");
+    const [payable]=await conn.execute<RowDataPacket[]>(
+      `SELECT id FROM accounts WHERE account_code='2100' AND is_active=1 LIMIT 1`
+    );
+    const [cashLedger]=await conn.execute<RowDataPacket[]>(
+      `SELECT id FROM accounts WHERE account_code=? AND is_active=1 LIMIT 1`,[accountCode]
+    );
+    if(!payable.length||!cashLedger.length) throw new Error("Akun utang pemasok atau kas/bank belum tersedia.");
+    let lockedTotal=0;
+    for(const item of normalized) {
+      const [purchase]=await conn.execute<RowDataPacket[]>(
+        `SELECT p.id,p.supplier_id,p.grand_total,p.purchase_code,
+          COALESCE((SELECT SUM(a.allocated_amount) FROM supplier_payment_allocations a
+            JOIN supplier_payments sp ON sp.id=a.supplier_payment_id WHERE a.purchase_id=p.id),0) AS paid_total
+         FROM purchases p WHERE p.id=? AND p.status='POSTED' FOR UPDATE`,[item.purchaseId]
+      );
+      if(!purchase.length) throw new Error(`Faktur pembelian ID ${item.purchaseId} tidak ditemukan atau belum diposting.`);
+      const bill=purchase[0];
+      if(Number(bill.supplier_id)!==supplierId) throw new Error("Alokasi hanya boleh untuk faktur pemasok yang dipilih.");
+      const outstanding=Math.round((Number(bill.grand_total)-Number(bill.paid_total))*100)/100;
+      if(item.amount>outstanding+0.009) throw new Error(`Alokasi faktur ${bill.purchase_code} melebihi sisa utang Rp${outstanding.toLocaleString("id-ID")}.`);
+      lockedTotal+=item.amount;
+    }
+    if(Math.abs(Math.round(lockedTotal*100)/100-total)>0.009) throw new Error("Total alokasi tidak cocok.");
+    const paymentCode=`BAY-${new Date().toISOString().replace(/[-:.TZ]/g,'').slice(0,14)}-${randomUUID().slice(0,6).toUpperCase()}`;
+    const [payment]=await conn.execute<ResultSetHeader>(
+      `INSERT INTO supplier_payments (payment_code,supplier_id,payment_date,payment_method,amount,notes,posted_at)
+       VALUES (?,?,?,?,?,?,CURRENT_TIMESTAMP)`,
+      [paymentCode,supplierId,date,method,total,String(req.body?.notes||"").slice(0,1000)||null]
+    );
+    for(const item of normalized) {
+      await conn.execute(
+        `INSERT INTO supplier_payment_allocations (supplier_payment_id,purchase_id,allocated_amount) VALUES (?,?,?)`,
+        [payment.insertId,item.purchaseId,item.amount]
+      );
+    }
+    const journalCode=`JU-${new Date().toISOString().replace(/[-:.TZ]/g,'').slice(0,14)}-${randomUUID().slice(0,6).toUpperCase()}`;
+    const [journal]=await conn.execute<ResultSetHeader>(
+      `INSERT INTO journal_entries (journal_code,journal_date,source_type,source_id,description,status)
+       VALUES (?,?,'SUPPLIER_PAYMENT',?,?,'POSTED')`,
+      [journalCode,date,payment.insertId,`Pembayaran utang pemasok ${paymentCode}`]
+    );
+    await conn.execute(
+      `INSERT INTO journal_lines (journal_entry_id,account_id,debit,credit,description)
+       VALUES (?,?,?,0,'Pelunasan utang pemasok'),(?,?,0,?,'Pembayaran melalui kas/bank')`,
+      [journal.insertId,payable[0].id,total,journal.insertId,cashLedger[0].id,total]
+    );
+    await conn.commit();
+    return res.status(201).json({ok:true,message:"Pembayaran utang pemasok berhasil dicatat dan dialokasikan ke faktur.",payment:{id:payment.insertId,payment_code:paymentCode,amount:total,journal_id:journal.insertId}});
+  } catch(error) {
+    await conn.rollback();
+    return res.status(400).json({ok:false,message:error instanceof Error?error.message:"Gagal mencatat pembayaran utang pemasok."});
+  } finally { conn.release(); }
+});
+
 const dateSchema = z.string().regex(
   /^\d{4}-\d{2}-\d{2}$/,
   "Tanggal harus YYYY-MM-DD"
