@@ -49,7 +49,7 @@ app.get("/api/health/db", async (_req, res) => {
 });
 
 // Memeriksa tabel database tanpa mengubah data.
-app.get("/api/setup/tables", async (_req, res) => {
+app.get("/api/setup/tables", authMiddleware, ownerMiddleware, async (_req, res) => {
   try {
     const [rows] = await pool.query(
       `SELECT TABLE_NAME AS tableName
@@ -82,10 +82,13 @@ app.get("/api/products", async (_req, res) => {
               COALESCE(st.stock_qty, 0) AS stock_qty
        FROM products p
        LEFT JOIN (
-         SELECT product_id,
-           SUM(CASE WHEN to_location_id IS NOT NULL THEN quantity ELSE 0 END) -
-           SUM(CASE WHEN from_location_id IS NOT NULL THEN quantity ELSE 0 END) AS stock_qty
-         FROM stock_movements GROUP BY product_id
+         SELECT sm.product_id,
+           SUM(CASE WHEN sm.to_location_id = sl.id THEN sm.quantity ELSE 0 END) -
+           SUM(CASE WHEN sm.from_location_id = sl.id THEN sm.quantity ELSE 0 END) AS stock_qty
+         FROM stock_movements sm
+         JOIN stock_locations sl ON sl.id = sm.to_location_id OR sl.id = sm.from_location_id
+         WHERE sl.location_type = 'WAREHOUSE' AND sl.is_active = 1
+         GROUP BY sm.product_id
        ) st ON st.product_id = p.id
        ORDER BY p.product_name`
     );
