@@ -54,7 +54,8 @@ export default function App() {
         active==='Kasir Retail'?<RetailSales token={token}/>:
        active==='Kas & Pengeluaran'?<Expenses token={token}/>:
        active==='Laporan'?<ProfitLoss token={token}/>:
-       active==='Penjualan'||active==='Utang & Piutang'?<ReviewCenter token={token}/>:
+       active==='Penjualan'?<ReviewCenter token={token}/>:
+       active==='Utang & Piutang'?<SupplierPayments token={token}/>:
        <section className="panel coming"><div className="panel-icon"><Package size={24}/></div><h2>{active}</h2><p>Modul ini masih dalam tahap implementasi. Data transaksi tidak diubah dari halaman ini.</p><span className="tag">Dalam pembangunan</span></section>}
       <footer>Sparepart Management System <span>•</span> MVP 0.3.0</footer></main></div>
 }
@@ -75,6 +76,31 @@ function AdminConsignments({token}:{token:string}){
  <form className="panel purchase-panel" onSubmit={create}><div className="form-section-title"><span>01</span><div><h3>Buat akun distributor</h3><p>Username harus unik dan password minimal 10 karakter</p></div></div><div className="form-grid"><label className="field">Nama distributor *<input value={name} onChange={e=>setName(e.target.value)} required/></label><label className="field">Nomor telepon<input value={phone} onChange={e=>setPhone(e.target.value)}/></label><label className="field">Alamat<input value={address} onChange={e=>setAddress(e.target.value)}/></label><label className="field">Username *<input value={username} onChange={e=>setUsername(e.target.value)} required minLength={4}/></label><label className="field">Password sementara *<input type="password" value={password} onChange={e=>setPassword(e.target.value)} required minLength={10}/></label></div><button className="primary-button" disabled={busy}>Buat akun distributor</button></form>
  <form className="panel purchase-panel" onSubmit={dispatch}><div className="form-section-title"><span>02</span><div><h3>Kirim barang titipan</h3><p>Stok tetap menjadi milik usaha sampai terjual</p></div></div><div className="form-grid"><label className="field">Distributor *<select value={distributorId} onChange={e=>setDistributorId(e.target.value)} required><option value="">Pilih distributor</option>{distributors.map(d=><option key={d.id} value={d.id}>{d.distributor_name}</option>)}</select></label><label className="field">Tanggal pengiriman *<input type="date" value={date} onChange={e=>setDate(e.target.value)} required/></label><label className="field full-field">Catatan<input value={notes} onChange={e=>setNotes(e.target.value)}/></label></div>{items.map((it,i)=><div className="item-fields" key={i}><label className="field">Produk<select value={it.product_id} onChange={e=>setItems(a=>a.map((x,j)=>j===i?{...x,product_id:e.target.value}:x))} required><option value="">Pilih produk</option>{products.map(p=><option key={p.id} value={p.id}>{p.product_name} ({p.sku})</option>)}</select></label><label className="field">Jumlah<input type="number" min="1" step="1" value={it.quantity} onChange={e=>setItems(a=>a.map((x,j)=>j===i?{...x,quantity:e.target.value}:x))} required/></label><button type="button" className="remove-button" onClick={()=>setItems(a=>a.length===1?a:a.filter((_,j)=>j!==i))}>Hapus</button></div>)}<button type="button" className="add-item-button" onClick={()=>setItems(a=>[...a,{product_id:'',quantity:'1'}])}><Plus size={15}/> Tambah produk</button><button className="primary-button" disabled={busy||!distributorId||!products.length}>Catat pengiriman titipan</button></form>
  <ReviewCenter token={token}/></section>
+}
+
+function SupplierPayments({token}:{token:string}){
+ const [bills,setBills]=useState<any[]>([]);const [accounts,setAccounts]=useState<any[]>([]);
+ const [supplierId,setSupplierId]=useState('');const [cashId,setCashId]=useState('');
+ const [date,setDate]=useState(today());const [method,setMethod]=useState('CASH');
+ const [amounts,setAmounts]=useState<Record<number,string>>({});
+ const [error,setError]=useState('');const [message,setMessage]=useState('');const [busy,setBusy]=useState(false);
+ async function load(){setError('');try{const [b,c]=await Promise.all([request('/api/supplier-payments/outstanding',token),request('/api/admin/cash-accounts',token)]);setBills(b.purchases||[]);setAccounts(c.accounts||[]);if(!cashId&&c.accounts?.length)setCashId(String(c.accounts[0].id));}catch(e){setError(e instanceof Error?e.message:'Gagal memuat utang pemasok.');}}
+ useEffect(()=>{load()},[]);
+ const suppliers=Array.from(new Map(bills.map(b=>[Number(b.supplier_id),{id:Number(b.supplier_id),name:b.supplier_name}])).values());
+ const visible=bills.filter(b=>String(b.supplier_id)===supplierId);
+ const total=visible.reduce((sum,b)=>sum+Math.max(0,Number(amounts[b.purchase_id])||0),0);
+ async function submit(e:FormEvent){e.preventDefault();setBusy(true);setError('');setMessage('');try{const allocations=visible.filter(b=>(Number(amounts[b.purchase_id])||0)>0).map(b=>({purchase_id:Number(b.purchase_id),amount:Number(amounts[b.purchase_id])}));if(!allocations.length)throw new Error('Isi nominal pembayaran pada minimal satu faktur.');const d=await request('/api/supplier-payments',token,{method:'POST',body:JSON.stringify({payment_date:date,supplier_id:Number(supplierId),cash_account_id:Number(cashId),payment_method:method,allocations})});setMessage(d.message||'Pembayaran berhasil dicatat.');setAmounts({});await load();}catch(e){setError(e instanceof Error?e.message:'Gagal mencatat pembayaran.')}finally{setBusy(false)}}
+ return <section className="purchase-page"><div className="purchase-intro"><div><span className="eyebrow">UTANG PEMASOK</span><h2>Pembayaran utang & cicilan faktur</h2><p>Bayar satu atau beberapa faktur sekaligus. Sisa utang dihitung otomatis dari alokasi pembayaran.</p></div><button className="secondary-button" onClick={load}><RefreshCw size={15}/> Muat ulang</button></div>
+ {error&&<div className="form-alert error-alert">{error}</div>}{message&&<div className="form-alert success-alert"><CheckCircle2 size={17}/>{message}</div>}
+ <form className="panel purchase-panel" onSubmit={submit}><div className="form-grid">
+ <label className="field">Pemasok *<select value={supplierId} onChange={e=>{setSupplierId(e.target.value);setAmounts({})}} required><option value="">Pilih pemasok</option>{suppliers.map(s=><option key={s.id} value={s.id}>{s.name}</option>)}</select></label>
+ <label className="field">Tanggal pembayaran *<input type="date" value={date} onChange={e=>setDate(e.target.value)} required/></label>
+ <label className="field">Akun kas/bank *<select value={cashId} onChange={e=>{setCashId(e.target.value);const a=accounts.find(x=>String(x.id)===e.target.value);setMethod(String(a?.account_type||'CASH').toUpperCase()==='BANK'?'BANK':'CASH')}} required><option value="">Pilih akun</option>{accounts.map(a=><option key={a.id} value={a.id}>{a.account_name}</option>)}</select></label>
+ </div>
+ <h3>Faktur yang masih memiliki utang</h3>
+ {!supplierId?<p>Pilih pemasok untuk melihat faktur yang belum lunas.</p>:visible.length===0?<p>Tidak ada utang tersisa untuk pemasok ini.</p>:visible.map(b=><div className="review-row" key={b.purchase_id}><div><strong>{b.purchase_code} — {b.supplier_invoice_no||'Tanpa nomor faktur'}</strong><small>{String(b.purchase_date).slice(0,10)} · Total {money(Number(b.grand_total))} · Sudah dibayar {money(Number(b.paid_total))} · Sisa {money(Number(b.outstanding))}</small></div><label className="field"><span>Bayar (Rp)</span><input type="number" min="0" max={Number(b.outstanding)} step="0.01" value={amounts[b.purchase_id]||''} onChange={e=>setAmounts(a=>({...a,[b.purchase_id]:e.target.value}))} placeholder="0"/></label></div>)}
+ <div className="total-row"><span>Total pembayaran</span><strong>{money(total)}</strong></div>
+ <button className="primary-button" disabled={busy||!supplierId||total<=0||!cashId}>Simpan pembayaran</button></form></section>
 }
 
 function ReviewCenter({token}:{token:string}){
