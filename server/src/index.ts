@@ -768,8 +768,8 @@ app.get("/api/supplier-payments/outstanding", async (_req,res) => {
     const [rows] = await pool.query<RowDataPacket[]>(`
       SELECT p.id AS purchase_id,p.purchase_code,p.supplier_invoice_no,p.purchase_date,
         p.supplier_id,s.supplier_name,p.grand_total,
-        COALESCE(a.allocated_total,0) AS paid_total,
-        GREATEST(p.grand_total-COALESCE(a.allocated_total,0),0) AS outstanding
+        COALESCE(a.allocated_total,0) AS paid_total,COALESCE(pr.returned_total,0) AS returned_total,
+        GREATEST(p.grand_total-COALESCE(a.allocated_total,0)-COALESCE(pr.returned_total,0),0) AS outstanding
       FROM purchases p
       JOIN suppliers s ON s.id=p.supplier_id
       LEFT JOIN (
@@ -778,8 +778,9 @@ app.get("/api/supplier-payments/outstanding", async (_req,res) => {
         JOIN supplier_payments sp ON sp.id=spa.supplier_payment_id
         GROUP BY spa.purchase_id
       ) a ON a.purchase_id=p.id
+      LEFT JOIN (SELECT p2.id purchase_id,SUM(pr.total) returned_total FROM purchase_returns pr JOIN purchases p2 ON p2.id=pr.purchase_id WHERE pr.status='POSTED' GROUP BY p2.id) pr ON pr.purchase_id=p.id
       WHERE p.status='POSTED'
-        AND p.grand_total>COALESCE(a.allocated_total,0)
+        AND p.grand_total>COALESCE(a.allocated_total,0)+COALESCE(pr.returned_total,0)
       ORDER BY p.purchase_date,p.id
     `);
     res.json({ok:true,purchases:rows});
@@ -833,13 +834,14 @@ app.post("/api/supplier-payments", async (req,res) => {
       const [purchase]=await conn.execute<RowDataPacket[]>(
         `SELECT p.id,p.supplier_id,p.grand_total,p.purchase_code,
           COALESCE((SELECT SUM(a.allocated_amount) FROM supplier_payment_allocations a
-            JOIN supplier_payments sp ON sp.id=a.supplier_payment_id WHERE a.purchase_id=p.id),0) AS paid_total
+            JOIN supplier_payments sp ON sp.id=a.supplier_payment_id WHERE a.purchase_id=p.id),0) AS paid_total,
+          COALESCE((SELECT SUM(pr.total) FROM purchase_returns pr WHERE pr.purchase_id=p.id AND pr.status='POSTED'),0) AS returned_total
          FROM purchases p WHERE p.id=? AND p.status='POSTED' FOR UPDATE`,[item.purchaseId]
       );
       if(!purchase.length) throw new Error(`Faktur pembelian ID ${item.purchaseId} tidak ditemukan atau belum diposting.`);
       const bill=purchase[0];
       if(Number(bill.supplier_id)!==supplierId) throw new Error("Alokasi hanya boleh untuk faktur pemasok yang dipilih.");
-      const outstanding=Math.round((Number(bill.grand_total)-Number(bill.paid_total))*100)/100;
+      const outstanding=Math.round((Number(bill.grand_total)-Number(bill.paid_total)-Number(bill.returned_total))*100)/100;
       if(item.amount>outstanding+0.009) throw new Error(`Alokasi faktur ${bill.purchase_code} melebihi sisa utang Rp${outstanding.toLocaleString("id-ID")}.`);
       lockedTotal+=item.amount;
     }
@@ -881,10 +883,12 @@ app.get("/api/dashboard/summary", async (_req,res) => {
     const [retail]=await pool.query<RowDataPacket[]>(`SELECT COALESCE(SUM(total),0) total FROM retail_sales WHERE status='POSTED' AND sale_date=CURRENT_DATE()`);
     const [purchases]=await pool.query<RowDataPacket[]>(`SELECT COALESCE(SUM(grand_total),0) total FROM purchases WHERE status='POSTED' AND DATE_FORMAT(purchase_date,'%Y-%m')=DATE_FORMAT(CURRENT_DATE(),'%Y-%m')`);
     const [supplierDebt]=await pool.query<RowDataPacket[]>(`
-      SELECT COALESCE(SUM(GREATEST(p.grand_total-COALESCE(a.paid,0),0)),0) total
+      SELECT COALESCE(SUM(GREATEST(p.grand_total-COALESCE(a.paid,0)-COALESCE(r.returned,0),0)),0) total
       FROM purchases p LEFT JOIN (
         SELECT purchase_id,SUM(allocated_amount) paid FROM supplier_payment_allocations GROUP BY purchase_id
-      ) a ON a.purchase_id=p.id WHERE p.status='POSTED'`);
+      ) a ON a.purchase_id=p.id LEFT JOIN (
+        SELECT purchase_id,SUM(total) returned FROM purchase_returns WHERE status='POSTED' GROUP BY purchase_id
+      ) r ON r.purchase_id=p.id WHERE p.status='POSTED'`);
     const [receivable]=await pool.query<RowDataPacket[]>(`
       SELECT GREATEST(COALESCE((SELECT SUM(i.line_total) FROM distributor_sales_reports r JOIN distributor_sales_report_items i ON i.report_id=r.id WHERE r.status='APPROVED'),0)-
       COALESCE((SELECT SUM(amount) FROM distributor_payment_submissions WHERE status='VERIFIED'),0),0) total`);
