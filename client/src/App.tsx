@@ -160,7 +160,7 @@ function Returns({token}:{token:string}){
  const selected=rows.filter((r:any)=>String(mode==='PURCHASE'?r.id:mode==='SALE'?r.sale_id:r.report_id)===sourceId);
  const getItemId=(r:any)=>String(mode==='PURCHASE'?r.purchase_item_id:mode==='SALE'?r.sale_item_id:r.report_item_id);
  const lineDetails=lines.map(line=>({line,chosen:selected.find((r:any)=>getItemId(r)===line.item_id)}));
- const total=lineDetails.reduce((sum,x)=>sum+(Number(x.line.quantity)||0)*Number(mode==='PURCHASE'?x.chosen?.unit_cost:x.chosen?.unit_price||0),0);
+ const total=lineDetails.reduce((sum,x)=>sum+(Number(x.line.quantity)||0)*Number((mode==='PURCHASE'?x.chosen?.unit_cost:x.chosen?.unit_price)||0),0);
  async function submit(e:FormEvent){e.preventDefault();const valid=lineDetails.filter(x=>x.chosen&&Number(x.line.quantity)>0);if(!valid.length||valid.length!==lines.length)return;setBusy(true);setError('');setMessage('');try{
   const path=mode==='PURCHASE'?'/api/returns/purchase':mode==='SALE'?'/api/returns/retail-sale':'/api/returns/distributor-sale';
   const items=valid.map(x=>mode==='PURCHASE'?{purchase_item_id:Number(x.line.item_id),quantity:Number(x.line.quantity)}:mode==='SALE'?{retail_sale_item_id:Number(x.line.item_id),quantity:Number(x.line.quantity)}:{sales_report_item_id:Number(x.line.item_id),quantity:Number(x.line.quantity)});
