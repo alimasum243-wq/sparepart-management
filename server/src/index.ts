@@ -623,6 +623,124 @@ const expenseSchema = z.object({
   amount: z.number().positive().max(100000000000),
   payment_method: z.enum(['CASH','BANK']).default('CASH')
 });
+// Kasir retail: harga jual dimasukkan manual pada setiap transaksi.
+app.get("/api/retail/options", async (_req, res) => {
+  try {
+    const [products] = await pool.query<RowDataPacket[]>(
+      `SELECT p.id,p.sku,p.product_name,p.unit,p.average_cost,p.purchase_cost,
+        COALESCE(st.stock_qty,0) AS stock_qty
+       FROM products p
+       LEFT JOIN (
+         SELECT product_id,
+           SUM(CASE WHEN to_location_id=? THEN quantity ELSE 0 END) -
+           SUM(CASE WHEN from_location_id=? THEN quantity ELSE 0 END) AS stock_qty
+         FROM stock_movements
+         WHERE to_location_id=? OR from_location_id=?
+         GROUP BY product_id
+       ) st ON st.product_id=p.id
+       WHERE p.is_active=1 ORDER BY p.product_name`,
+      [WAREHOUSE_ID,WAREHOUSE_ID,WAREHOUSE_ID,WAREHOUSE_ID]
+    );
+    const [accounts] = await pool.query<RowDataPacket[]>(
+      `SELECT id,account_name,account_type FROM cash_accounts WHERE is_active=1 ORDER BY account_name`
+    );
+    res.json({ok:true,products,accounts});
+  } catch (error) {
+    console.error("Gagal memuat opsi kasir retail:",error);
+    res.status(500).json({ok:false,message:"Gagal memuat produk dan akun kas/bank."});
+  }
+});
+
+app.post("/api/retail/sales", async (req,res) => {
+  const saleDate=String(req.body?.sale_date||"");
+  const cashAccountId=Number(req.body?.cash_account_id);
+  const rawItems=req.body?.items;
+  if(!/^\\d{4}-\\d{2}-\\d{2}$/.test(saleDate)||!Number.isInteger(cashAccountId)||cashAccountId<1||!Array.isArray(rawItems)||rawItems.length<1||rawItems.length>100){
+    return res.status(400).json({ok:false,message:"Tanggal, akun kas/bank, dan rincian barang wajib diisi dengan benar."});
+  }
+  const items=rawItems.map((x:any)=>({productId:Number(x.product_id),quantity:Number(x.quantity),unitPrice:Number(x.unit_price)}));
+  if(items.some((x:any)=>!Number.isInteger(x.productId)||x.productId<1||!Number.isFinite(x.quantity)||x.quantity<=0||!Number.isFinite(x.unitPrice)||x.unitPrice<=0)){
+    return res.status(400).json({ok:false,message:"Setiap barang wajib memiliki produk, jumlah positif, dan harga jual manual lebih dari nol."});
+  }
+  const totalQty=new Map<number,number>();
+  for(const item of items) totalQty.set(item.productId,(totalQty.get(item.productId)||0)+item.quantity);
+  const conn=await pool.getConnection();
+  try{
+    await conn.beginTransaction();
+    const [cash]=await conn.execute<RowDataPacket[]>(
+      `SELECT id,account_type FROM cash_accounts WHERE id=? AND is_active=1 FOR UPDATE`,[cashAccountId]
+    );
+    if(!cash.length) throw new Error("Akun kas/bank tidak aktif atau tidak ditemukan.");
+    const cashCode=String(cash[0].account_type).toUpperCase()==="BANK"?"1110":"1100";
+    const accountCodes=[cashCode,"4100","5100","1300"];
+    const [accounts]=await conn.query<RowDataPacket[]>(
+      `SELECT id,account_code FROM accounts WHERE account_code IN (?,?,?,?) AND is_active=1`,accountCodes
+    );
+    const accountId=(code:string)=>Number(accounts.find((a:any)=>String(a.account_code)===code)?.id||0);
+    const cashAccount=accountId(cashCode),revenueAccount=accountId("4100"),cogsAccount=accountId("5100"),inventoryAccount=accountId("1300");
+    if(!cashAccount||!revenueAccount||!cogsAccount||!inventoryAccount) throw new Error("Akun akuntansi kas, penjualan, HPP, atau persediaan belum lengkap.");
+    const prepared:any[]=[];
+    let subtotal=0,costTotal=0;
+    for(const item of items){
+      const [products]=await conn.execute<RowDataPacket[]>(
+        `SELECT id,product_name,unit,average_cost,purchase_cost,is_active FROM products WHERE id=? FOR UPDATE`,[item.productId]
+      );
+      if(!products.length||Number(products[0].is_active)!==1) throw new Error("Produk tidak ditemukan atau sudah nonaktif.");
+      const [stocks]=await conn.execute<RowDataPacket[]>(
+        `SELECT COALESCE(SUM(CASE WHEN to_location_id=? THEN quantity ELSE 0 END),0)-
+          COALESCE(SUM(CASE WHEN from_location_id=? THEN quantity ELSE 0 END),0) AS stock_qty
+         FROM stock_movements WHERE product_id=? AND (to_location_id=? OR from_location_id=?)`,
+        [WAREHOUSE_ID,WAREHOUSE_ID,item.productId,WAREHOUSE_ID,WAREHOUSE_ID]
+      );
+      const available=Number(stocks[0]?.stock_qty||0);
+      if((totalQty.get(item.productId)||0)>available) throw new Error(`Stok gudang ${products[0].product_name} tidak cukup. Tersedia ${available} ${products[0].unit||"pcs"}.`);
+      const unitCost=Number(products[0].average_cost||products[0].purchase_cost||0);
+      if(!Number.isFinite(unitCost)||unitCost<0) throw new Error(`HPP ${products[0].product_name} tidak valid.`);
+      const lineTotal=Math.round(item.quantity*item.unitPrice*100)/100;
+      const lineCost=Math.round(item.quantity*unitCost*100)/100;
+      prepared.push({...item,productName:products[0].product_name,unitCost,lineTotal,lineCost});
+      subtotal=Math.round((subtotal+lineTotal)*100)/100;
+      costTotal=Math.round((costTotal+lineCost)*100)/100;
+    }
+    const saleCode=`RTL-${Date.now()}-${randomUUID().slice(0,6).toUpperCase()}`;
+    const [sale]=await conn.execute<ResultSetHeader>(
+      `INSERT INTO retail_sales (sale_code,sale_date,cash_account_id,subtotal,total,status,created_by_user_id)
+       VALUES (?,?,?,?,?,'POSTED',?)`,
+      [saleCode,saleDate,cashAccountId,subtotal,subtotal,(req as any).identity?.id||null]
+    );
+    for(let n=0;n<prepared.length;n++){
+      const item=prepared[n];
+      await conn.execute(
+        `INSERT INTO retail_sale_items (sale_id,product_id,product_name_snapshot,quantity,unit_price,unit_cost,line_total,cost_total)
+         VALUES (?,?,?,?,?,?,?,?)`,
+        [sale.insertId,item.productId,item.productName,item.quantity,item.unitPrice,item.unitCost,item.lineTotal,item.lineCost]
+      );
+      await conn.execute(
+        `INSERT INTO stock_movements (movement_code,product_id,from_location_id,to_location_id,movement_type,quantity,unit_cost,reference_type,reference_id,note)
+         VALUES (?, ?, ?, NULL, 'RETAIL_SALE_OUT', ?, ?, 'RETAIL_SALE', ?, ?)`,
+        [`${saleCode}-${n+1}`,item.productId,WAREHOUSE_ID,item.quantity,item.unitCost,sale.insertId,`Penjualan retail ${saleCode}`]
+      );
+    }
+    const journalCode=`JRN-${Date.now()}-${randomUUID().slice(0,6).toUpperCase()}`;
+    const [journal]=await conn.execute<ResultSetHeader>(
+      `INSERT INTO journal_entries (journal_code,journal_date,source_type,source_id,description,status)
+       VALUES (?,?, 'RETAIL_SALE', ?, ?, 'POSTED')`,
+      [journalCode,saleDate,sale.insertId,`Penjualan retail ${saleCode}`]
+    );
+    await conn.execute(
+      `INSERT INTO journal_lines (journal_entry_id,account_id,debit,credit,description)
+       VALUES (?,?,?,0,'Penerimaan kas/bank retail'),(?,?,0,?,'Penjualan retail'),(?,?,?,0,'HPP penjualan retail'),(?,?,0,?,'Pengurangan persediaan retail')`,
+      [journal.insertId,cashAccount,subtotal,journal.insertId,revenueAccount,subtotal,journal.insertId,cogsAccount,costTotal,journal.insertId,inventoryAccount,costTotal]
+    );
+    await conn.execute(`UPDATE retail_sales SET journal_entry_id=? WHERE id=?`,[journal.insertId,sale.insertId]);
+    await conn.commit();
+    return res.status(201).json({ok:true,message:"Penjualan retail tersimpan; stok gudang dan jurnal sudah diperbarui.",sale:{id:sale.insertId,sale_code:saleCode,total:subtotal,cost_total:costTotal,gross_profit:Math.round((subtotal-costTotal)*100)/100}});
+  }catch(error){
+    await conn.rollback();
+    return res.status(400).json({ok:false,message:error instanceof Error?error.message:"Penjualan retail gagal disimpan."});
+  }finally{conn.release();}
+});
+
 app.post('/api/expenses', async (req,res) => {
   const parsed = expenseSchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ok:false,message:'Data pengeluaran tidak valid.'});
