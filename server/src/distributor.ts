@@ -72,6 +72,7 @@ async function journal(conn:any, date:string, sourceType:string, sourceId:number
   const [h] = await conn.execute(`INSERT INTO journal_entries (journal_code,journal_date,source_type,source_id,description,status,created_by_user_id) VALUES (?,?,?,?,?,'POSTED',?)`,[journalCode,date,sourceType,sourceId,description,userId]);
   const journalId = Number((h as ResultSetHeader).insertId);
   for (const line of lines) await conn.execute(`INSERT INTO journal_lines (journal_entry_id,account_id,debit,credit,description) VALUES (?,?,?,?,?)`,[journalId,line.account,line.debit,line.credit,line.description]);
+  await conn.execute(`INSERT INTO audit_logs (user_id,action,entity_type,entity_id,description) VALUES (?,'POST','JOURNAL_ENTRY',?,?)`,[userId,journalId,`Jurnal ${sourceType} untuk sumber ${sourceId}`]);
   return journalId;
 }
 
