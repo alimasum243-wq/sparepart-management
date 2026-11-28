@@ -91,6 +91,10 @@ Endpoint setup hanya berhasil bila belum ada akun login dengan password. Setelah
 - `POST /api/admin/consignments` — pemilik mengirim barang titipan.
 - `GET /api/distributor/stock` — stok milik distributor yang sedang login.
 - `POST /api/distributor/sales-reports` — distributor mengirim laporan.
+- `POST /api/distributor/sales-reports/:id/print-request` — mencatat timestamp/count permintaan cetak nota milik distributor (bukan konfirmasi printer fisik).
+- `GET /api/admin/audit/channel-performance?from=YYYY-MM-DD&to=YYYY-MM-DD&zone=...` — audit Ecer vs Sales, net contribution, cannibalization signals, rapid-print, unprinted notes, dan split MOQ.
+- `GET/POST /api/admin/audit/channel-costs` — alokasi nominal pengeluaran posted ke Ecer/Sales (analisis saja, tanpa jurnal tambahan).
+- `GET /api/admin/audit/consignment-stock?as_of=YYYY-MM-DD` — delivered, approved sales, returns, pending reports, ledger, expected physical, latest stock-opname variance.
 - `GET /api/admin/sales-reports`, `POST /api/admin/sales-reports/:id/approve`, dan `POST /api/admin/sales-reports/:id/reject` (alasan penolakan wajib diisi).
 - `POST /api/distributor/payments` — kirim laporan pembayaran.
 - `GET /api/admin/payments`, `POST /api/admin/payments/:id/verify`, `POST /api/admin/payments/:id/reject`.
