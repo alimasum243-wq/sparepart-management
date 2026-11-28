@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { money2, isDateOnly, hasAtMost2Decimals, hasAtMost3Decimals, outstandingAmount, netChannelAuditMetrics, auditPercentageChange, possibleCannibalizationSignal, detectLappingRiskFlags, needsRetailPriceOverride, validRetailOverrideReason, channelNetContribution, channelCostAllocationWithinSource, salesQuantityMeetsMoq, retailMasterPriceConfigured, expectedPhysicalStockAfterPendingReports, stockOpnameVariance, salesPriceFromStockSnapshots, rapidPrintWithinThreshold, validConsignmentReturnLine, consignmentReturnQtyWithinAvailable, cashSessionExpectedClosing, cashSessionVariance, isSqlDateTime } from '../src/validation.js';
+import { money2, isDateOnly, hasAtMost2Decimals, hasAtMost3Decimals, outstandingAmount, netChannelAuditMetrics, auditPercentageChange, possibleCannibalizationSignal, detectLappingRiskFlags, needsRetailPriceOverride, validRetailOverrideReason, channelNetContribution, channelCostAllocationWithinSource, salesQuantityMeetsMoq, retailMasterPriceConfigured, expectedPhysicalStockAfterPendingReports, stockOpnameVariance, salesPriceFromStockSnapshots, rapidPrintWithinThreshold, validConsignmentReturnLine, consignmentReturnQtyWithinAvailable, cashSessionExpectedClosing, cashSessionVariance, isSqlDateTime, validCashSessionCount, validCashSessionCancelReason } from '../src/validation.js';
 
 test('date validation accepts real ISO dates and rejects malformed dates',()=>{
   assert.equal(isDateOnly('2026-11-28'),true);
@@ -152,3 +152,6 @@ test('cash session SQL datetimes validate calendar and clock fields',()=>{assert
 
 
 test('sales price snapshots subtract pending consignment-return reservation value',()=>{assert.equal(salesPriceFromStockSnapshots(1000,200,-300,100,5),80);});
+
+
+test('cash session counts and cancel reasons reject invalid values',()=>{assert.equal(validCashSessionCount(0),true);assert.equal(validCashSessionCount(12.5),true);assert.equal(validCashSessionCount(-1),false);assert.equal(validCashSessionCount(1.001),false);assert.equal(validCashSessionCount(NaN),false);assert.equal(validCashSessionCancelReason('  reason long enough  '),true);assert.equal(validCashSessionCancelReason('short'),false);assert.equal(validCashSessionCancelReason('x'.repeat(1001)),false);});
