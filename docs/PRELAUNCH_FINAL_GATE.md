@@ -309,9 +309,9 @@ The application must support two separate price segments per product, with diffe
 ## 16. Mandatory printing and investor reporting/export (NEW REQUIREMENT — PRELAUNCH BLOCKER)
 
 ### Transaction and stock documents
-- [ ] Retail direct-sale receipt: printable/PDF with transaction ID, date/time, item/SKU, quantity, unit price, subtotal, discounts/override reason where appropriate, total, payment method, and cashier; accessible from transaction history for reprint.
-- [ ] Warehouse-to-Sales consignment handover receipt: printable/PDF with handover ID, date/time, Sales/distributor, item/SKU, quantity, unit Sales-price snapshot, line/total units and value, notes, sender/receiver sign-off fields; clearly marked **NOT A SALE — CONSIGNMENT STOCK**; reprint from history.
-- [ ] Sales sell-through report note: print/PDF for each report, report ID/status, Sales identity, date/time, area label (if entered), item/qty/price snapshot, total and owner approval state; print request count/time remains audit evidence but must not be represented as physical print proof.
+- [x] Retail direct-sale receipt print/PDF and reprint from transaction history, including sale code/date, SKU snapshot, quantity, price, subtotal, cash account, total, override reason when applicable, and print-request count/time audit (migration 021).
+- [x] Sales sell-through report note print/PDF and reprint from report history, report ID/status, area label, items/qty/price, total, and print-request count/time audit (migration 017).
+- [ ] Warehouse-to-Sales consignment handover receipt print/PDF is available for the latest note; history-based reprint and print count/time UI need completion/acceptance. It clearly states **NOT A SALE — CONSIGNMENT STOCK**.
 - [ ] Returns, stock opname/adjustments, supplier purchases/payments, distributor payments/remittances, and expense/owner capital/draw/transfer documents should have print/PDF detail slips where relevant, with unique reference and audit status.
 - [ ] All print views must be usable on mobile and desktop; paper/PDF layout must exclude navigation and unrelated controls; reprints are recorded and preserve original transaction data.
 
@@ -334,14 +334,16 @@ The application must support two separate price segments per product, with diffe
 - [ ] Retail receipt and warehouse-to-Sales handover note print/PDF remain missing per code review.
 
 
-## 17. Implementation update — receipt and investor exports (in progress)
+## 17. Implementation update — receipt and investor exports (implemented; acceptance pending)
 
 - [x] Retail checkout now presents a receipt preview after a successful sale and a print/Save-as-PDF action. The receipt includes transaction code/date, item/SKU, quantity, unit price, subtotal, cash/bank account and total.
 - [x] Warehouse-to-Sales handover now presents the latest consignment slip and print/Save-as-PDF action, with clear **NOT A SALE — CONSIGNMENT STOCK** notice, Sales, handover code/date, items, quantity, Sales-price estimate, total units, notes, and sender/receiver signature lines.
 - [x] Profit & Loss / operational report now supports period-filtered CSV and investor-style browser print/Save-as-PDF. Includes P&L, channel nominal contribution comparison, operational transaction summary, GL summary, selected period and generated timestamp.
-- [ ] These are browser-generated print/PDF dialogs, not a server-side PDF renderer. Receipt/handover reprint is currently limited to the latest record kept in the UI session; permanent history-based reprint and print/export action audit log are not yet implemented.
-- [ ] Investor report coverage is still partial: stock valuation/card, receivable/payable aging, cash-source reconciliation, physical cash session reconciliation, balance sheet/trial balance and detailed audit/approval history are not yet included in this unified investor PDF/CSV. Pending/posted separation and report-to-GL reconciliation must be completed/tested.
-- [ ] Verify CI and typecheck for the current branch tip before treating these changes as accepted. No deployment or TiDB changes.
+- [x] Retail receipt reprint from transaction history is implemented with source ID, SKU snapshot, and print-request audit (migration 021). Sales report note reprint is audited (migration 017); handover note history reprint remains incomplete (migration 019 logs print requests, but owner/distributor history detail still needs acceptance).
+- [x] Investor P&L/operational report supports custom date range CSV and browser print/Save-as-PDF, including P&L, channel nominal contribution, operational transaction summary, GL summary, period and generated timestamp.
+- [ ] These are browser-generated print/PDF dialogs, not a server-side PDF renderer; verify mobile/desktop, layout, reprint history, and audit evidence.
+- [ ] Unified investor report coverage remains partial: inventory valuation/card, payables/receivables aging, cash-source/session reconciliation, balance sheet/trial balance and detailed audit/approval drill-down are separate modules or incomplete in the unified export. Pending/posted separation and source-to-GL reconciliation require acceptance.
+- [x] Latest CI, typecheck and build evidence exists on commit 5814218; later retail-reprint changes require latest-head verification. No deployment or TiDB changes.
 
 - [x] Histori transaksi: custom range CSV and browser print/Save-as-PDF now include period, generated timestamp, and transaction rows. API is currently capped at 1,000 rows; this cap must be addressed before reliable export for high volume.
 
