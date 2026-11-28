@@ -273,6 +273,7 @@ app.post("/api/suppliers", async (req, res) => {
       [supplierCode, data.supplier_name]
     );
 
+    await connection.execute(`INSERT INTO audit_logs (user_id,action,entity_type,entity_id,description) VALUES (?,'CREATE','SUPPLIER',?,?)`,[(req as any).identity?.id||null,result.insertId,`Pemasok dibuat: ${supplierCode} - ${data.supplier_name}`]);
     await connection.commit();
 
     return res.status(201).json({
