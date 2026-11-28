@@ -11,7 +11,7 @@ type Supplier = { id:number; supplier_code?:string; supplier_name:string }
 type Product = { id:number; sku:string; product_name:string; purchase_cost:string|number; distributor_price?:string|number; retail_price?:string|number; unit?:string; stock_qty?:string|number; is_active?:number }
 type Location = { id:number; location_code:string; location_name:string; location_type:string }
 type Item = { product_id:string; quantity:string; unit_cost:string }
-type Options = { suppliers:Supplier[]; products:Product[]; locations:Location[] }
+type Options = { suppliers:Supplier[]; products:Product[]; locations:Location[]; cash_accounts:any[] }
 const nav = [
   {label:'Dashboard',icon:LayoutDashboard},{label:'Produk & Persediaan',icon:Package},{label:'Pembelian',icon:ShoppingCart},
   {label:'Gudang Sales',icon:Truck},{label:'Kasir Retail',icon:ReceiptText},{label:'Penjualan',icon:ReceiptText},{label:'Utang & Piutang',icon:Users},
@@ -279,7 +279,7 @@ function Products({token}:{token:string}) {
 }
 
 function Purchases({token}:{token:string}) {
-  const [options, setOptions] = useState<Options>({ suppliers: [], products: [], locations: [] })
+  const [options, setOptions] = useState<Options>({ suppliers: [], products: [], locations: [], cash_accounts: [] })
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
@@ -288,7 +288,8 @@ function Purchases({token}:{token:string}) {
   const [purchaseDate, setPurchaseDate] = useState(new Date().toISOString().slice(0, 10))
   const [invoice, setInvoice] = useState('')
   const [notes, setNotes] = useState('')
-  const [paymentMethod, setPaymentMethod] = useState<'CASH'|'CREDIT'>('CASH')
+  const [paymentMethod, setPaymentMethod] = useState<'CASH'|'BANK'|'CREDIT'>('CASH')
+  const [cashAccountId,setCashAccountId]=useState('')
   const [supplierModalOpen, setSupplierModalOpen] = useState(false)
   const [supplierName, setSupplierName] = useState('')
   const [supplierCode, setSupplierCode] = useState('')
@@ -301,7 +302,7 @@ function Purchases({token}:{token:string}) {
       const response = await fetch(`${API}/api/purchases/options`, { credentials:'include', headers: { ...(token&&token!=='cookie'?{Authorization:`Bearer ${token}`}:{}) } })
       const data = await response.json()
       if (!response.ok || !data.ok) throw new Error(data.message || 'Gagal mengambil data pemasok dan produk.')
-      setOptions({ suppliers: data.suppliers || [], products: data.products || [], locations: data.locations || [] })
+      setOptions({ suppliers: data.suppliers || [], products: data.products || [], locations: data.locations || [], cash_accounts: data.cash_accounts || [] }); if(!cashAccountId&&data.cash_accounts?.length)setCashAccountId(String(data.cash_accounts[0].id))
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Tidak dapat terhubung ke server.')
     } finally { setLoading(false) }
@@ -380,6 +381,7 @@ function Purchases({token}:{token:string}) {
           supplier_id: Number(supplierId), purchase_date: purchaseDate,
           supplier_invoice_no: invoice || undefined,
           notes: notes || undefined, payment_method: paymentMethod,
+          cash_account_id: paymentMethod!=='CREDIT'?Number(cashAccountId):undefined,
           items: validItems.map(i => ({ product_id: Number(i.product_id), quantity: Number(i.quantity), unit_cost: Number(i.unit_cost) }))
         })
       })
@@ -439,12 +441,13 @@ function Purchases({token}:{token:string}) {
           </div>
           <div className="warehouse-note"><Database size={17}/><div><strong>Lokasi penerimaan: {warehouse?.location_name || 'Gudang Sukoanyar'}</strong><small>Stok pembelian otomatis masuk ke gudang utama.</small></div></div>
           <label className="field" style={{marginTop:16}}>Status pembayaran *
-            <select value={paymentMethod} onChange={e=>setPaymentMethod(e.target.value as 'CASH'|'CREDIT')}>
-              <option value="CASH">Lunas — dibayar tunai</option>
+            <select value={paymentMethod} onChange={e=>setPaymentMethod(e.target.value as 'CASH'|'BANK'|'CREDIT')}>
+              <option value="CASH">Lunas — kas</option><option value="BANK">Lunas — bank</option>
               <option value="CREDIT">Belum lunas — utang pemasok</option>
             </select>
           </label>
-          {paymentMethod==='CASH' && <div className="cash-note"><CheckCircle2 size={17}/><div><strong>Pembayaran tunai langsung dicatat</strong><small>Kas berkurang dan transaksi pembelian tercatat lunas.</small></div></div>}
+          {paymentMethod!=='CREDIT'&&<label className="field">Akun kas/bank *<select value={cashAccountId} onChange={e=>setCashAccountId(e.target.value)} required>{options.cash_accounts.filter(a=>a.account_type===paymentMethod).map(a=><option key={a.id} value={a.id}>{a.account_name}</option>)}</select></label>}
+          {paymentMethod!=='CREDIT' && <div className="cash-note"><CheckCircle2 size={17}/><div><strong>Pembayaran langsung dicatat</strong><small>Saldo akun {paymentMethod==='BANK'?'bank':'kas'} berkurang dan transaksi pembelian tercatat lunas.</small></div></div>}
         </div>
 
         <div className="panel purchase-panel items-panel">
