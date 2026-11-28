@@ -50,4 +50,5 @@ export const salesPriceFromStockSnapshots = (deliveryValue:number,approvedSalesV
   const stockValue=money2(deliveryValue-approvedSalesValue+returnsValue-pendingSalesValue);
   return Number.isFinite(stockValue)&&Number.isFinite(availableQuantity)&&availableQuantity>0?money2(stockValue/availableQuantity):0;
 };
+export const validConsignmentReturnLine = (productId:number,quantity:number,condition:string):boolean => Number.isInteger(productId)&&productId>0&&Number.isFinite(quantity)&&quantity>0&&quantity<=1000000&&hasAtMost3Decimals(quantity)&&['GOOD','DAMAGED'].includes(condition);
 export const rapidPrintWithinThreshold = (secondsAfterHandover:number,thresholdMinutes:number):boolean => Number.isFinite(secondsAfterHandover)&&Number.isFinite(thresholdMinutes)&&secondsAfterHandover>=0&&thresholdMinutes>=0&&secondsAfterHandover<=thresholdMinutes*60;
