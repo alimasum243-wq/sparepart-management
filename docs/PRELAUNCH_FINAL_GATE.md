@@ -172,20 +172,20 @@ The application must support two separate price segments per product, with diffe
 **Objective:** sales-channel pricing is conditional on legitimate field selling and accountable consignment stock. These controls must be deterministic and server-enforced; AI is an assistant for pattern detection, not a source of proof or authority.
 
 ### Field activity and suspicious immediate sales
-- [ ] Record each sales stock handover with sales/distributor identity, timestamp, items/quantities, agreed sales price snapshots, and accountable stock location (vehicle/bag/assigned stock).
-- [ ] Record sales-note creation/printing time, customer or outlet identity where practical, sale location where lawfully collected and enabled, item/quantity, and evidence/verification status.
+- [x] Code: consignment delivery records distributor/location, date/time, quantities, HPP and Sales price snapshot; vehicle/bag assignment not captured. Acceptance pending.
+- [x] Code: report creation time, in-app print-request timestamp/count, area label, items/qty and status captured. Actual printer output, customer/outlet identity, GPS and evidence attachment remain gaps.
 - [x] Code: rapid print request after matching handover, repeated same-day SKU reports and area/cannibalization signals are surfaced. Walk-in/customer identity/GPS overlap unavailable.
-- [ ] Use configurable risk signals/thresholds; avoid declaring misconduct from a single signal. Provide the timeline, reason(s) for flag, and review outcome.
-- [ ] Do not collect location data secretly; provide appropriate notice and restrict access/retention.
+- [x] Code: rapid-print threshold configurable; area/cannibalization thresholds configurable; flags explain source records and state that they are not proof. Full investigation workflow pending.
+- [x] Code: no secret GPS tracking; area label is manually entered. Notice/access/retention policy still needs owner acceptance.
 
 ### Consignment-stock reconciliation and missing-stock charge
 - [x] Code: audit shows delivered, approved sales, customer returns, pending reports, ledger balance, expected physical (ledger minus pending), and latest stock-opname variance. Dedicated return-to-warehouse workflow and shortage charge remain gaps.
-- [ ] Only approved/validated sales notes count as sell-through. A printed note alone is not conclusive proof; retain audit trail and validation/evidence appropriate to the policy.
+- [x] Code: submitted report is pending/reserved; only owner-approved report posts stock, receivable, and journals. Print request alone is not posted sale. Evidence attachment/acceptance pending.
 - [ ] Count returned/unsold stock at handover, and record return timestamp, quantity, condition, and warehouse receiving confirmation.
-- [ ] Any unexplained shortage is a separate exception with SKU/quantity, expected vs counted balance, handover, sales identity, and evidence; never silently write it off.
+- [x] Code: stock audit shows expected vs latest opname variance per distributor/SKU; dedicated exception case, evidence and decision workflow not yet implemented.
 - [ ] Contract/policy may make missing units chargeable at the agreed sales price. Calculate proposed charge as missing quantity × applicable sales-price snapshot, show it separately from ordinary sales receivables, and require documented review/approval or dispute handling before final posting.
-- [ ] Damaged, lost, disputed, or adjusted units require reason, evidence where available, authorized approval, and stock/accounting correction entry; no self-approval by sales or cashier.
-- [ ] Support partial returns, partial sell-through, multiple handovers, and clear stock ownership/location cards.
+- [x] Code: owner-only stock adjustment/opname drafts require reason and approval/posting; evidence attachment and shortage dispute workflow pending.
+- [x] Code: partial sales/returns, multiple consignments and distributor stock cards supported. Dedicated return-to-warehouse handover flow and acceptance pending.
 
 ### Sales-note proceeds and remittance deadline (lapping prevention)
 - [x] Code: approved report creates invoice/receivable and due date; due date is owner-configurable at approval. Grace period and reminder notifications pending.
@@ -194,8 +194,8 @@ The application must support two separate price segments per product, with diffe
 - [x] Code: remittance audit view shows per-note due/allocated/outstanding/age and payment history. Acceptance pending.
 - [ ] Alert before due, at due, and after overdue using configurable terms; escalation/hold on additional stock can be policy-configured and owner-authorized.
 - [x] Code: older unpaid notes with newer-note allocations are flagged. Collection-time, deposit-reference reuse, delayed posting and full lapping analytics remain gaps.
-- [ ] Remittance allocation must preserve history and require authorized reversal/correction; never allow silent reallocation or let new money automatically conceal older overdue obligations.
-- [ ] Sales cannot verify their own remittance or approve their own shortage/price exceptions; maintain immutable audit log for submit, approve, allocate, reverse, and investigate.
+- [x] Code: remittance allocations and audit logs exist; lapping signal flags older open notes. Formal allocation-reversal/correction history workflow and acceptance pending.
+- [x] Code: distributor submits payment; owner-only verification/approval routes and audit logs. Shortage/price-exception approval workflow not implemented; acceptance pending.
 - [ ] Reports reconcile sales notes, customer collections (if recorded), remittances, outstanding receivables, consignment stock, proposed missing-stock charges, cash/bank, and GL.
 
 ### Required acceptance tests
@@ -215,20 +215,20 @@ The application must support two separate price segments per product, with diffe
 
 ### Profit and volume comparison
 - [x] Code: custom date range supports weekly/monthly periods; owner selects dates.
-- [ ] Show units sold, revenue, HPP of units sold (using historical cost snapshots), gross profit in Rupiah, direct/transaction costs, allocated shared operating costs (allocation basis clearly disclosed), and net contribution in Rupiah.
+- [x] Code: channel report shows units, revenue, HPP, gross profit and net contribution after owner-entered nominal expense allocations; direct/shared categories and basis are not formalized, unallocated expenses remain visible.
 - [x] Code: net contribution shares reported; if total net contribution is non-positive, shares are null and Rupiah totals remain. Acceptance pending.
-- [ ] Show channel contribution alongside units and revenue so high-volume, low-profit sales are not mistaken for higher profitability.
+- [x] Code: report displays unit volume, omzet, gross profit, allocated costs, net contribution and share together.
 - [ ] Explain how costs are categorized: direct channel costs, shared costs, unallocated costs. Never silently allocate shared costs; owner-configured allocation method and its basis must be visible, auditable, and reproducible.
-- [ ] Exclude pending, rejected, voided, and unposted transactions from official results; handle refunds/returns and corrections consistently and traceably.
+- [x] Code: official channel performance uses posted retail, approved Sales reports, posted returns and posted expenses; pending reports excluded from posted profit, but acceptance pending.
 - [ ] Reconcile contribution calculations to transaction records, inventory/HPP, cash/receivables, and GL. Reports/export must agree with source data.
 
 ### Possible retail cannibalization / channel conflict
 - [ ] Monitor retail sales trend and nearby field-sales transactions by units, revenue, and contribution over comparable periods; account for day-of-week, seasonality, product mix, promotions, stock availability, price changes, and unusual closures where data is available.
-- [ ] Flag material sudden drops in retail activity coinciding with increased sales-channel activity near the store/warehouse or within owner-configured zones, time windows, and thresholds.
+- [x] Code: paired retail-drop/Sales-rise signal only when manual area label/filter is selected. No verified location or zone mapping; tests pending.
 - [ ] Use location only when lawfully collected, transparent to the sales staff, and enabled with access/retention controls. If location is absent, state the limitation and use less-specific evidence.
-- [ ] Alerts must display measured change, comparison window, nearby/overlap evidence if available, data coverage, and alternative explanations. Do not automatically infer intent or accuse sales staff from correlation alone.
+- [x] Code: alert displays changes, selected period/area, threshold, and limitation; it states correlation is not proof. Alternative explanations and review workflow are not automated.
 - [ ] Provide investigation workflow: review alert, add notes/evidence, mark confirmed/false-positive/inconclusive, and record owner decision. Preserve audit trail.
-- [ ] Alert thresholds and zones are owner-configurable and changes are audited. No automatic punishment, price change, or transaction alteration based on an AI alert.
+- [x] Code: thresholds/settings are owner-configurable and audited; area is a manual label/filter, not a configured geographic zone. No automatic penalty/transaction change.
 
 ### Acceptance tests
 - [ ] Weekly/monthly report calculates channel volume, revenue, HPP, gross profit, direct costs, allocated costs, net contribution, and contribution share correctly using manual verified test cases.
