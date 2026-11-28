@@ -47,6 +47,16 @@ Gunakan entitas distributor dan lokasi konsinyasi yang sudah ada sebagai identit
 
 
 
+
+## Identitas visual Sparepart Enzonic
+- Gunakan logo horizontal (emblem + tulisan SPAREPART ENZONIC) pada header/sidebar desktop dan halaman portal distributor.
+- Gunakan logo versi vertikal pada halaman login dan sampul laporan/nota PDF bila ruangnya sesuai.
+- Gunakan ikon simplified sebagai favicon, ikon aplikasi, dan penanda kecil di navigasi; ikon app alternatif hanya digunakan bila terbaca jelas pada ukuran kecil.
+- Hilangkan placeholder teks "HU" pada seluruh brand-mark dan ganti dengan aset logo resmi dari gambar referensi pemilik.
+- Terapkan palet konsisten dari logo: navy gelap sebagai warna utama, oranye api sebagai aksen, putih/abu sangat muda sebagai latar; gunakan tipografi bersih dan jarak antarkomponen yang lebih lega.
+- Perbarui tampilan login, sidebar, dashboard, halaman distributor, dan header laporan agar satu sistem visual. Pertahankan fungsi, alur, dan data transaksi yang sudah ada.
+- Logo harus disediakan sebagai aset file di client/public/brand, bukan dipotong ulang dari screenshot saat aplikasi berjalan. Siapkan ukuran/format yang tajam dan transparan bila sumber aset memungkinkan.
+
 ## Login, akun, dan keamanan akses (wajib sebelum rilis)
 - Login memakai email atau nomor telepon terdaftar, bukan username. Minimal satu kontak harus terdaftar dan terverifikasi; satu email/nomor telepon hanya boleh terikat ke satu akun.
 - Peran akun: OWNER/ADMIN untuk pengelolaan sistem dan DISTRIBUTOR untuk akses terbatas sesuai haknya. OWNER membuat dan mengelola akun distributor.
