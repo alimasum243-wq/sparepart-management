@@ -112,3 +112,14 @@ npm run build
 ```
 Root build menjalankan install dependency, quality gate, TypeScript check, backend tsc, dan Vite build. Script lint saat ini adalah static type gate (ESLint belum dipasang).
 Production wajib `DB_SSL=true`. Jangan commit `server/.env`; simpan password dan secret di environment/secret manager.
+
+
+## Login dengan username, email, atau nomor telepon
+
+- Form login menerima satu identitas: username, email, atau nomor telepon, beserta password.
+- Email dicocokkan tanpa membedakan huruf besar/kecil; nomor telepon dicocokkan sesuai format yang tersimpan.
+- Akun lama tetap dapat masuk menggunakan username. Email dan nomor telepon bersifat opsional sampai diisi pada tabel `users`.
+- Jalankan `server/migrations/004_user_login_identifiers.sql` satu kali pada TiDB sebelum deploy versi ini. Migration menambahkan kolom email/phone nullable dan indeks unik agar identitas tidak dipakai dua akun.
+- Saat membuat akun distributor baru, nomor telepon dan email (jika disediakan) disalin ke akun login.
+- Jangan mengisi email/nomor telepon yang sama pada dua akun.
+- Logo final belum dipasang; tampilan teks SPAREPART ENZONIC dipertahankan sementara menunggu file logo resmi dari pemilik.
