@@ -40,8 +40,8 @@ Every delivery, sales report, approval/rejection, payment submission/verificatio
 - Distributor-visible sell-through report history with pending/approved/rejected status and rejection reason; grouped note totals and audited print/reprint count/time (migration 017).
 - Distributor-visible payment history with submission amount/method/status, allocated amount and unapplied amount.\n- Per-note receivable summary with sales total, sales returns, verified allocated payments, outstanding, due date and Unpaid/Partial/Paid status; payment-allocation drill-down.
 - Unsold consignment return request schema (migration 018), distributor request UI/API, history, Owner queue/detail, reject reason and approval posting.
-- Return approval moves good items to the warehouse and damaged items to the damaged location; approval is single-transition and does not create automatic refunds.
-- Server-side return input validation and unit test for malformed item/quantity/condition.
+- Return approval moves good items to the warehouse and damaged items to the damaged location; approval is single-transition and does not create automatic refunds. Return requests now snapshot HPP and weighted distributor-price snapshot.
+- Server-side return input validation and unit tests for malformed item/quantity/condition and stock reservations. Pending return quantities/value are now reserved against new sell-through reports and their price snapshot calculations.
 
 ### Still incomplete / not yet certified
 - Handover history now groups notes with totals and browser print/reprint; print requests are logged via migration 019. Sales report notes also support grouped reprint and print audit via migration 017. PDF is browser print-to-PDF, and audit log review still required.
