@@ -2,6 +2,9 @@
 -- Additive; existing cash accounts are linked to their current general-ledger account by type.
 
 ALTER TABLE cash_accounts ADD COLUMN IF NOT EXISTS ledger_account_id BIGINT NULL;
+ALTER TABLE expenses ADD COLUMN IF NOT EXISTS cash_account_id BIGINT NULL;
+ALTER TABLE purchases ADD COLUMN IF NOT EXISTS cash_account_id BIGINT NULL;
+ALTER TABLE supplier_payments ADD COLUMN IF NOT EXISTS cash_account_id BIGINT NULL;
 
 UPDATE cash_accounts ca
 JOIN accounts a ON a.account_code=CASE WHEN UPPER(ca.account_type)='BANK' THEN '1110' ELSE '1100' END
