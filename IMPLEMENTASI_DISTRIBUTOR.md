@@ -88,18 +88,24 @@ Semua endpoint operasional lama (termasuk pembelian) kini memerlukan token pemil
 
 ## Uji penerimaan wajib
 
-1. Login pemilik berhasil; password salah ditolak.
-2. Buat dua distributor dengan dua akun berbeda.
-3. Login Distributor A tidak dapat melihat stok atau laporan Distributor B.
-4. Pemilik mengirim stok ke A; stok gudang turun dan stok titipan A naik. Tidak ada penjualan/piutang saat pengiriman.
-5. A mengirim laporan penjualan; status SUBMITTED dan belum ada jurnal.
-6. Pemilik menyetujui laporan; stok titipan turun dan jurnal Dr Piutang / Cr Penjualan serta Dr HPP / Cr Persediaan seimbang.
-7. A mengirim pembayaran; status PENDING dan belum ada jurnal/kas masuk.
-8. Pemilik memverifikasi; jurnal Dr Kas/Bank / Cr Piutang terbentuk.
-9. Laba-rugi periode menampilkan pendapatan dan HPP dari jurnal penjualan yang disetujui serta beban yang dicatat.
-10. Coba akses endpoint admin menggunakan token distributor; harus ditolak 403.
+1. API bisnis tanpa token harus 401; token distributor pada endpoint owner harus 403; owner pada endpoint distributor harus ditolak.
+2. Login pemilik berhasil; password salah ditolak; username/email/phone login diuji; login/setup throttling diuji.
+3. Logout mencabut sesi; token yang sama tidak bisa dipakai lagi. Akun nonaktif/role berubah harus langsung ditolak.
+4. Owner setup hanya berhasil sekali, termasuk dua request bootstrap bersamaan.
+5. Buat dua distributor dengan dua akun berbeda.
+6. Login Distributor A tidak dapat melihat stok, laporan, atau pembayaran Distributor B.
+7. Pemilik mengirim stok ke A; stok gudang turun dan stok titipan A naik. Tidak ada penjualan/piutang saat pengiriman.
+8. A mengirim laporan penjualan; status SUBMITTED dan belum ada jurnal. Laporan reservasi stok; laporan kedua tidak dapat menjual stok yang sama.
+9. Pemilik membuka rincian barang sebelum menyetujui. Approval mengurangi stok titipan dan membuat jurnal Dr Piutang / Cr Penjualan serta Dr HPP / Cr Persediaan seimbang.
+10. A mengirim pembayaran; status PENDING dan belum ada jurnal/kas masuk. Pending payment mengurangi batas laporan pembayaran berikutnya.
+11. Pemilik memverifikasi; jurnal Dr Kas/Bank / Cr Piutang terbentuk. Pembayaran ditolak harus menyimpan alasan dan audit log.
+12. Pembelian, retail, supplier payment, pengeluaran, retur diuji; cek stok, HPP, utang/piutang, jurnal debit=credit, audit log, dan rollback jika gagal.
+13. Retur pembelian/distributor yang melebihi saldo terbuka harus ditolak (refund transaksi lunas belum tersedia). Retur retail mengembalikan kas, stok, dan HPP.
+14. Kirim request transaksi bersamaan untuk produk/supplier/distributor yang sama; tidak boleh saldo/stock oversold, double payment, atau negative balance.
+15. Laba-rugi periode menampilkan transaksi jurnal. Bandingkan dengan jurnal detail dan rekonsiliasi kas/bank. Balance sheet, manual journal, dan rekonsiliasi otomatis belum tersedia.
+16. Migration 001/003/004/005/006/007 diuji pada salinan DB; ulangi migration idempotent yang memang dirancang repeatable, verifikasi tanpa kehilangan data.
 
-Catatan akuntansi: laporan laba-rugi hanya mencerminkan transaksi yang sudah dibukukan ke jurnal. Pastikan seluruh beban operasional dicatat dan pembelian yang belum dibayar tetap dianggap utang pemasok. Jangan mengartikan nominal pembayaran yang baru dilaporkan distributor sebagai kas masuk sebelum diverifikasi.
+Catatan: Laporan laba-rugi hanya mencerminkan transaksi yang sudah dibukukan ke jurnal. Pastikan seluruh beban operasional dicatat dan pembelian yang belum dibayar tetap dianggap utang pemasok. Jangan mengartikan pembayaran distributor yang baru dilaporkan sebagai kas masuk sebelum diverifikasi.
 
 ## Standar transaksi, pembulatan, dan koreksi
 - Mata uang sistem: IDR (Rupiah).
