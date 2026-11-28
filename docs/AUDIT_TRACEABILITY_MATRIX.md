@@ -6,9 +6,9 @@
 |---|---|---|---|
 | Retail vs Sales channel performance | Retail posted sale/return item snapshots; approved distributor sales/returns; channel-performance API/UI; nominal allocations from posted expenses | Partial | Allocated net contribution now available in code; unallocated expenses still excluded, and report/GL reconciliation acceptance pending |
 | Profit contribution share by channel | Manual nominal allocations from posted expenses by channel; report computes net contribution and net share | Implemented in branch; test pending | Unallocated operating costs excluded from net contribution and shown separately; allocation/report/GL reconciliation tests required |
-| Retail default price | Product retail price; cashier auto-fills master price | Implemented in branch | Confirm migration 014, test auto-fill/price changes, browser and API |
+| Retail default price | Product retail price; cashier auto-fills master price; server blocks missing master price and below-master price without reason; snapshots and audit logs overrides | Implemented in branch | Apply migration 014; test zero master price, normal price, override reason, snapshot and price change |
 | Retail below-master price exception | Server-side price-floor validation; reason 10–500 chars; master price snapshot; audit log | Implemented in branch | Apply migration 014; test reject without reason, accept with reason and inspect audit record |
-| Sales price and price snapshot | Distributor report item price/cost snapshots and approval flow | Code present; acceptance pending | Verify price changes after stock handover and before report, historical snapshot, returns |
+| Sales price and price snapshot | Distributor report item price/cost snapshots and approval flow; server rejects Sales price above retail when retail price is set | Code present; acceptance pending | Verify price changes after stock handover and before report, historical snapshot, returns |
 | Sales stock handover | Consignment delivery records and stock movements, distributor/location holder | Code present; acceptance pending | Test handover, partial return, stock balance and physical count |
 | Rapid report after handover | Report creation time compared to latest matching posted handover; configurable minutes | Partial | Printed-note timestamp not captured; created/submitted timestamp is proxy only; test matching and avoid false signals |
 | Sales near owner store / area | Optional transparent sales-area label; owner area filter; signal disabled without area filter | Partial | Area is manually entered, no verified location; no retail customer location; area data completeness test |
@@ -24,6 +24,7 @@
 
 | Nominal operating-cost allocation | `channel_cost_allocations` table; owner assigns expense amount to RETAIL or SALES; API validates total allocations do not exceed source expense; audit log | Implemented in branch | Apply migration 015; test update, zero allocation, source-limit, audit log, and no GL journal side effects |
 | Sales MOQ / report splitting | Owner configures per-SKU MOQ; server blocks below-MOQ report quantity and stores MOQ snapshot; audit API flags repeated same-day Sales/SKU reports | Implemented in branch | Apply migration 016; test below/at MOQ, snapshot after MOQ change, split-signal false positives and cross-day boundary |
+| Sales price relationship | Owner-editable retail and Sales prices; server rejects Sales price above retail when retail master is positive | Implemented in branch | Test zero retail setup, valid relationship, rejected higher Sales price, audit log/history |
 
 ## Required acceptance evidence
 
