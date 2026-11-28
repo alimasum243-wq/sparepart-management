@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { money2, isDateOnly, hasAtMost2Decimals, hasAtMost3Decimals, outstandingAmount, netChannelAuditMetrics, auditPercentageChange, possibleCannibalizationSignal, detectLappingRiskFlags, needsRetailPriceOverride, validRetailOverrideReason, channelNetContribution, channelCostAllocationWithinSource, salesQuantityMeetsMoq, retailMasterPriceConfigured } from '../src/validation.js';
+import { money2, isDateOnly, hasAtMost2Decimals, hasAtMost3Decimals, outstandingAmount, netChannelAuditMetrics, auditPercentageChange, possibleCannibalizationSignal, detectLappingRiskFlags, needsRetailPriceOverride, validRetailOverrideReason, channelNetContribution, channelCostAllocationWithinSource, salesQuantityMeetsMoq, retailMasterPriceConfigured, expectedPhysicalStockAfterPendingReports, stockOpnameVariance } from '../src/validation.js';
 
 test('date validation accepts real ISO dates and rejects malformed dates',()=>{
   assert.equal(isDateOnly('2026-11-28'),true);
@@ -115,4 +115,12 @@ test('retail sales require a positive master retail price',()=>{
   assert.equal(retailMasterPriceConfigured(0),false);
   assert.equal(retailMasterPriceConfigured(-1),false);
   assert.equal(retailMasterPriceConfigured(NaN),false);
+});
+
+
+test('consignment expected physical stock subtracts submitted pending sales and preserves 3 decimals',()=>{
+  assert.equal(expectedPhysicalStockAfterPendingReports(20,3.125),16.875);
+  assert.equal(expectedPhysicalStockAfterPendingReports(2,5),-3);
+  assert.equal(stockOpnameVariance(8,10),-2);
+  assert.equal(stockOpnameVariance(10.333,10),0.333);
 });
