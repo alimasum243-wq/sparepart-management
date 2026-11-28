@@ -121,17 +121,22 @@ app.post("/api/products", async (req, res) => {
   if (!parsed.success) return res.status(400).json({ ok: false, message: "Nama produk wajib diisi dan data harga harus benar." });
   const data = parsed.data;
   const sku = data.sku || `SKU-${Date.now()}-${randomUUID().slice(0, 4).toUpperCase()}`;
+  const conn=await pool.getConnection();
   try {
-    const [result] = await pool.execute<ResultSetHeader>(
+    await conn.beginTransaction();
+    const [result] = await conn.execute<ResultSetHeader>(
       `INSERT INTO products (sku, product_name, unit, purchase_cost, last_purchase_cost, average_cost, distributor_price, retail_price, is_active)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1)`,
       [sku, data.product_name, data.unit, data.purchase_cost, data.purchase_cost, data.purchase_cost, data.distributor_price, data.retail_price]
     );
+    await conn.execute(`INSERT INTO audit_logs (user_id,action,entity_type,entity_id,description) VALUES (?,"CREATE","PRODUCT",?,?)`,[(req as any).identity?.id||null,result.insertId,`Produk dibuat: ${sku} - ${data.product_name}`]);
+    await conn.commit();
     res.status(201).json({ ok: true, message: "Produk berhasil ditambahkan.", product_id: result.insertId });
   } catch (error) {
+    await conn.rollback();
     const duplicate = (error as { code?: string })?.code === "ER_DUP_ENTRY";
     res.status(duplicate ? 409 : 500).json({ ok: false, message: duplicate ? "SKU sudah digunakan. Coba simpan lagi agar SKU dibuat otomatis." : "Gagal menyimpan produk." });
-  }
+  } finally { conn.release(); }
 });
 
 app.put("/api/products/:id", async (req, res) => {
@@ -139,33 +144,42 @@ app.put("/api/products/:id", async (req, res) => {
   const parsed = productSchema.safeParse(req.body);
   if (!Number.isInteger(id) || id < 1 || !parsed.success) return res.status(400).json({ ok: false, message: "Data produk tidak valid." });
   const d = parsed.data;
+  const conn=await pool.getConnection();
   try {
+    await conn.beginTransaction();
     const sku = d.sku || `SKU-${Date.now()}-${randomUUID().slice(0, 4).toUpperCase()}`;
-    await pool.execute(
+    const [result]=await conn.execute<ResultSetHeader>(
       `UPDATE products SET sku=?, product_name=?, unit=?, purchase_cost=?, distributor_price=?, retail_price=? WHERE id=? AND is_active=1`,
       [sku, d.product_name, d.unit, d.purchase_cost, d.distributor_price, d.retail_price, id]
     );
+    if(!result.affectedRows){await conn.rollback();return res.status(404).json({ok:false,message:"Produk tidak ditemukan atau nonaktif."});}
+    await conn.execute(`INSERT INTO audit_logs (user_id,action,entity_type,entity_id,description) VALUES (?,"UPDATE","PRODUCT",?,?)`,[(req as any).identity?.id||null,id,`Produk diperbarui: ${sku} - ${d.product_name}`]);
+    await conn.commit();
     res.json({ ok: true, message: "Produk berhasil diperbarui." });
   } catch (error) {
-    console.error("Gagal memperbarui produk:", error);
-    res.status(500).json({ ok: false, message: "Gagal memperbarui produk." });
-  }
+    await conn.rollback();
+    const duplicate = (error as { code?: string })?.code === "ER_DUP_ENTRY";
+    res.status(duplicate ? 409 : 500).json({ ok: false, message: duplicate ? "SKU sudah digunakan." : "Gagal memperbarui produk." });
+  } finally { conn.release(); }
 });
 
 app.patch("/api/products/:id/status", async (req, res) => {
   const id = Number(req.params.id);
   const active = req.body?.is_active;
   if (!Number.isInteger(id) || id < 1 || typeof active !== "boolean") return res.status(400).json({ ok: false, message: "Status produk tidak valid." });
+  const conn=await pool.getConnection();
   try {
-    await pool.execute("UPDATE products SET is_active=? WHERE id=?", [active ? 1 : 0, id]);
+    await conn.beginTransaction();
+    const [result]=await conn.execute<ResultSetHeader>("UPDATE products SET is_active=? WHERE id=?", [active ? 1 : 0, id]);
+    if(!result.affectedRows){await conn.rollback();return res.status(404).json({ok:false,message:"Produk tidak ditemukan."});}
+    await conn.execute(`INSERT INTO audit_logs (user_id,action,entity_type,entity_id,description) VALUES (?,"STATUS","PRODUCT",?,?)`,[(req as any).identity?.id||null,id,active?"Produk diaktifkan":"Produk dinonaktifkan"]);
+    await conn.commit();
     res.json({ ok: true, message: active ? "Produk diaktifkan." : "Produk dinonaktifkan." });
   } catch (error) {
-    console.error("Gagal mengubah status produk:", error);
+    await conn.rollback();
     res.status(500).json({ ok: false, message: "Gagal mengubah status produk." });
-  }
+  } finally { conn.release(); }
 });
-
-// Data untuk formulir pembelian.
 app.get("/api/purchases/options", async (_req, res) => {
   try {
     const [suppliers] = await pool.query<RowDataPacket[]>(
