@@ -5,8 +5,9 @@ import { bankRowNet, scoreBankMatch, shortageChargeCap, validShortageDecision, i
 test('shortage approval is bounded by claimed quantity and charge cap',()=>{
  assert.equal(validShortageDecision(4,3,25000,75000),true);
  assert.equal(validShortageDecision(4,5,25000,125000),false);
- assert.equal(validShortageDecision(2.333,2.333,10.55,24.62),true);
+ assert.equal(validShortageDecision(2.333,2.333,10.55,24.61),true);
  assert.equal(shortageChargeCap(3,25000),75000);
+ assert.equal(validShortageDecision(2.333,2.333,10.55,24.62),false);
  assert.equal(validShortageDecision(1.2,1.1,10,11),false);
 });
 test('bank statement sign and candidate match rules',()=>{
