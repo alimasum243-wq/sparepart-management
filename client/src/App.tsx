@@ -47,7 +47,7 @@ export default function App() {
       <div className="sidebar-bottom"><ShieldCheck size={16}/><span>Masuk sebagai pemilik</span></div></aside>
     {menuOpen&&<button className="scrim" onClick={()=>setMenuOpen(false)} aria-label="Tutup navigasi"/>}
     <main className="main"><header className="topbar"><button className="menu-toggle" onClick={()=>setMenuOpen(true)} aria-label="Buka menu"><Menu/></button><div><span className="eyebrow">SISTEM MANAJEMEN USAHA</span><h1>{active==='Dashboard'?'Panel Operasional':active}</h1></div><div className="connection"><span className={`dot ${apiStatus==='ok'?'ok':apiStatus==='error'?'error':''}`}/><span>{apiStatus==='ok'?'API terhubung':apiStatus==='error'?'API belum terhubung':'Memeriksa API'}</span></div><button className="secondary-button" onClick={logout}><LogOut size={15}/> Keluar</button></header>
-      {active==='Dashboard'?<Dashboard apiStatus={apiStatus} user={user}/>:
+      {active==='Dashboard'?<Dashboard apiStatus={apiStatus} user={user} token={token}/>:
        active==='Produk & Persediaan'?<Products token={token}/>:
        active==='Pembelian'?<Purchases token={token}/>:
        active==='Gudang Sales'?<AdminConsignments token={token}/>:
@@ -66,9 +66,9 @@ function Login({onLogin,error,apiStatus}:{onLogin:(u:string,p:string)=>void;erro
  const [username,setUsername]=useState('');const [password,setPassword]=useState('')
  return <div className="login-screen"><form className="panel login-card" onSubmit={e=>{e.preventDefault();onLogin(username,password)}}><div className="login-brand"><strong className="login-wordmark">SPAREPART ENZONIC</strong><small>Solusi Suku Cadang Kompor Terpercaya</small></div><span className="eyebrow">SISTEM MANAJEMEN USAHA</span><h1>Masuk ke Sparepart Enzonic</h1><p>Gunakan akun pemilik atau distributor yang sudah dibuat.</p>{error&&<div className="form-alert error-alert"><AlertCircle size={17}/>{error}</div>}<label className="field">Nomor telepon atau username<input autoComplete="username" inputMode="tel" value={username} onChange={e=>setUsername(e.target.value)} required/></label><label className="field">Password<input type="password" autoComplete="current-password" value={password} onChange={e=>setPassword(e.target.value)} required/></label><button className="primary-button" type="submit">Masuk</button><small>Status server: {apiStatus==='ok'?'terhubung':apiStatus==='error'?'belum terhubung':'memeriksa'}</small></form></div>
 }
-function Dashboard({apiStatus,user}:{apiStatus:string;user:User}){
+function Dashboard({apiStatus,user,token}:{apiStatus:string;user:User;token:string}){
  const [summary,setSummary]=useState<any|null>(null);const [error,setError]=useState('');
- async function load(){try{const d=await request('/api/dashboard/summary',localStorage.getItem('sparepart_token')||'');setSummary(d);setError('')}catch(e){setError(e instanceof Error?e.message:'Ringkasan belum dapat dimuat')}}
+ async function load(){try{const d=await request('/api/dashboard/summary',token);setSummary(d);setError('')}catch(e){setError(e instanceof Error?e.message:'Ringkasan belum dapat dimuat')}}
  useEffect(()=>{load()},[]);
  const cards=[['Penjualan retail hari ini',summary?.retail_sales_today],['Pembelian bulan ini',summary?.purchases_month],['Utang pemasok tersisa',summary?.supplier_payables],['Piutang distributor tersisa',summary?.distributor_receivables],['Pengeluaran bulan ini',summary?.expenses_month]];
  return <><section className="welcome"><div><span className="eyebrow light">RINGKASAN USAHA</span><h2>Selamat datang, {user.full_name||user.username}</h2><p>Pantau persediaan, transaksi, dan pencatatan keuangan usaha.</p></div><div className="welcome-icon"><LayoutDashboard size={34}/></div></section>
