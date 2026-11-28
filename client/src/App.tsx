@@ -20,24 +20,24 @@ const nav = [
 const money = (n:number) => new Intl.NumberFormat('id-ID',{style:'currency',currency:'IDR',maximumFractionDigits:0}).format(Number(n)||0)
 const today = () => new Date().toLocaleDateString('en-CA')
 async function request(path:string, token:string, init:RequestInit={}) {
-  const response = await fetch(`${API}${path}`,{...init,headers:{...(init.headers||{}),Authorization:`Bearer ${token}`,'Content-Type':'application/json'}})
+  const response = await fetch(`${API}${path}`,{...init,credentials:'include',headers:{...(init.headers||{}),...(token&&token!=='cookie'?{Authorization:`Bearer ${token}`}:{})},'Content-Type':'application/json'}})
   const data = await response.json().catch(()=>({ok:false,message:'Respons server tidak valid.'}))
   if(!response.ok || data.ok===false) throw new Error(data.message||'Permintaan gagal.')
   return data
 }
 
 export default function App() {
-  const [token,setToken]=useState(localStorage.getItem('sparepart_token')||'')
+  const [token,setToken]=useState('cookie')
   const [user,setUser]=useState<User|null>(null)
   const [active,setActive]=useState('Dashboard')
   const [menuOpen,setMenuOpen]=useState(false)
   const [apiStatus,setApiStatus]=useState<'checking'|'ok'|'error'>('checking')
   const [authLoading,setAuthLoading]=useState(Boolean(token))
   const [authError,setAuthError]=useState('')
-  useEffect(()=>{fetch(`${API}/api/health`).then(r=>{if(!r.ok)throw new Error();return r.json()}).then(()=>setApiStatus('ok')).catch(()=>setApiStatus('error'))},[])
-  useEffect(()=>{if(!token){setAuthLoading(false);return} request('/api/auth/me',token).then(d=>setUser(d.user)).catch(()=>{localStorage.removeItem('sparepart_token');setToken('');setUser(null)}).finally(()=>setAuthLoading(false))},[token])
-  async function login(username:string,password:string){setAuthError('');try{const r=await fetch(`${API}/api/auth/login`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username,password})});const d=await r.json();if(!r.ok||!d.ok)throw new Error(d.message||'Login gagal.');localStorage.setItem('sparepart_token',d.token);setToken(d.token);setUser(d.user)}catch(e){setAuthError(e instanceof Error?e.message:'Login gagal.')}}
-  function logout(){localStorage.removeItem('sparepart_token');setToken('');setUser(null);setActive('Dashboard')}
+  useEffect(()=>{fetch(`${API}/api/health`,{credentials:'include'}).then(r=>{if(!r.ok)throw new Error();return r.json()}).then(()=>setApiStatus('ok')).catch(()=>setApiStatus('error'))},[])
+  useEffect(()=>{if(!token){setAuthLoading(false);return} request('/api/auth/me',token).then(d=>setUser(d.user)).catch(()=>{setToken('cookie');setUser(null)}).finally(()=>setAuthLoading(false))},[token])
+  async function login(username:string,password:string){setAuthError('');try{const r=await fetch(`${API}/api/auth/login`,{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({username,password})});const d=await r.json();if(!r.ok||!d.ok)throw new Error(d.message||'Login gagal.');setToken('cookie');setUser(d.user)}catch(e){setAuthError(e instanceof Error?e.message:'Login gagal.')}}
+  async function logout(){try{await fetch(`${API}/api/auth/logout`,{method:'POST',credentials:'include'})}finally{setToken('');setUser(null);setActive('Dashboard')}}
   if(authLoading)return <div className="panel loading-panel">Memeriksa sesi masuk...</div>
   if(!token||!user)return <Login onLogin={login} error={authError} apiStatus={apiStatus}/>
   if(user.role==='DISTRIBUTOR')return <DistributorPortal token={token} user={user} onLogout={logout}/>
@@ -271,38 +271,10 @@ function Purchases({token}:{token:string}) {
   const [savingSupplier, setSavingSupplier] = useState(false)
   const [items, setItems] = useState<Item[]>([{ product_id: '', quantity: '1', unit_cost: '' }])
 
-  async function importKakAli() {
-    const confirmed=window.confirm('Impor belanja KAK ALI-2.xlsx sekarang? Sistem akan membuat pemasok/produk yang belum ada, menambah stok, dan mencatat pembayaran tunai Rp37.335.000. Jangan jalankan jika transaksi ini sudah pernah dimasukkan.');
-    if(!confirmed)return;
-    setSaving(true);setError('');setSuccess('');
-    const dateKey=purchaseDate.replaceAll('-','');
-    const suppliers=[
-      {supplier_name:'INDORAYA',invoice_no:`KAK-ALI-INDORAYA-${dateKey}`,items:[
-        {product_name:'tatakan rinai K4',quantity:800,unit_cost:9000},
-        {product_name:'tatakan rinai k6',quantity:700,unit_cost:10000},
-        {product_name:'tatakan multi bulat',quantity:350,unit_cost:9000},
-        {product_name:'tatakan matahri',quantity:100,unit_cost:13000},
-        {product_name:'catok pngaman',quantity:100,unit_cost:6500},
-        {product_name:'knop kuniz',quantity:1000,unit_cost:950},
-        {product_name:'tungku todachi',quantity:200,unit_cost:9000},
-        {product_name:'knop rinai abs',quantity:200,unit_cost:1300}
-      ]},
-      {supplier_name:'UD ADI JUWANA',invoice_no:`KAK-ALI-ADI-JUWANA-${dateKey}`,items:[
-        {product_name:'burner rinnai RK super 90gr',quantity:250,unit_cost:17000},
-        {product_name:'burner rinai rb B',quantity:250,unit_cost:13000},
-        {product_name:'burner rk w1',quantity:250,unit_cost:13000},
-        {product_name:'burner bgx tebal',quantity:150,unit_cost:28500}
-      ]}
-    ];
-    try{const d=await request('/api/purchases/import-batch',token,{method:'POST',body:JSON.stringify({purchase_date:purchaseDate,suppliers})});setSuccess(`${d.message} Total ${money(Number(d.total))}. Nomor pembelian: ${(d.purchases||[]).map((x:any)=>x.purchase_code).join(', ')}`);await loadOptions()}
-    catch(e){setError(e instanceof Error?e.message:'Gagal mengimpor belanja Excel')}
-    finally{setSaving(false)}
-  }
-
   async function loadOptions() {
     setLoading(true); setError('')
     try {
-      const response = await fetch(`${API}/api/purchases/options`, { headers: { Authorization: `Bearer ${token}` } })
+      const response = await fetch(`${API}/api/purchases/options`, { credentials:'include', headers: { ...(token&&token!=='cookie'?{Authorization:`Bearer ${token}`}:{}) } })
       const data = await response.json()
       if (!response.ok || !data.ok) throw new Error(data.message || 'Gagal mengambil data pemasok dan produk.')
       setOptions({ suppliers: data.suppliers || [], products: data.products || [], locations: data.locations || [] })
@@ -379,7 +351,7 @@ function Purchases({token}:{token:string}) {
     setSaving(true)
     try {
       const response = await fetch(`${API}/api/purchases`, {
-        method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        method: 'POST', credentials:'include', headers: { 'Content-Type': 'application/json', ...(token&&token!=='cookie'?{Authorization:`Bearer ${token}`}:{}) },
         body: JSON.stringify({
           supplier_id: Number(supplierId), purchase_date: purchaseDate,
           supplier_invoice_no: invoice || undefined,
@@ -401,7 +373,7 @@ function Purchases({token}:{token:string}) {
   return <section className="purchase-page">
     <div className="purchase-intro">
       <div><span className="eyebrow">BARANG MASUK</span><h2>Catat pembelian dari pemasok</h2><p>Barang yang diterima akan menambah stok Gudang Sukoanyar dan memperbarui HPP rata-rata bergerak.</p></div>
-      <div className="purchase-header-actions"><button className="secondary-button" type="button" onClick={importKakAli} disabled={saving}><Package size={15}/> {saving?'Mengimpor...':'Impor belanja KAK ALI'}</button><button className="secondary-button" type="button" onClick={loadOptions} disabled={loading}><RefreshCw size={15}/> Muat ulang</button></div>
+      <div className="purchase-header-actions"><button className="secondary-button" type="button" onClick={loadOptions} disabled={loading}><RefreshCw size={15}/> Muat ulang</button></div>
     </div>
 
     {error && <div className="form-alert error-alert"><AlertCircle size={18}/><span>{error}</span></div>}
