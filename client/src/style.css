@@ -65,3 +65,6 @@
 .portal .status-card{border-radius:14px}
 .product-table tbody tr:hover{background:#f8fafc}
 @media(max-width:760px){.brand{padding-bottom:22px}.login-card{border-radius:15px}}
+
+/* Enzonic wordmark sementara menunggu pemasangan aset logo asli */
+.brand{align-items:center}.brand-lockup{min-width:0}.brand-wordmark{display:grid;line-height:.94;letter-spacing:.35px;color:#172b3d;font-family:Manrope,sans-serif}.brand-wordmark strong{font-size:13px;font-weight:800}.brand-wordmark b{font-size:19px;font-weight:800}.brand-lockup small{display:block;color:#b8752b;font-size:9px;margin-top:5px;white-space:nowrap}.login-wordmark{display:block;color:#172b3d;font:800 23px Manrope,sans-serif;letter-spacing:.3px}.login-brand .login-wordmark{margin-bottom:5px}
