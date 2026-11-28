@@ -62,7 +62,11 @@ export const authMiddleware = async (req:AuthedRequest,res:Response,next:NextFun
     const data = JSON.parse(Buffer.from(payload,'base64url').toString());
     const userId=Number(data.id);
     if (!Number.isInteger(userId)||userId<=0||!data.exp||data.exp<Date.now()) return res.status(401).json({ok:false,message:'Sesi berakhir atau tidak valid. Silakan login kembali.'});
-    const sessionId=String(data.sid||'');\n    if(!/^[a-f0-9]{32}$/.test(sessionId)) return res.status(401).json({ok:false,message:'Sesi tidak valid. Silakan login kembali.'});\n    const [sessions]=await pool.execute<RowDataPacket[]>(`SELECT session_id FROM auth_sessions WHERE session_id=? AND user_id=? AND revoked_at IS NULL AND expires_at>CURRENT_TIMESTAMP LIMIT 1`,[sessionId,userId]);\n    if(!sessions.length) return res.status(401).json({ok:false,message:'Sesi telah berakhir atau dicabut. Silakan login kembali.'});\n    // Re-check account status and role from the database so disabled or changed
+    const sessionId=String(data.sid||'');
+    if(!/^[a-f0-9]{32}$/.test(sessionId)) return res.status(401).json({ok:false,message:'Sesi tidak valid. Silakan login kembali.'});
+    const [sessions]=await pool.execute<RowDataPacket[]>(`SELECT session_id FROM auth_sessions WHERE session_id=? AND user_id=? AND revoked_at IS NULL AND expires_at>CURRENT_TIMESTAMP LIMIT 1`,[sessionId,userId]);
+    if(!sessions.length) return res.status(401).json({ok:false,message:'Sesi telah berakhir atau dicabut. Silakan login kembali.'});
+    // Re-check account status and role from the database so disabled or changed
     // accounts cannot keep using an old signed token until it expires.
     const [users]=await pool.execute<RowDataPacket[]>(`SELECT id,username,role,distributor_id,is_active FROM users WHERE id=? LIMIT 1`,[userId]);
     if(!users.length||Number(users[0].is_active)!==1) return res.status(401).json({ok:false,message:'Akun tidak aktif atau tidak ditemukan. Silakan login kembali.'});
@@ -72,7 +76,8 @@ export const authMiddleware = async (req:AuthedRequest,res:Response,next:NextFun
       const [dist]=await pool.execute<RowDataPacket[]>(`SELECT id,is_active FROM distributors WHERE id=? LIMIT 1`,[user.distributor_id]);
       if(!dist.length||Number(dist[0].is_active)!==1) return res.status(401).json({ok:false,message:'Distributor tidak aktif. Silakan hubungi pemilik.'});
     }
-    req.identity = {id:Number(user.id),role:String(user.role),distributorId:user.distributor_id == null ? null : Number(user.distributor_id),username:String(user.username)};\n    req.sessionId=sessionId;
+    req.identity = {id:Number(user.id),role:String(user.role),distributorId:user.distributor_id == null ? null : Number(user.distributor_id),username:String(user.username)};
+    req.sessionId=sessionId;
     next();
   } catch { return res.status(503).json({ok:false,message:'Validasi sesi gagal karena layanan autentikasi/database bermasalah.'}); }
 };
@@ -103,10 +108,11 @@ async function journal(conn:any, date:string, sourceType:string, sourceId:number
 }
 
 // First owner can only be initialized once and requires a server-side setup secret.
-router.post('/auth/owner-setup', async (req,res) => {\n  if(rateLimit('setup:'+rateKey(req),3,60*60*1000)) return res.status(429).json({ok:false,message:'Percobaan setup terlalu banyak. Coba lagi nanti.'});
+router.post('/auth/owner-setup', async (req,res) => {
+  if(rateLimit('setup:'+rateKey(req),3,60*60*1000)) return res.status(429).json({ok:false,message:'Percobaan setup terlalu banyak. Coba lagi nanti.'});
   const {setup_key,username,email,phone,full_name,password} = req.body || {};
   if (!process.env.OWNER_SETUP_KEY || setup_key !== process.env.OWNER_SETUP_KEY) return res.status(403).json({ok:false,message:'Kunci setup tidak cocok.'});
-  if (!/^[a-zA-Z0-9._-]{4,50}$/.test(username||'') || !String(full_name||'').trim() || String(password||'').length < 10 || (email && !/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(String(email)))) return res.status(400).json({ok:false,message:'Username minimal 4 karakter, email harus valid, dan password minimal 10 karakter.'});
+  if (!/^[a-zA-Z0-9._-]{4,50}$/.test(username||'') || !String(full_name||'').trim() || String(password||'').length < 10 || (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(email)))) return res.status(400).json({ok:false,message:'Username minimal 4 karakter, email harus valid, dan password minimal 10 karakter.'});
   const conn=await pool.getConnection();
   try {
     await conn.beginTransaction();
@@ -121,7 +127,9 @@ router.post('/auth/owner-setup', async (req,res) => {\n  if(rateLimit('setup:'+r
   finally { conn.release(); }
 });
 
-router.post('/auth/login', async (req,res) => {\n  const loginKey='login:'+rateKey(req);\n  if(rateLimit(loginKey,8,15*60*1000)) return res.status(429).json({ok:false,message:'Terlalu banyak percobaan login. Tunggu 15 menit sebelum mencoba kembali.'});
+router.post('/auth/login', async (req,res) => {
+  const loginKey='login:'+rateKey(req);
+  if(rateLimit(loginKey,8,15*60*1000)) return res.status(429).json({ok:false,message:'Terlalu banyak percobaan login. Tunggu 15 menit sebelum mencoba kembali.'});
   const identifier = String(req.body?.identifier ?? req.body?.username ?? '').trim();
   const password = String(req.body?.password ?? '');
   if (!identifier || !password) return res.status(400).json({ok:false,message:'Username, email, atau nomor telepon dan password wajib diisi.'});
@@ -132,7 +140,9 @@ router.post('/auth/login', async (req,res) => {\n  const loginKey='login:'+rateK
     if (!user || !user.is_active || !user.password_hash || !verifyPassword(password,String(user.password_hash))) return res.status(401).json({ok:false,message:rows.length>1?'Identitas login tidak unik. Hubungi administrator.':'Identitas atau password salah.'});
     if (!secret) return res.status(503).json({ok:false,message:'Server belum mengatur AUTH_TOKEN_SECRET.'});
     const identity:Identity = {id:Number(user.id),username:String(user.username),role:String(user.role),distributorId:user.distributor_id==null?null:Number(user.distributor_id)};
-    const sessionId=randomBytes(16).toString('hex');\n    await pool.execute(`INSERT INTO auth_sessions (session_id,user_id,expires_at) VALUES (?,?,DATE_ADD(CURRENT_TIMESTAMP,INTERVAL 12 HOUR))`,[sessionId,identity.id]);\n    const token = sign(identity,sessionId); setAuthCookie(res, token); authRate.delete(loginKey);
+    const sessionId=randomBytes(16).toString('hex');
+    await pool.execute(`INSERT INTO auth_sessions (session_id,user_id,expires_at) VALUES (?,?,DATE_ADD(CURRENT_TIMESTAMP,INTERVAL 12 HOUR))`,[sessionId,identity.id]);
+    const token = sign(identity,sessionId); setAuthCookie(res, token); authRate.delete(loginKey);
     return res.json({ok:true,user:{id:identity.id,username:identity.username,full_name:user.full_name,role:identity.role,distributor_id:identity.distributorId}});
   } catch (e) { return res.status(500).json({ok:false,message:e instanceof Error?e.message:'Login gagal.'}); }
 });
