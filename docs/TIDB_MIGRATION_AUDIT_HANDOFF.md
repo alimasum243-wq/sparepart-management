@@ -28,8 +28,8 @@ This document is the handoff gate between application hardening and the user's m
 - [ ] Final application-vs-database schema mapping and required-table checklist are reviewed.
 
 ## Audit outputs to produce for the user
-1. **Preflight SQL**: database name, TiDB version, tables, columns, indexes, constraints, row counts, and migration-relevant schema checks.
-2. **Migration package**: ordered scripts with exact filenames, purpose, prerequisites, and dependencies.
+1. **Preflight SQL**: database name, TiDB version, tables, columns, indexes, constraints, row counts, and migration-relevant schema checks. Updated preflight includes duplicate distributor-login checks and migration-023 table/columns.
+2. **Migration package**: ordered scripts with exact filenames, purpose, prerequisites, and dependencies. Preliminary statement-level repository review is in `TIDB_MIGRATION_STATEMENT_REVIEW.md`.
 3. **Conditional SQL**: instructions for only the missing columns/tables/indexes, avoiding duplicate DDL.
 4. **Seed package**: product/COA/location/account seeds and idempotency review, separated from structural migration.
 5. **Postflight SQL**: verify table/column/index presence, seed counts, references, and no accidental duplicate records.
