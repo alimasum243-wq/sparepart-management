@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { money2, isDateOnly, hasAtMost2Decimals, hasAtMost3Decimals, outstandingAmount, netChannelAuditMetrics, auditPercentageChange, possibleCannibalizationSignal, detectLappingRiskFlags, needsRetailPriceOverride, validRetailOverrideReason, channelNetContribution, channelCostAllocationWithinSource, salesQuantityMeetsMoq, retailMasterPriceConfigured, expectedPhysicalStockAfterPendingReports, stockOpnameVariance, salesPriceFromStockSnapshots, rapidPrintWithinThreshold, validConsignmentReturnLine, consignmentReturnQtyWithinAvailable, cashSessionExpectedClosing, cashSessionVariance, isSqlDateTime, validCashSessionCount, validCashSessionCancelReason, validTransactionHistoryPagination, validCashAccountSource, safeOperationalMessage } from '../src/validation.js';
+import { money2, isDateOnly, hasAtMost2Decimals, hasAtMost3Decimals, outstandingAmount, netChannelAuditMetrics, auditPercentageChange, possibleCannibalizationSignal, detectLappingRiskFlags, needsRetailPriceOverride, validRetailOverrideReason, channelNetContribution, channelCostAllocationWithinSource, salesQuantityMeetsMoq, retailMasterPriceConfigured, validUnitCost, expectedPhysicalStockAfterPendingReports, stockOpnameVariance, salesPriceFromStockSnapshots, rapidPrintWithinThreshold, validConsignmentReturnLine, consignmentReturnQtyWithinAvailable, cashSessionExpectedClosing, cashSessionVariance, isSqlDateTime, validCashSessionCount, validCashSessionCancelReason, validTransactionHistoryPagination, validCashAccountSource, safeOperationalMessage } from '../src/validation.js';
 
 test('date validation accepts real ISO dates and rejects malformed dates',()=>{
   assert.equal(isDateOnly('2026-11-28'),true);
@@ -101,6 +101,17 @@ test('channel expense allocation cannot exceed source expense amount',()=>{
   assert.equal(channelCostAllocationWithinSource(1000,400,1.001),false);
 });
 
+
+test('unit cost must be positive, finite, within maximum, and at most two decimals',()=>{
+  assert.equal(validUnitCost(1),true);
+  assert.equal(validUnitCost(0.01),true);
+  assert.equal(validUnitCost(0),false);
+  assert.equal(validUnitCost(-1),false);
+  assert.equal(validUnitCost(10.001),false);
+  assert.equal(validUnitCost(1000000001),false);
+  assert.equal(validUnitCost(NaN),false);
+  assert.equal(validUnitCost(Infinity),false);
+});
 
 test('sales report quantity meets configured per-product MOQ',()=>{
   assert.equal(salesQuantityMeetsMoq(5,5),true);
