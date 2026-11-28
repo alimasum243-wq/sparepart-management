@@ -45,7 +45,7 @@ This document is the handoff gate between application hardening and the user's m
 
 ## Cash reconciliation sessions (migration 020)
 - Owner-only opening/closing count sessions per cash/bank account.
-- Opening physical count and system GL opening are recorded separately, with opening variance. Expected close = system opening + posted GL movements created during the session window; closing count and closing variance are recorded.
+- Opening physical count and system GL opening are recorded separately, with opening variance. Expected close = system opening + posted journal-line movements created during the session window; closing count and closing variance are recorded.
 - No automatic journal or loss/charge is posted.
 - Pending code review/CI/acceptance: validate time zone conversion, accounts mapped to active ASSET ledger accounts, transfers, cash receipts/refunds, expenses, purchases, supplier payments, distributor remittances, and bank reconciliation.
 - Cashier-level attribution and physical drawer identity are not yet separate from cash-account/session attribution.
