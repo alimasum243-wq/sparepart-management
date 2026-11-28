@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { money2, isDateOnly, hasAtMost2Decimals, hasAtMost3Decimals, outstandingAmount, netChannelAuditMetrics, auditPercentageChange, possibleCannibalizationSignal, detectLappingRiskFlags, needsRetailPriceOverride, validRetailOverrideReason, channelNetContribution, channelCostAllocationWithinSource, salesQuantityMeetsMoq, retailMasterPriceConfigured, expectedPhysicalStockAfterPendingReports, stockOpnameVariance, salesPriceFromStockSnapshots, rapidPrintWithinThreshold, validConsignmentReturnLine } from '../src/validation.js';
+import { money2, isDateOnly, hasAtMost2Decimals, hasAtMost3Decimals, outstandingAmount, netChannelAuditMetrics, auditPercentageChange, possibleCannibalizationSignal, detectLappingRiskFlags, needsRetailPriceOverride, validRetailOverrideReason, channelNetContribution, channelCostAllocationWithinSource, salesQuantityMeetsMoq, retailMasterPriceConfigured, expectedPhysicalStockAfterPendingReports, stockOpnameVariance, salesPriceFromStockSnapshots, rapidPrintWithinThreshold, validConsignmentReturnLine, consignmentReturnQtyWithinAvailable } from '../src/validation.js';
 
 test('date validation accepts real ISO dates and rejects malformed dates',()=>{
   assert.equal(isDateOnly('2026-11-28'),true);
@@ -140,3 +140,6 @@ test('rapid print audit threshold is exact in seconds',()=>{
 
 
 test('unsold consignment return line validation rejects malformed quantities and conditions',()=>{assert.equal(validConsignmentReturnLine(2,1,'GOOD'),true);assert.equal(validConsignmentReturnLine(2,0.125,'DAMAGED'),true);assert.equal(validConsignmentReturnLine(0,1,'GOOD'),false);assert.equal(validConsignmentReturnLine(2,0,'GOOD'),false);assert.equal(validConsignmentReturnLine(2,1.0001,'GOOD'),false);assert.equal(validConsignmentReturnLine(2,1,'OTHER'),false);assert.equal(validConsignmentReturnLine(2,1000001,'GOOD'),false);});
+
+
+test('consignment return reservation check accounts for quantities already requested across conditions',()=>{assert.equal(consignmentReturnQtyWithinAvailable(5,3,2),true);assert.equal(consignmentReturnQtyWithinAvailable(5,3,2.001),false);assert.equal(consignmentReturnQtyWithinAvailable(5,5.001),false);assert.equal(consignmentReturnQtyWithinAvailable(-1,1),false);assert.equal(consignmentReturnQtyWithinAvailable(3,1,-1),false);});
