@@ -25,7 +25,10 @@ CREATE TABLE IF NOT EXISTS distributor_consignment_return_request_items (
   quantity DECIMAL(15,3) NOT NULL,
   item_condition VARCHAR(20) NOT NULL,
   unit_cost_snapshot DECIMAL(15,2) NOT NULL DEFAULT 0,
+  distributor_price_snapshot DECIMAL(15,2) NOT NULL DEFAULT 0,
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   UNIQUE KEY uq_consignment_return_request_item (request_id,product_id,item_condition),
   KEY idx_consignment_return_item_product (product_id)
 );
+
+ALTER TABLE distributor_consignment_return_request_items ADD COLUMN IF NOT EXISTS distributor_price_snapshot DECIMAL(15,2) NOT NULL DEFAULT 0;
