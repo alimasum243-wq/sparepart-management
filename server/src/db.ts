@@ -15,7 +15,7 @@ if (isProduction && !sslEnabled) {
 if (isProduction && (!process.env.AUTH_TOKEN_SECRET || process.env.AUTH_TOKEN_SECRET.length < 32)) {
   throw new Error("AUTH_TOKEN_SECRET production wajib minimal 32 karakter.");
 }
-if (isProduction && (!process.env.OWNER_SETUP_KEY || process.env.OWNER_SETUP_KEY.length < 32)) {
+if (isProduction && process.env.OWNER_SETUP_ENABLED !== "false" && (!process.env.OWNER_SETUP_KEY || process.env.OWNER_SETUP_KEY.length < 32)) {
   throw new Error("OWNER_SETUP_KEY production wajib minimal 32 karakter.");
 }
 
