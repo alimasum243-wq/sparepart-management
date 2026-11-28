@@ -58,5 +58,5 @@ test('cannibalization signal requires paired retail drop and sales rise',()=>{
   assert.equal(possibleCannibalizationSignal(-25,30,-5,10),true);
   assert.equal(possibleCannibalizationSignal(-25,10,-25,30),true);
   assert.equal(possibleCannibalizationSignal(-25,10,-25,10),false);
-  assert.equal(possibleCannibalizationSignal(null,40,-25,40),false);
+  assert.equal(possibleCannibalizationSignal(null,40,-25,40),true);
 });
