@@ -16,6 +16,13 @@ const port = Number(process.env.PORT || 4000);
 const allowedOrigins = (process.env.CLIENT_ORIGIN || "http://localhost:5173").split(",").map(value => value.trim()).filter(Boolean);
 const WAREHOUSE_ID = 1;
 
+const isDateOnly = (value:unknown):boolean => {
+  if(typeof value!=='string'||!/^\\d{4}-\\d{2}-\\d{2}$/.test(value)) return false;
+  const [year,month,day]=value.split('-').map(Number);
+  const date=new Date(Date.UTC(year,month-1,day));
+  return date.getUTCFullYear()===year&&date.getUTCMonth()===month-1&&date.getUTCDate()===day;
+};
+
 app.use(helmet());
 if (process.env.NODE_ENV !== "production" || process.env.CLIENT_ORIGIN) {
   app.use(cors({
@@ -587,7 +594,7 @@ app.post("/api/retail/sales", async (req,res) => {
   const saleDate=String(req.body?.sale_date||"");
   const cashAccountId=Number(req.body?.cash_account_id);
   const rawItems=req.body?.items;
-  if(!/^\d{4}-\d{2}-\d{2}$/.test(saleDate)||!Number.isInteger(cashAccountId)||cashAccountId<1||!Array.isArray(rawItems)||rawItems.length<1||rawItems.length>100){
+  if(!isDateOnly(saleDate)||!Number.isInteger(cashAccountId)||cashAccountId<1||!Array.isArray(rawItems)||rawItems.length<1||rawItems.length>100){
     return res.status(400).json({ok:false,message:"Tanggal, akun kas/bank, dan rincian barang wajib diisi dengan benar."});
   }
   const items=rawItems.map((x:any)=>({productId:Number(x.product_id),quantity:Number(x.quantity),unitPrice:Number(x.unit_price)}));
@@ -730,7 +737,7 @@ app.post("/api/supplier-payments", async (req,res) => {
   const cashAccountId=Number(req.body?.cash_account_id);
   const method=String(req.body?.payment_method||"CASH").toUpperCase();
   const allocations=req.body?.allocations;
-  if(!/^\d{4}-\d{2}-\d{2}$/.test(date) ||
+  if(!isDateOnly(date) ||
      !Number.isInteger(supplierId)||supplierId<1 ||
      !Number.isInteger(cashAccountId)||cashAccountId<1 ||
      !["CASH","BANK"].includes(method) ||
@@ -875,7 +882,7 @@ app.get("/api/returns/options",async (_req,res)=>{
 
 app.post("/api/returns/purchase",async(req,res)=>{
  const purchaseId=Number(req.body?.purchase_id),date=String(req.body?.return_date||""),items=req.body?.items;
- if(!Number.isInteger(purchaseId)||purchaseId<1||!/^\d{4}-\d{2}-\d{2}$/.test(date)||!Array.isArray(items)||!items.length||items.length>100)
+ if(!Number.isInteger(purchaseId)||purchaseId<1||!isDateOnly(date)||!Array.isArray(items)||!items.length||items.length>100)
   return res.status(400).json({ok:false,message:"Faktur, tanggal retur, dan rincian barang wajib diisi."});
  const normalized=items.map((x:any)=>({purchaseItemId:Number(x.purchase_item_id),quantity:Number(x.quantity)}));
  if(normalized.some((x:any)=>!Number.isInteger(x.purchaseItemId)||x.purchaseItemId<1||!Number.isFinite(x.quantity)||x.quantity<=0||x.quantity>1000000||Math.round(x.quantity*1000)!==x.quantity*1000)||new Set(normalized.map((x:any)=>x.purchaseItemId)).size!==normalized.length)
@@ -937,7 +944,7 @@ app.post("/api/returns/purchase",async(req,res)=>{
 
 app.post("/api/returns/retail-sale",async(req,res)=>{
  const saleId=Number(req.body?.sale_id),date=String(req.body?.return_date||""),items=req.body?.items;
- if(!Number.isInteger(saleId)||saleId<1||!/^\d{4}-\d{2}-\d{2}$/.test(date)||!Array.isArray(items)||!items.length||items.length>100)
+ if(!Number.isInteger(saleId)||saleId<1||!isDateOnly(date)||!Array.isArray(items)||!items.length||items.length>100)
   return res.status(400).json({ok:false,message:"Transaksi penjualan, tanggal retur, dan rincian barang wajib diisi."});
  const normalized=items.map((x:any)=>({saleItemId:Number(x.retail_sale_item_id),quantity:Number(x.quantity)}));
  if(normalized.some((x:any)=>!Number.isInteger(x.saleItemId)||x.saleItemId<1||!Number.isFinite(x.quantity)||x.quantity<=0||x.quantity>1000000||Math.round(x.quantity*1000)!==x.quantity*1000)||new Set(normalized.map((x:any)=>x.saleItemId)).size!==normalized.length)
@@ -989,7 +996,7 @@ app.post("/api/returns/retail-sale",async(req,res)=>{
 
 app.post("/api/returns/distributor-sale",async(req,res)=>{
  const reportId=Number(req.body?.sales_report_id),date=String(req.body?.return_date||""),items=req.body?.items;
- if(!Number.isInteger(reportId)||reportId<1||!/^\d{4}-\d{2}-\d{2}$/.test(date)||!Array.isArray(items)||!items.length||items.length>100)
+ if(!Number.isInteger(reportId)||reportId<1||!isDateOnly(date)||!Array.isArray(items)||!items.length||items.length>100)
   return res.status(400).json({ok:false,message:"Laporan distributor, tanggal retur, dan rincian barang wajib diisi."});
  const normalized=items.map((x:any)=>({reportItemId:Number(x.sales_report_item_id),quantity:Number(x.quantity)}));
  if(normalized.some((x:any)=>!Number.isInteger(x.reportItemId)||x.reportItemId<1||!Number.isFinite(x.quantity)||x.quantity<=0||x.quantity>1000000||Math.round(x.quantity*1000)!==x.quantity*1000)||new Set(normalized.map((x:any)=>x.reportItemId)).size!==normalized.length)
@@ -1052,7 +1059,7 @@ app.post("/api/returns/distributor-sale",async(req,res)=>{
 // Histori gabungan transaksi operasional.
 app.get("/api/transactions/history",async(req,res)=>{
  const from=String(req.query.from||"2000-01-01"),to=String(req.query.to||"2099-12-31");
- if(!/^\d{4}-\d{2}-\d{2}$/.test(from)||!/^\d{4}-\d{2}-\d{2}$/.test(to)||from>to)return res.status(400).json({ok:false,message:"Rentang tanggal tidak valid."});
+ if(!isDateOnly(from)||!isDateOnly(to)||from>to)return res.status(400).json({ok:false,message:"Rentang tanggal tidak valid."});
  try{
   const [rows]=await pool.query<RowDataPacket[]>(`
    SELECT transaction_date,transaction_code,transaction_type,party_name,amount,status,description FROM (
@@ -1073,7 +1080,7 @@ app.get("/api/transactions/history",async(req,res)=>{
 
 app.get("/api/reports/operational",async(req,res)=>{
  const from=String(req.query.from||"2000-01-01"),to=String(req.query.to||"2099-12-31");
- if(!/^\d{4}-\d{2}-\d{2}$/.test(from)||!/^\d{4}-\d{2}-\d{2}$/.test(to)||from>to)return res.status(400).json({ok:false,message:"Rentang tanggal laporan tidak valid."});
+ if(!isDateOnly(from)||!isDateOnly(to)||from>to)return res.status(400).json({ok:false,message:"Rentang tanggal laporan tidak valid."});
  try{
   const [rows]=await pool.query<RowDataPacket[]>(`
    SELECT transaction_type,COUNT(*) transaction_count,COALESCE(SUM(amount),0) total_amount FROM (
