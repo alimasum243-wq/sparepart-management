@@ -125,10 +125,11 @@ The application must support two separate price segments per product, with diffe
 - [ ] Override requires owner/authorized approver, recorded reason, transaction evidence, and immutable audit trail; cashier cannot approve their own override.
 
 ### Margin controls and monitoring
-- [ ] Configure target and minimum acceptable retail gross-margin band per product/product group; example target 30–40% only illustrative and owner-configurable.
-- [ ] Configure sales/wholesale target and minimum gross-margin band separately; example target 15–20% only illustrative and owner-configurable.
-- [ ] Define gross margin consistently as (selling price - cost of goods sold) / selling price unless owner explicitly chooses and labels a markup-on-cost metric. Do not mix these definitions in reports.
-- [ ] Recompute expected margin using transaction price snapshot and cost/HPP snapshot. Below-floor price or margin blocks posting or requires owner approval; discount reasons and approver are recorded.
+- [ ] Do not require or display margin target percentages for now.
+- [ ] Owner sets retail and sales prices directly per product; system preserves these separate price fields and transaction snapshots.
+- [ ] Optional minimum permitted selling price per channel may be set as a nominal Rupiah amount (not percentage), if owner chooses to use this safeguard.
+- [ ] Profit reporting may show actual Rupiah gross profit (selling price minus HPP) per unit and transaction, without percentage targets.
+- [ ] Check transaction price against configured channel price and any nominal price floor. Unauthorized lower price blocks posting or requires owner approval; record reason and approver.
 - [ ] Report margin by channel, product, cashier, sales/distributor, and time period; compare realized margin to target/floor and flag outliers, price overrides, repeated small orders, channel misclassification, and unusual discounts.
 - [ ] Alerts should distinguish hard rule violations (blocked, ineligible identity/MOQ, below authorized floor) from statistical anomalies (review needed); AI/anomaly detection may not automatically accuse users or alter transactions.
 - [ ] Validate margins on posted transactions and reconcile sales, HPP, inventory, receivable/cash, and GL; consignment stock delivery is not recognized as revenue until sell-through is approved under the accounting flow.
