@@ -176,7 +176,13 @@ router.post('/admin/distributors',authMiddleware,ownerMiddleware,async(req:Authe
   } catch(e){await conn.rollback();const duplicate=(e as {code?:string})?.code==='ER_DUP_ENTRY';return res.status(duplicate?409:500).json({ok:false,message:duplicate?'Kode distributor, username, email, atau nomor telepon sudah digunakan.':e instanceof Error?e.message:'Gagal membuat distributor.'});} finally{conn.release();}
 });
 
-router.get('/admin/distributors',authMiddleware,ownerMiddleware,async(_req,res)=>{const [rows]=await pool.query<RowDataPacket[]>(`SELECT id,distributor_code,distributor_name,phone,address,is_active FROM distributors ORDER BY distributor_name`);return res.json({ok:true,distributors:rows});});
+router.post('/admin/distributors/:id/reset-password',authMiddleware,ownerMiddleware,async(req:AuthedRequest,res)=>{
+  const id=Number(req.params.id),password=String(req.body?.password||'');
+  if(!Number.isInteger(id)||id<=0||password.length<10||password.length>128)return res.status(400).json({ok:false,message:'ID distributor atau password baru tidak valid (password 10–128 karakter).'});
+  const conn=await pool.getConnection();
+  try{await conn.beginTransaction();const [users]=await conn.execute<RowDataPacket[]>(`SELECT id,username FROM users WHERE distributor_id=? AND role='DISTRIBUTOR' FOR UPDATE`,[id]);if(!users.length)throw new Error('Akun distributor tidak ditemukan.');const userId=Number(users[0].id);await conn.execute(`UPDATE users SET password_hash=? WHERE id=?`,[hashPassword(password),userId]);await conn.execute(`UPDATE auth_sessions SET revoked_at=CURRENT_TIMESTAMP WHERE user_id=? AND revoked_at IS NULL`,[userId]);await conn.execute(`INSERT INTO audit_logs (user_id,action,entity_type,entity_id,description) VALUES (?,'RESET_PASSWORD','USER',?,?)`,[req.identity!.id,userId,`Password distributor direset oleh owner: ${users[0].username}`]);await conn.commit();return res.json({ok:true,message:'Password berhasil direset; seluruh sesi distributor sebelumnya dicabut.'});}catch(e){await conn.rollback();return res.status(400).json({ok:false,message:e instanceof Error?e.message:'Reset password gagal.'});}finally{conn.release();}
+});
+router.get('/admin/distributors',authMiddleware,ownerMiddleware,async(_req,res)=>{const [rows]=await pool.query<RowDataPacket[]>(`SELECT d.id,d.distributor_code,d.distributor_name,d.phone,d.address,d.is_active,u.username,u.is_active user_active FROM distributors d LEFT JOIN users u ON u.distributor_id=d.id AND u.role='DISTRIBUTOR' ORDER BY d.distributor_name`);return res.json({ok:true,distributors:rows});});
 router.get('/admin/distributor-stock',authMiddleware,ownerMiddleware,async(_req,res)=>{
  try{
   const [rows]=await pool.query<RowDataPacket[]>(`SELECT d.id distributor_id,d.distributor_name,sl.id location_id,p.id product_id,p.sku,p.product_name,p.unit,
