@@ -2,6 +2,13 @@
 
 **Status: BLOCKED — not approved for real transactions.** A checkbox is completed only after a test and evidence are recorded. Passing CI alone is not business acceptance.
 
+
+## Current code-review findings (not test results)
+- Cash/bank account balances are derived from posted GL journal lines. There is no external bank-statement reconciliation/matching workflow or reconciliation report yet; this remains a feature and acceptance-test blocker.
+- Opening balances can be entered using manual journals and opening-stock adjustment, but there is no dedicated opening-balance wizard/guard for all account classes. Opening entries require owner-prepared balanced journals and duplicate-entry checks.
+- Backup/restore is not implemented as an app feature. This must use TiDB provider backup/export and restore into an isolated target, with documented evidence.
+- Actual TiDB migration, restore, integration, and concurrency results are pending; code/CI review does not prove those controls.
+
 ## 1. Cash, bank, and journal reconciliation
 - [ ] Verify cash/bank subledger opening balances against GL accounts.
 - [ ] Reconcile cash/bank transaction totals against journal lines by account/date.
