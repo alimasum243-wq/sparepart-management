@@ -655,6 +655,7 @@ app.post("/api/retail/sales", async (req,res) => {
       `SELECT ca.id,ca.account_type,COALESCE(mapped.id,fallback.id) ledger_id FROM cash_accounts ca LEFT JOIN accounts mapped ON mapped.id=ca.ledger_account_id AND mapped.is_active=1 LEFT JOIN accounts fallback ON fallback.account_code=IF(UPPER(ca.account_type)='BANK','1110','1100') AND fallback.is_active=1 WHERE ca.id=? AND ca.is_active=1 FOR UPDATE`,[cashAccountId]
     );
     if(!cash.length) throw new Error("Akun kas/bank tidak aktif atau tidak ditemukan.");
+    await assertCashBalance(conn,Number(cash[0].ledger_id),0,'akun penerimaan penjualan retail');
     const warehouseId=await getWarehouseLocationId(conn);
     const cashCode=String(cash[0].account_type).toUpperCase()==="BANK"?"1110":"1100";
     const accountCodes=["4100","5100","1300"];
