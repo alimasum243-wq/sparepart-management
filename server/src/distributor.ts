@@ -164,6 +164,7 @@ router.post('/admin/consignments',authMiddleware,ownerMiddleware,async(req:Authe
    await conn.execute(`INSERT INTO consignment_delivery_items (delivery_id,product_id,product_name_snapshot,quantity,unit_cost_snapshot,distributor_price_snapshot) VALUES (?,?,?,?,?,?)`,[deliveryId,pid,p.product_name,qty,cost,price]);
    await conn.execute(`INSERT INTO stock_movements (movement_code,product_id,from_location_id,to_location_id,movement_type,quantity,unit_cost,reference_type,reference_id,note,created_by_user_id) VALUES (?,?,?,?,'CONSIGNMENT_OUT',?,?,'CONSIGNMENT',?,?,?)`,[`${deliveryCode}-${pid}`,pid,Number(wh[0].id),Number(locs[0].id),qty,cost,deliveryId,`Titipan ke distributor ${distributor_id}`,req.identity!.id]);
   }
+  await conn.execute(`INSERT INTO audit_logs (user_id,action,entity_type,entity_id,description) VALUES (?,'POST','CONSIGNMENT_DELIVERY',?,?)`,[req.identity!.id,deliveryId,`Titipan ${deliveryCode} ke distributor ${distributor_id}; belum merupakan penjualan`]);
   await conn.commit();return res.status(201).json({ok:true,delivery:{id:deliveryId,delivery_code:deliveryCode}});
  }catch(e){await conn.rollback();return res.status(400).json({ok:false,message:e instanceof Error?e.message:'Gagal mencatat titipan.'});}finally{conn.release();}
 });
