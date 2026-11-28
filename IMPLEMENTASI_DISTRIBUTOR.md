@@ -43,7 +43,7 @@ Bukti pembayaran saat ini disimpan sebagai nomor referensi atau tautan, belum un
 15. Jalankan `server/migrations/014_retail_price_floor_audit.sql`; verifikasi kolom `retail_sale_items.retail_price_snapshot` dan `price_override_reason`.
 16. Jalankan `server/migrations/015_channel_cost_allocations.sql`; verifikasi tabel `channel_cost_allocations`, indeks unik per expense/channel, dan constraint nominal nonnegatif.
 17. Jalankan `server/migrations/016_sales_moq_controls.sql`; verifikasi kolom `products.sales_moq` dan `distributor_sales_report_items.sales_moq_snapshot`.
-17. Verifikasi 16 seed products, supplier INDORAYA/UD ADI JUWANA, minimum stock. Owner finalisasi SKU/unit/retail price/min_stock. Verifikasi tabel `product_price_history`, `accounting_periods`, kolom `invoice_code`, `due_date`, `unapplied_amount`, tabel `accounting_period_guard`, dan akun 2200 serta akun COA yang dibutuhkan. Jalankan migration hanya setelah backup dan pemeriksaan struktur/duplikat.
+18. Verifikasi 16 seed products, supplier INDORAYA/UD ADI JUWANA, minimum stock. Owner finalisasi SKU/unit/retail price/min_stock. Verifikasi tabel `product_price_history`, `accounting_periods`, kolom `invoice_code`, `due_date`, `unapplied_amount`, tabel `accounting_period_guard`, dan akun 2200 serta akun COA yang dibutuhkan. Jalankan migration hanya setelah backup dan pemeriksaan struktur/duplikat.
 
 Migration bersifat tambahan (additive); tidak dimaksudkan untuk menghapus transaksi/master. Jangan menjalankan semua statement sekaligus jika TiDB SQL editor menolak multi-statement. Bila error, berhenti dan kirim pesan error persisnya; jangan lanjut migration berikutnya.
 
