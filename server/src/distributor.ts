@@ -50,20 +50,31 @@ const sign = (identity:Identity) => {
   const sig = createHmac('sha256', secret).update(payload).digest('base64url');
   return `${payload}.${sig}`;
 };
-export const authMiddleware = (req:AuthedRequest,res:Response,next:NextFunction) => {
+export const authMiddleware = async (req:AuthedRequest,res:Response,next:NextFunction) => {
   try {
     if (!secret) return res.status(503).json({ok:false,message:'AUTH_TOKEN_SECRET belum diatur di server.'});
-    const token = (req.headers.authorization || '').replace(/^Bearer\s+/i,'') || readCookie(req, AUTH_COOKIE);
+    const token = (req.headers.authorization || '').replace(/^Bearer\\s+/i,'') || readCookie(req, AUTH_COOKIE);
     const [payload,sig] = token.split('.');
     if (!payload || !sig) return res.status(401).json({ok:false,message:'Silakan login kembali.'});
     const expected = createHmac('sha256',secret).update(payload).digest();
     const actual = Buffer.from(sig,'base64url');
     if (actual.length !== expected.length || !timingSafeEqual(actual,expected)) return res.status(401).json({ok:false,message:'Token tidak valid.'});
     const data = JSON.parse(Buffer.from(payload,'base64url').toString());
-    if (!data.exp || data.exp < Date.now()) return res.status(401).json({ok:false,message:'Sesi berakhir. Silakan login kembali.'});
-    req.identity = {id:Number(data.id),role:String(data.role),distributorId:data.distributorId == null ? null : Number(data.distributorId),username:String(data.username)};
+    const userId=Number(data.id);
+    if (!Number.isInteger(userId)||userId<=0||!data.exp||data.exp<Date.now()) return res.status(401).json({ok:false,message:'Sesi berakhir atau tidak valid. Silakan login kembali.'});
+    // Re-check account status and role from the database so disabled or changed
+    // accounts cannot keep using an old signed token until it expires.
+    const [users]=await pool.execute<RowDataPacket[]>(`SELECT id,username,role,distributor_id,is_active FROM users WHERE id=? LIMIT 1`,[userId]);
+    if(!users.length||Number(users[0].is_active)!==1) return res.status(401).json({ok:false,message:'Akun tidak aktif atau tidak ditemukan. Silakan login kembali.'});
+    const user=users[0];
+    if(String(user.role)!==String(data.role)||String(user.username)!==String(data.username)||Number(user.distributor_id||0)!==Number(data.distributorId||0)) return res.status(401).json({ok:false,message:'Data akun berubah. Silakan login kembali.'});
+    if(user.role==='DISTRIBUTOR'){
+      const [dist]=await pool.execute<RowDataPacket[]>(`SELECT id,is_active FROM distributors WHERE id=? LIMIT 1`,[user.distributor_id]);
+      if(!dist.length||Number(dist[0].is_active)!==1) return res.status(401).json({ok:false,message:'Distributor tidak aktif. Silakan hubungi pemilik.'});
+    }
+    req.identity = {id:Number(user.id),role:String(user.role),distributorId:user.distributor_id == null ? null : Number(user.distributor_id),username:String(user.username)};
     next();
-  } catch { return res.status(401).json({ok:false,message:'Sesi tidak valid.'}); }
+  } catch { return res.status(503).json({ok:false,message:'Validasi sesi gagal karena layanan autentikasi/database bermasalah.'}); }
 };
 export const ownerMiddleware = (req:AuthedRequest,res:Response,next:NextFunction) => {
   if (req.identity?.role !== 'OWNER' && req.identity?.role !== 'ADMIN') return res.status(403).json({ok:false,message:'Akses khusus pemilik.'});
