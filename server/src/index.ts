@@ -382,6 +382,7 @@ app.post("/api/purchases", async (req, res) => {
     }
 
     subtotal = Math.round(subtotal * 100) / 100;
+    if(!Number.isFinite(subtotal)||subtotal>9000000000000000)throw new Error('Total pembelian melebihi batas nominal sistem.');
 
     const [purchaseResult] = await connection.execute<ResultSetHeader>(
       `INSERT INTO purchases
@@ -650,6 +651,7 @@ app.post("/api/retail/sales", async (req,res) => {
       subtotal=Math.round((subtotal+lineTotal)*100)/100;
       costTotal=Math.round((costTotal+lineCost)*100)/100;
     }
+    if(!Number.isFinite(subtotal)||subtotal>9000000000000000||!Number.isFinite(costTotal)||costTotal>9000000000000000)throw new Error('Total penjualan atau HPP melebihi batas nominal sistem.');
     const saleCode=`RTL-${Date.now()}-${randomUUID().slice(0,6).toUpperCase()}`;
     const [sale]=await conn.execute<ResultSetHeader>(
       `INSERT INTO retail_sales (sale_code,sale_date,cash_account_id,subtotal,total,status,created_by_user_id)
