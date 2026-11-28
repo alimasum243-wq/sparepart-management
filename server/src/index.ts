@@ -966,7 +966,7 @@ app.post("/api/returns/retail-sale",async(req,res)=>{
   await conn.beginTransaction();
   const [sales]=await conn.execute<RowDataPacket[]>(`SELECT id,sale_code,cash_account_id FROM retail_sales WHERE id=? AND status='POSTED' FOR UPDATE`,[saleId]);
   if(!sales.length)throw new Error("Transaksi penjualan retail tidak ditemukan.");
-  const [cash]=await conn.execute<RowDataPacket[]>(`SELECT ca.id,ca.account_type,a.id ledger_id FROM cash_accounts ca JOIN accounts a ON a.account_code=IF(UPPER(ca.account_type)='BANK','1110','1100') AND a.is_active=1 WHERE ca.id=? AND ca.is_active=1 FOR UPDATE`,[sales[0].cash_account_id]);
+  const [cash]=await conn.execute<RowDataPacket[]>(`SELECT ca.id,ca.account_type,COALESCE(ca.ledger_account_id,a.id) ledger_id FROM cash_accounts ca LEFT JOIN accounts a ON a.account_code=IF(UPPER(ca.account_type)='BANK','1110','1100') AND a.is_active=1 WHERE ca.id=? AND ca.is_active=1 FOR UPDATE`,[sales[0].cash_account_id]);
   const [accounts]=await conn.query<RowDataPacket[]>(`SELECT id,account_code FROM accounts WHERE account_code IN ('4200','1300','5100') AND is_active=1`);
   const accountId=(code:string)=>Number(accounts.find((a:any)=>a.account_code===code)?.id||0);
   const returnsAccount=accountId("4200"),inventory=accountId("1300"),cogs=accountId("5100");
