@@ -41,6 +41,7 @@ This document is the handoff gate between application hardening and the user's m
 - `019_consignment_delivery_print_audit.sql`: audited print/reprint requests for distributor delivery notes.
 - `020_cash_reconciliation_sessions.sql`: cash/bank physical opening/closing count sessions; stores system opening and opening variance, then expected closing calculated from posted GL movement during the session.
 - `021_retail_receipt_print_audit.sql`: retail sale item SKU snapshot and persistent receipt print/reprint audit log.
+- `022_cash_account_source_type.sql`: cash/bank source classification (`RETAIL`, `SALES`, `GENERAL`); existing accounts default `GENERAL`, and owner can reclassify only before any journal/cash transaction history.
 - All are additive; review schema dependencies against TiDB before running.
 
 ## Cash reconciliation sessions (migration 020)
