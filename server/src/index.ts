@@ -738,7 +738,7 @@ app.post("/api/supplier-payments", async (req,res) => {
     return res.status(400).json({ok:false,message:"Tanggal, pemasok, akun kas/bank, dan alokasi faktur wajib diisi dengan benar."});
   }
   const normalized=allocations.map((x:any)=>({purchaseId:Number(x.purchase_id),amount:Number(x.amount)}));
-  if(normalized.some((x:any)=>!Number.isInteger(x.purchaseId)||x.purchaseId<1||!Number.isFinite(x.amount)||x.amount<=0) ||
+  if(normalized.some((x:any)=>!Number.isInteger(x.purchaseId)||x.purchaseId<1||!Number.isFinite(x.amount)||x.amount<=0||x.amount>1000000000000||Math.round(x.amount*100)!==x.amount*100) ||
      new Set(normalized.map((x:any)=>x.purchaseId)).size!==normalized.length) {
     return res.status(400).json({ok:false,message:"Rincian alokasi tidak valid atau faktur tercantum lebih dari sekali."});
   }
