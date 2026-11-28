@@ -14,6 +14,8 @@
 - Pengeluaran yang dicatat melalui endpoint pengeluaran membentuk jurnal beban terhadap kas/bank.
 - Laba-rugi dihitung dari jurnal POSTED pada periode yang dipilih.
 - Modul UI mobile-first untuk login, portal distributor, pengelolaan titipan/verifikasi, dan laba-rugi.
+- Owner dashboard menampilkan nilai persediaan gudang dan titipan; navigasi menampilkan badge laporan penjualan menunggu approval serta pembayaran menunggu verifikasi.
+- Kartu stok per produk/lokasi memiliki saldo awal, masuk/keluar, saldo berjalan, dan print-to-PDF.
 
 ## Penting sebelum digunakan
 
