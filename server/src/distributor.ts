@@ -115,6 +115,7 @@ async function journal(conn:any, date:string, sourceType:string, sourceId:number
 
 // First owner can only be initialized once and requires a server-side setup secret.
 router.post('/auth/owner-setup', async (req,res) => {
+  if(process.env.OWNER_SETUP_ENABLED==='false') return res.status(403).json({ok:false,message:'Setup pemilik sudah dinonaktifkan.'});
   if(rateLimit('setup:'+rateKey(req),3,60*60*1000)) return res.status(429).json({ok:false,message:'Percobaan setup terlalu banyak. Coba lagi nanti.'});
   const {setup_key,username,email,phone,full_name,password} = req.body || {};
   const suppliedKey=Buffer.from(String(setup_key||'')),expectedKey=Buffer.from(process.env.OWNER_SETUP_KEY||'');
