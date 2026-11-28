@@ -2,7 +2,7 @@
 
 ## Isi perubahan
 
-- Login akun dengan password hash scrypt dan token bertanda tangan HMAC (masa sesi 12 jam).
+- Login akun dengan password hash scrypt dan token HMAC (masa sesi 12 jam) yang terikat pada sesi database; logout mencabut sesi dan perubahan status akun langsung membatalkan akses.
 - Role `OWNER`/`ADMIN` dan `DISTRIBUTOR`.
 - Setiap user distributor terikat pada satu `distributor_id`; endpoint portal mengambil ID tersebut dari token, bukan dari input browser.
 - Pemilik membuat akun distributor dan lokasi stok titipannya.
