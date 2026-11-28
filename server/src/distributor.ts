@@ -9,7 +9,10 @@ const router = Router();
 type RateEntry = { count:number; resetAt:number };
 const authRate = new Map<string,RateEntry>();
 const rateLimit = (key:string, max:number, windowMs:number) => {
-  const now=Date.now(); const current=authRate.get(key);
+  const now=Date.now();
+  // Bound memory growth from arbitrary client IPs and remove expired buckets.
+  if(authRate.size>1000) for(const [k,v] of authRate) if(v.resetAt<=now) authRate.delete(k);
+  const current=authRate.get(key);
   if(!current || current.resetAt<=now){authRate.set(key,{count:1,resetAt:now+windowMs});return false;}
   current.count++;
   return current.count>max;
