@@ -226,10 +226,10 @@ router.get('/distributor/stock',authMiddleware,distributor,async(req:AuthedReque
 });
 
 router.post('/distributor/sales-reports',authMiddleware,distributor,async(req:AuthedRequest,res)=>{
- const {report_date,notes,items}=req.body||{};if(!isDateOnly(report_date||'')||!Array.isArray(items)||!items.length)return res.status(400).json({ok:false,message:'Tanggal dan rincian penjualan wajib diisi.'});
+ const {report_date,notes,items}=req.body||{};if(!isDateOnly(report_date||'')||!Array.isArray(items)||!items.length||items.length>100||String(notes||'').length>1000)return res.status(400).json({ok:false,message:'Tanggal, catatan, dan rincian penjualan wajib valid (maksimal 100 barang).'});
  const conn=await pool.getConnection();try{await conn.beginTransaction();const distId=req.identity!.distributorId!;
   const [loc]=await conn.execute<RowDataPacket[]>(`SELECT id FROM stock_locations WHERE distributor_id=? AND location_type='DISTRIBUTOR' AND is_active=1 LIMIT 1 FOR UPDATE`,[distId]);if(!loc.length)throw new Error('Lokasi distributor tidak ditemukan.');
-  const reportCode=code('LAP');const [h]=await conn.execute<ResultSetHeader>(`INSERT INTO distributor_sales_reports (report_code,distributor_id,report_date,status,notes,submitted_by_user_id) VALUES (?,?,?,'SUBMITTED',?,?)`,[reportCode,distId,report_date,notes||null,req.identity!.id]);const reportId=Number(h.insertId);const seen=new Set<number>();
+  const reportCode=code('LAP');const [h]=await conn.execute<ResultSetHeader>(`INSERT INTO distributor_sales_reports (report_code,distributor_id,report_date,status,notes,submitted_by_user_id) VALUES (?,?,?,'SUBMITTED',?,?)`,[reportCode,distId,report_date,notes||null,req.identity!.id]);const reportId=Number(h.insertId);const seen=new Set<number>();let reportTotal=0,reportCostTotal=0;
   for(const raw of items){const pid=Number(raw.product_id),qty=Number(raw.quantity_sold);if(!Number.isInteger(pid)||!Number.isFinite(qty)||qty<=0||qty>1000000||Math.round(qty*1000)!==qty*1000||seen.has(pid))throw new Error('Rincian barang tidak valid atau produk ganda.');seen.add(pid);
    const [pRows]=await conn.execute<RowDataPacket[]>(`SELECT id,product_name,average_cost,purchase_cost FROM products WHERE id=? AND is_active=1 FOR UPDATE`,[pid]);if(!pRows.length)throw new Error('Produk tidak ditemukan.');
    const [available]=await conn.execute<RowDataPacket[]>(`SELECT
@@ -244,7 +244,7 @@ router.post('/distributor/sales-reports',authMiddleware,distributor,async(req:Au
    const price=Number(costRows[0].distributor_price_snapshot),availableQty=Number(available[0].qty),availableValue=Number(available[0].stock_value),cost=availableQty>0?money2(availableValue/availableQty):0;
    if(!Number.isFinite(price)||price<=0)throw new Error(`Harga distributor ${pRows[0].product_name} pada data titipan masih nol/tidak valid. Hubungi pemilik untuk memperbaiki harga sebelum mengirim laporan.`);
    if(!Number.isFinite(cost)||cost<0)throw new Error(`HPP ${pRows[0].product_name} tidak valid.`);
-   const line=money2(qty*price),costTotal=money2(qty*cost);
+   const line=money2(qty*price),costTotal=money2(qty*cost);reportTotal=money2(reportTotal+line);reportCostTotal=money2(reportCostTotal+costTotal);if(reportTotal>9000000000000000||reportCostTotal>9000000000000000)throw new Error('Total laporan penjualan melebihi batas nominal sistem.');
    await conn.execute(`INSERT INTO distributor_sales_report_items (report_id,product_id,product_name_snapshot,quantity_sold,unit_price_snapshot,unit_cost_snapshot,line_total,cost_total) VALUES (?,?,?,?,?,?,?,?)`,[reportId,pid,pRows[0].product_name,qty,price,cost,line,costTotal]);
   }
   await conn.commit();return res.status(201).json({ok:true,message:'Laporan dikirim dan menunggu pemeriksaan pemilik.',report:{id:reportId,report_code:reportCode,status:'SUBMITTED'}});
