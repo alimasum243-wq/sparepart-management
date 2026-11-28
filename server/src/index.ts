@@ -591,7 +591,7 @@ app.post("/api/retail/sales", async (req,res) => {
     return res.status(400).json({ok:false,message:"Tanggal, akun kas/bank, dan rincian barang wajib diisi dengan benar."});
   }
   const items=rawItems.map((x:any)=>({productId:Number(x.product_id),quantity:Number(x.quantity),unitPrice:Number(x.unit_price)}));
-  if(items.some((x:any)=>!Number.isInteger(x.productId)||x.productId<1||!Number.isFinite(x.quantity)||x.quantity<=0||!Number.isFinite(x.unitPrice)||x.unitPrice<=0)){
+  if(items.some((x:any)=>!Number.isInteger(x.productId)||x.productId<1||!Number.isFinite(x.quantity)||x.quantity<=0||x.quantity>1000000||Math.round(x.quantity*1000)!==x.quantity*1000||!Number.isFinite(x.unitPrice)||x.unitPrice<=0||x.unitPrice>1000000000||Math.round(x.unitPrice*100)!==x.unitPrice*100)){
     return res.status(400).json({ok:false,message:"Setiap barang wajib memiliki produk, jumlah positif, dan harga jual manual lebih dari nol."});
   }
   const totalQty=new Map<number,number>();
