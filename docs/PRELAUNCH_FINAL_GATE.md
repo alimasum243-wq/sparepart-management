@@ -241,7 +241,7 @@ The application must support two separate price segments per product, with diffe
 
 **Requirement:** every audit rule previously defined by the owner must be supported by application data capture, traceable records, reports, and evidence. A rule cannot be considered auditable merely because it appears in documentation or an AI prompt.
 
-- [ ] Create a requirement-to-data-to-screen/report-to-test traceability matrix for all audit sections (1–13 and subsequent additions).
+- [x] Create and maintain a requirement-to-data-to-screen/report-to-test traceability matrix for owner-defined audit requirements. See `docs/AUDIT_TRACEABILITY_MATRIX.md` (status is code-review inventory, not test evidence).
 - [ ] Identify required data fields/events for each rule; implement missing fields and durable event/transaction records, not just UI text.
 - [ ] Record actor, role, timestamp, transaction/approval state, before/after values for edits, reason, approver, source/channel, related entity IDs, and evidence/reference where applicable.
 - [ ] Capture timestamps for stock handover, note creation/printing/submission/approval, customer collection (when recorded), remittance submission/verification, allocation, return, physical count, and reconciliation.
