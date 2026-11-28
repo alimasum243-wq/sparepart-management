@@ -67,7 +67,7 @@
 ## 7. Migration SQL finalization
 - [ ] Validate preconditions and duplicates before unique indexes.
 - [ ] Check every migration statement for TiDB compatibility.
-- [ ] Confirm dependency sequence across migrations 001 and 003–011.
+- [ ] Confirm dependency sequence across migrations 001 and 003–014.
 - [ ] Produce final runbook: preflight, order, postflight queries, stop/recovery guidance.
 - [ ] No migration executed against the user's TiDB until backup and runbook are approved.
 
@@ -103,6 +103,7 @@ The application must support two separate price segments per product, with diffe
 - [ ] Prevent unauthorized price edits and prevent applying retail pricing to sales channel or vice versa; record price snapshots on each transaction so later product-price changes do not rewrite history.
 - [x] Retail cashier defaults to master retail price; server rejects below-master retail pricing without a reason (minimum 10 characters), snapshots master price, and writes override audit-log entries. (Code added; migration 014 and CI verification still pending.)
 - [ ] Test partial sell-through, partial payment, returns, price changes between stock delivery and sales reporting, rejected reports, and duplicate approvals.
+- [ ] Retail checkout auto-fills the master retail price; server rejects below-master price without an override reason and snapshots/audits approved owner exceptions. Migration 014 applied and verified on isolated TiDB.
 
 ### Required product and transaction data
 - [ ] Product has separate retail and sales/distributor prices (and HPP/cost basis); transactions snapshot channel, unit price, discount, HPP, and quantity.
