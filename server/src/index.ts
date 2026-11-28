@@ -514,7 +514,7 @@ app.post("/api/purchases", async (req, res) => {
       );
     }
 
-    await connection.commit();
+    await conn.execute(`INSERT INTO audit_logs (user_id,action,entity_type,entity_id,description) VALUES (?,'POST','PURCHASE',?,?)`,[(req as any).identity?.id||null,purchaseId,`Pembelian ${purchaseCode}; total ${subtotal}; metode ${data.payment_method}`]);\n  await connection.commit();
 
     return res.status(201).json({
       ok: true,
@@ -664,7 +664,7 @@ app.post("/api/retail/sales", async (req,res) => {
       [journal.insertId,cashAccount,subtotal,journal.insertId,revenueAccount,subtotal,journal.insertId,cogsAccount,costTotal,journal.insertId,inventoryAccount,costTotal]
     );
     await conn.execute(`UPDATE retail_sales SET journal_entry_id=? WHERE id=?`,[journal.insertId,sale.insertId]);
-    await conn.commit();
+    await conn.execute(`INSERT INTO audit_logs (user_id,action,entity_type,entity_id,description) VALUES (?,'POST','RETAIL_SALE',?,?)`,[(req as any).identity?.id||null,sale.insertId,`Penjualan retail ${saleCode}; total ${subtotal}; HPP ${costTotal}`]);\n  await conn.commit();
     return res.status(201).json({ok:true,message:"Penjualan retail tersimpan; stok gudang dan jurnal sudah diperbarui.",sale:{id:sale.insertId,sale_code:saleCode,total:subtotal,cost_total:costTotal,gross_profit:Math.round((subtotal-costTotal)*100)/100}});
   }catch(error){
     await conn.rollback();
@@ -687,7 +687,7 @@ app.post('/api/expenses', async (req,res) => {
     const journalCode = `JU-${new Date().toISOString().replace(/[-:.TZ]/g,'').slice(0,14)}-${randomUUID().slice(0,6).toUpperCase()}`;
     const [j] = await conn.execute<ResultSetHeader>(`INSERT INTO journal_entries (journal_code,journal_date,source_type,source_id,description,status,created_by_user_id) VALUES (?,?, 'EXPENSE', ?, ?, 'POSTED', ?)`,[journalCode,data.expense_date,result.insertId,`Pengeluaran ${data.category}`,(req as any).identity?.id || null]);
     await conn.execute(`INSERT INTO journal_lines (journal_entry_id,account_id,debit,credit,description) VALUES (?,?,?,0,?), (?,?,0,?,?)`,[j.insertId,expenseAccount[0].id,data.amount,data.category,j.insertId,cashAccount[0].id,data.amount,'Pengeluaran kas/bank']);
-    await conn.commit(); return res.status(201).json({ok:true,message:'Pengeluaran dan jurnal berhasil dicatat.',expense_code:expenseCode});
+    await conn.execute(`INSERT INTO audit_logs (user_id,action,entity_type,entity_id,description) VALUES (?,'POST','EXPENSE',?,?)`,[(req as any).identity?.id||null,result.insertId,`Pengeluaran ${expenseCode}; kategori ${data.category}; jumlah ${data.amount}`]);\n  await conn.commit(); return res.status(201).json({ok:true,message:'Pengeluaran dan jurnal berhasil dicatat.',expense_code:expenseCode});
   } catch(error) { await conn.rollback(); return res.status(400).json({ok:false,message:error instanceof Error?error.message:'Gagal mencatat pengeluaran.'}); }
   finally { conn.release(); }
 });
@@ -800,7 +800,7 @@ app.post("/api/supplier-payments", async (req,res) => {
        VALUES (?,?,?,0,'Pelunasan utang pemasok'),(?,?,0,?,'Pembayaran melalui kas/bank')`,
       [journal.insertId,payable[0].id,total,journal.insertId,cashLedger[0].id,total]
     );
-    await conn.commit();
+    await conn.execute(`INSERT INTO audit_logs (user_id,action,entity_type,entity_id,description) VALUES (?,'POST','SUPPLIER_PAYMENT',?,?)`,[(req as any).identity?.id||null,payment.insertId,`Pembayaran utang ${paymentCode}; jumlah ${total}`]);\n  await conn.commit();
     return res.status(201).json({ok:true,message:"Pembayaran utang pemasok berhasil dicatat dan dialokasikan ke faktur.",payment:{id:payment.insertId,payment_code:paymentCode,amount:total,journal_id:journal.insertId}});
   } catch(error) {
     await conn.rollback();
@@ -924,7 +924,7 @@ app.post("/api/returns/purchase",async(req,res)=>{
   const journalCode=`JU-${Date.now()}-${randomUUID().slice(0,6).toUpperCase()}`;
   const [j]=await conn.execute<ResultSetHeader>(`INSERT INTO journal_entries (journal_code,journal_date,source_type,source_id,description,status,created_by_user_id) VALUES (?,?, 'PURCHASE_RETURN', ?, ?, 'POSTED', ?)`,[journalCode,date,ret.insertId,`Retur pembelian ${purchases[0].purchase_code}`,(req as any).identity?.id || null]);
   await conn.execute(`INSERT INTO journal_lines (journal_entry_id,account_id,debit,credit,description) VALUES (?,?,?,0,'Pengurangan utang pemasok karena retur'),(?,?,0,?,'Pengurangan persediaan karena retur')`,[j.insertId,payable[0].id,total,j.insertId,inventory[0].id,total]);
-  await conn.commit();res.status(201).json({ok:true,message:"Retur pembelian berhasil dicatat. Stok gudang dan saldo utang pemasok telah disesuaikan.",return:{id:ret.insertId,return_code:code,total}});
+  await conn.execute(`INSERT INTO audit_logs (user_id,action,entity_type,entity_id,description) VALUES (?,'POST','PURCHASE_RETURN',?,?)`,[(req as any).identity?.id||null,ret.insertId,`Retur pembelian ${code}; total ${total}`]);\n  await conn.commit();res.status(201).json({ok:true,message:"Retur pembelian berhasil dicatat. Stok gudang dan saldo utang pemasok telah disesuaikan.",return:{id:ret.insertId,return_code:code,total}});
  }catch(error){await conn.rollback();res.status(400).json({ok:false,message:error instanceof Error?error.message:"Retur pembelian gagal."});}finally{conn.release();}
 });
 
@@ -973,7 +973,7 @@ app.post("/api/returns/retail-sale",async(req,res)=>{
   const journalCode=`JU-${Date.now()}-${randomUUID().slice(0,6).toUpperCase()}`;
   const [j]=await conn.execute<ResultSetHeader>(`INSERT INTO journal_entries (journal_code,journal_date,source_type,source_id,description,status,created_by_user_id) VALUES (?,?, 'RETAIL_SALE_RETURN', ?, ?, 'POSTED', ?)`,[journalCode,date,ret.insertId,`Retur penjualan ${sales[0].sale_code}`,(req as any).identity?.id || null]);
   await conn.execute(`INSERT INTO journal_lines (journal_entry_id,account_id,debit,credit,description) VALUES (?,?,?,0,'Pengembalian uang penjualan'),(?,?,0,?,'Pengurangan kas/bank untuk refund'),(?,?,?,0,'Persediaan dari barang retur'),(?,?,0,?,'Pembalikan HPP barang retur')`,[j.insertId,returnsAccount,refund,j.insertId,cash[0].ledger_id,refund,j.insertId,inventory,cost,j.insertId,cogs,cost]);
-  await conn.commit();res.status(201).json({ok:true,message:"Retur penjualan berhasil dicatat. Refund, stok, dan jurnal sudah diperbarui.",return:{id:ret.insertId,return_code:code,refund_total:refund,cost_total:cost}});
+  await conn.execute(`INSERT INTO audit_logs (user_id,action,entity_type,entity_id,description) VALUES (?,'POST','RETAIL_SALE_RETURN',?,?)`,[(req as any).identity?.id||null,ret.insertId,`Retur penjualan retail ${code}; refund ${refund}; HPP ${cost}`]);\n  await conn.commit();res.status(201).json({ok:true,message:"Retur penjualan berhasil dicatat. Refund, stok, dan jurnal sudah diperbarui.",return:{id:ret.insertId,return_code:code,refund_total:refund,cost_total:cost}});
  }catch(error){await conn.rollback();res.status(400).json({ok:false,message:error instanceof Error?error.message:"Retur penjualan gagal."});}finally{conn.release();}
 });
 
@@ -1032,7 +1032,7 @@ app.post("/api/returns/distributor-sale",async(req,res)=>{
   const journalCode=`JU-${Date.now()}-${randomUUID().slice(0,6).toUpperCase()}`;
   const [j]=await conn.execute<ResultSetHeader>(`INSERT INTO journal_entries (journal_code,journal_date,source_type,source_id,description,status,created_by_user_id) VALUES (?,?, 'DISTRIBUTOR_SALE_RETURN', ?, ?, 'POSTED', ?)`,[journalCode,date,ret.insertId,`Retur penjualan distributor ${reports[0].report_code}`,(req as any).identity?.id || null]);
   await conn.execute(`INSERT INTO journal_lines (journal_entry_id,account_id,debit,credit,description) VALUES (?,?,?,0,'Retur penjualan distributor'),(?,?,0,?,'Pengurangan piutang distributor'),(?,?,?,0,'Persediaan barang retur distributor'),(?,?,0,?,'Pembalikan HPP barang retur distributor')`,[j.insertId,returnsAccount,refund,j.insertId,receivable,refund,j.insertId,inventory,cost,j.insertId,cogs,cost]);
-  await conn.commit();res.status(201).json({ok:true,message:"Retur penjualan distributor berhasil dicatat. Stok titipan, piutang, dan jurnal telah disesuaikan.",return:{id:ret.insertId,return_code:code,refund_total:refund,cost_total:cost}});
+  await conn.execute(`INSERT INTO audit_logs (user_id,action,entity_type,entity_id,description) VALUES (?,'POST','DISTRIBUTOR_SALE_RETURN',?,?)`,[(req as any).identity?.id||null,ret.insertId,`Retur penjualan distributor ${code}; refund ${refund}; HPP ${cost}`]);\n  await conn.commit();res.status(201).json({ok:true,message:"Retur penjualan distributor berhasil dicatat. Stok titipan, piutang, dan jurnal telah disesuaikan.",return:{id:ret.insertId,return_code:code,refund_total:refund,cost_total:cost}});
  }catch(error){await conn.rollback();res.status(400).json({ok:false,message:error instanceof Error?error.message:"Retur distributor gagal dicatat."});}finally{conn.release();}
 });
 
