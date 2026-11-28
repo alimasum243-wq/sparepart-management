@@ -109,3 +109,39 @@ The application must support two separate price segments per product, with diffe
 - [ ] Dashboard and exports reconcile to posted transactions and GL; margin must not count delivered consignment stock as a sale before it is reported sold and approved.
 
 **Acceptance rule:** the two price channels and their distinct margin/reporting behavior are a prelaunch blocker. Existing code must be audited and tested for complete support before approval; this checklist is a requirement, not proof of implementation.
+
+
+## 10. Margin leakage, price arbitrage, and wholesale eligibility (critical)
+
+**Objective:** protect the higher retail margin from being bypassed by recording ordinary retail purchases under the sales/wholesale channel. Do not rely on AI guessing: implement deterministic, explainable server-side controls; AI may summarize patterns or flag anomalies but cannot override authorization or rule enforcement.
+
+### Channel and identity checks
+- [ ] Retail transactions at store/warehouse checkout default to retail price/channel; sales price cannot be selected by an ordinary cashier for walk-in retail.
+- [ ] Sales channel requires a verified active Sales/Distributor account ID and an authorized transaction context. Do not accept a client-supplied role/channel alone as proof.
+- [ ] Wholesale eligibility is validated server-side against account status, location, quantity threshold, applicable price list, and role/permissions.
+- [ ] A low-quantity transaction using sales price (example: 1–2 pcs) without a valid sales/distributor account is blocked. With verified account but below MOQ, block or route to explicit owner approval based on configurable policy; never silently allow.
+- [ ] Quantity threshold (MOQ) is configurable per SKU or product group, with an owner-managed rule and effective date. Support mixed-item orders by evaluating each SKU or an explicitly defined order-level MOQ policy.
+- [ ] Split orders or repeated purchases near threshold within a configurable period are flagged for possible threshold circumvention; don't treat these signals alone as proof.
+- [ ] Override requires owner/authorized approver, recorded reason, transaction evidence, and immutable audit trail; cashier cannot approve their own override.
+
+### Margin controls and monitoring
+- [ ] Configure target and minimum acceptable retail gross-margin band per product/product group; example target 30–40% only illustrative and owner-configurable.
+- [ ] Configure sales/wholesale target and minimum gross-margin band separately; example target 15–20% only illustrative and owner-configurable.
+- [ ] Define gross margin consistently as (selling price - cost of goods sold) / selling price unless owner explicitly chooses and labels a markup-on-cost metric. Do not mix these definitions in reports.
+- [ ] Recompute expected margin using transaction price snapshot and cost/HPP snapshot. Below-floor price or margin blocks posting or requires owner approval; discount reasons and approver are recorded.
+- [ ] Report margin by channel, product, cashier, sales/distributor, and time period; compare realized margin to target/floor and flag outliers, price overrides, repeated small orders, channel misclassification, and unusual discounts.
+- [ ] Alerts should distinguish hard rule violations (blocked, ineligible identity/MOQ, below authorized floor) from statistical anomalies (review needed); AI/anomaly detection may not automatically accuse users or alter transactions.
+- [ ] Validate margins on posted transactions and reconcile sales, HPP, inventory, receivable/cash, and GL; consignment stock delivery is not recognized as revenue until sell-through is approved under the accounting flow.
+
+### Required test cases
+- [ ] Walk-in retail 1–2 pcs tries sales price: block; retail price/channel remains available.
+- [ ] Unverified/inactive sales account tries sales price: block.
+- [ ] Verified sales account below MOQ: block or owner-approval queue per configured rule.
+- [ ] Verified sales account meets MOQ and authorized price/margin: allow.
+- [ ] Price override below margin floor: block or approval; audit reason and approver.
+- [ ] Split/repeated orders to evade MOQ: flag for review and apply configured policy.
+- [ ] Product cost changes after transaction: historical margin remains based on cost snapshot; verify separate policy for cost corrections.
+- [ ] Cashier cannot approve own override; unauthorized API attempts are blocked server-side.
+- [ ] Margin reports and alerts tie to posted transactions and ledger without counting pending/rejected orders.
+
+**Acceptance rule:** these anti-margin-leakage controls are critical blockers before real sales. No AI label or client-side warning alone counts as protection; the server must enforce eligibility, pricing, approvals, and audit evidence.
