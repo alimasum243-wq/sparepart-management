@@ -146,7 +146,7 @@ router.post('/auth/login', async (req,res) => {
     return res.json({ok:true,user:{id:identity.id,username:identity.username,full_name:user.full_name,role:identity.role,distributor_id:identity.distributorId}});
   } catch (e) { return res.status(500).json({ok:false,message:e instanceof Error?e.message:'Login gagal.'}); }
 });
-router.post('/auth/logout',authMiddleware,async(req:AuthedRequest,res)=>{ try{if(req.sessionId)await pool.execute(`UPDATE auth_sessions SET revoked_at=CURRENT_TIMESTAMP WHERE session_id=? AND revoked_at IS NULL`,[req.sessionId]);}catch{return res.status(503).json({ok:false,message:'Gagal mencabut sesi. Silakan coba kembali.'});} clearAuthCookie(res); return res.json({ok:true,message:'Sesi diakhiri.'}); });
+router.post('/auth/logout',authMiddleware,async(req:AuthedRequest,res)=>{ try{if(req.sessionId)await pool.execute(`UPDATE auth_sessions SET revoked_at=CURRENT_TIMESTAMP WHERE session_id=? AND revoked_at IS NULL`,[req.sessionId]);}catch{clearAuthCookie(res);return res.status(503).json({ok:false,message:'Cookie sesi dihapus, tetapi pencabutan sesi database gagal. Token yang sudah disalin tetap perlu dianggap aktif.'});} clearAuthCookie(res); return res.json({ok:true,message:'Sesi diakhiri.'}); });
 router.get('/auth/me',authMiddleware,(req:AuthedRequest,res)=>res.json({ok:true,user:req.identity}));
 
 // Owner creates distributor master, dedicated stock location and its login account.
