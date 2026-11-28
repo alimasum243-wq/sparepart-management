@@ -891,7 +891,7 @@ app.post("/api/returns/purchase",async(req,res)=>{
       COALESCE((SELECT SUM(ri.quantity) FROM purchase_return_items ri WHERE ri.purchase_item_id=pi.id),0) returned_qty
     FROM purchase_items pi WHERE pi.id=? AND pi.purchase_id=? FOR UPDATE`,[item.purchaseItemId,purchaseId]);
    if(!rows.length)throw new Error("Barang bukan bagian dari faktur pembelian yang dipilih.");
-   const line=rows[0],remaining=Number(line.quantity)-Number(line.returned_qty);
+   const line=rows[0],remaining=Number(line.quantity)-Number(line.returned_qty);\n   const [productLock]=await conn.execute<RowDataPacket[]>(`SELECT id FROM products WHERE id=? FOR UPDATE`,[line.product_id]);\n   if(!productLock.length)throw new Error('Produk retur tidak ditemukan.');\n   const [productLock]=await conn.execute<RowDataPacket[]>(`SELECT id FROM products WHERE id=? FOR UPDATE`,[line.product_id]);\n   if(!productLock.length)throw new Error('Produk retur tidak ditemukan.');
    if(item.quantity>remaining+0.000001)throw new Error(`Jumlah retur ${line.product_name_snapshot} melebihi sisa yang dapat diretur (${remaining}).`);
    const [stock]=await conn.execute<RowDataPacket[]>(`
     SELECT COALESCE(SUM(CASE WHEN to_location_id=? THEN quantity ELSE 0 END),0)-COALESCE(SUM(CASE WHEN from_location_id=? THEN quantity ELSE 0 END),0) stock_qty
@@ -1002,7 +1002,7 @@ app.post("/api/returns/distributor-sale",async(req,res)=>{
       COALESCE((SELECT SUM(x.quantity) FROM distributor_sales_return_items x WHERE x.sales_report_item_id=i.id),0) returned_qty
     FROM distributor_sales_report_items i WHERE i.id=? AND i.report_id=? FOR UPDATE`,[item.reportItemId,reportId]);
    if(!rows.length)throw new Error("Barang bukan bagian dari laporan distributor yang dipilih.");
-   const line=rows[0],remaining=Number(line.quantity_sold)-Number(line.returned_qty);
+   const line=rows[0],remaining=Number(line.quantity_sold)-Number(line.returned_qty);\n   const [productLock]=await conn.execute<RowDataPacket[]>(`SELECT id FROM products WHERE id=? FOR UPDATE`,[line.product_id]);\n   if(!productLock.length)throw new Error('Produk retur tidak ditemukan.');
    if(item.quantity>remaining+0.000001)throw new Error(`Jumlah retur ${line.product_name_snapshot} melebihi sisa yang dapat diretur (${remaining}).`);
    const refundLine=Math.round(item.quantity*Number(line.unit_price_snapshot)*100)/100,costLine=Math.round(item.quantity*Number(line.unit_cost_snapshot)*100)/100;
    refund=Math.round((refund+refundLine)*100)/100;cost=Math.round((cost+costLine)*100)/100;prepared.push({...item,line,refundLine,costLine});
