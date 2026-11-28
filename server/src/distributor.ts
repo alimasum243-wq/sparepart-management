@@ -2,6 +2,7 @@ import { Router, type Request, type Response, type NextFunction } from 'express'
 import { createHmac, randomBytes, scryptSync, timingSafeEqual } from 'node:crypto';
 import type { RowDataPacket, ResultSetHeader } from 'mysql2';
 import { pool } from './db.js';
+import { money2, isDateOnly, outstandingAmount } from './validation.js';
 
 const router = Router();
 // Basic per-process throttling for sensitive auth endpoints. Production deployments
@@ -27,13 +28,6 @@ const authCookieOptions = `HttpOnly; Path=/; SameSite=Lax; Max-Age=${12*60*60}${
 const setAuthCookie = (res:Response, token:string) => res.setHeader('Set-Cookie', `${AUTH_COOKIE}=${token}; ${authCookieOptions}`);
 const clearAuthCookie = (res:Response) => res.setHeader('Set-Cookie', `${AUTH_COOKIE}=; HttpOnly; Path=/; SameSite=Lax; Max-Age=0${process.env.NODE_ENV === 'production' ? '; Secure' : ''}`);
 const readCookie = (req:Request, name:string) => String(req.headers.cookie || '').split(';').map(v=>v.trim()).find(v=>v.startsWith(`${name}=`))?.slice(name.length+1) || '';
-const money2 = (n:number) => Math.round((n + Number.EPSILON) * 100) / 100;
-const isDateOnly = (value:unknown):boolean => {
-  if(typeof value!=='string'||!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
-  const [year,month,day]=value.split('-').map(Number);
-  const date=new Date(Date.UTC(year,month-1,day));
-  return date.getUTCFullYear()===year&&date.getUTCMonth()===month-1&&date.getUTCDate()===day;
-};
 const dateOnly = (value:unknown):string => {
   if (value instanceof Date && !Number.isNaN(value.getTime())) return `${value.getUTCFullYear()}-${String(value.getUTCMonth()+1).padStart(2,'0')}-${String(value.getUTCDate()).padStart(2,'0')}`;
   const match = String(value ?? '').match(/^(\d{4}-\d{2}-\d{2})/);
