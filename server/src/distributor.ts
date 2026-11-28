@@ -265,6 +265,9 @@ router.post('/distributor/payments',authMiddleware,distributor,async(req:AuthedR
 });
 router.get('/admin/payments',authMiddleware,ownerMiddleware,async(_req,res)=>{const [rows]=await pool.query<RowDataPacket[]>(`SELECT p.*,d.distributor_name FROM distributor_payment_submissions p JOIN distributors d ON d.id=p.distributor_id ORDER BY p.created_at DESC`);res.json({ok:true,payments:rows});});
 router.post('/admin/payments/:id/verify',authMiddleware,ownerMiddleware,async(req:AuthedRequest,res)=>{const conn=await pool.getConnection();try{await conn.beginTransaction();const [rows]=await conn.execute<RowDataPacket[]>(`SELECT * FROM distributor_payment_submissions WHERE id=? AND status='PENDING' FOR UPDATE`,[Number(req.params.id)]);if(!rows.length)throw new Error('Pembayaran tidak ditemukan atau sudah diproses.');const p=rows[0];
+// Serialize verifications and submissions against the same distributor balance row.
+const [distributorLock]=await conn.execute<RowDataPacket[]>(`SELECT id FROM distributors WHERE id=? AND is_active=1 FOR UPDATE`,[Number(p.distributor_id)]);
+if(!distributorLock.length)throw new Error('Distributor tidak aktif atau tidak ditemukan.');
 const paymentAmount=money2(Number(p.amount));
 const [reportBalances]=await conn.execute<RowDataPacket[]>(`
  SELECT r.id,COALESCE(s.sales_total,0)-COALESCE(x.returned_total,0) sales_total,COALESCE(a.allocated_total,0) allocated_total
