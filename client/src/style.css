@@ -68,3 +68,10 @@
 
 /* Enzonic wordmark sementara menunggu pemasangan aset logo asli */
 .brand{align-items:center}.brand-lockup{min-width:0}.brand-wordmark{display:grid;line-height:.94;letter-spacing:.35px;color:#172b3d;font-family:Manrope,sans-serif}.brand-wordmark strong{font-size:13px;font-weight:800}.brand-wordmark b{font-size:19px;font-weight:800}.brand-lockup small{display:block;color:#b8752b;font-size:9px;margin-top:5px;white-space:nowrap}.login-wordmark{display:block;color:#172b3d;font:800 23px Manrope,sans-serif;letter-spacing:.3px}.login-brand .login-wordmark{margin-bottom:5px}
+
+/* Official Sparepart Enzonic logo */
+.sidebar .brand{padding:0 5px 28px;min-height:78px;align-items:center}
+.sidebar-brand-logo{display:block;width:100%;max-width:220px;height:auto;object-fit:contain}
+.login-brand{display:flex;justify-content:center;align-items:center;margin:0 auto 5px;width:100%}
+.login-brand-logo{display:block;width:min(100%,330px);height:auto;object-fit:contain}
+@media(max-width:760px){.sidebar-brand-logo{max-width:205px}.login-brand-logo{width:min(100%,300px)}}
