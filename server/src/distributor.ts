@@ -316,7 +316,7 @@ router.get('/admin/audit/consignment-stock',authMiddleware,ownerMiddleware,async
    cnt.counted_qty last_counted_qty,cnt.system_qty last_count_system_qty,cnt.adjustment_date last_count_date,cnt.adjustment_code last_count_code,
    CASE WHEN cnt.counted_qty IS NULL THEN NULL ELSE ROUND(cnt.counted_qty-cnt.system_qty,3) END last_count_variance,
    ROUND(COALESCE(ledger.qty,0)-COALESCE(pending.qty,0),3) expected_physical_stock
-  FROM stock_locations sl JOIN distributors d ON d.id=sl.distributor_id JOIN products p ON p.is_active=1
+  FROM stock_locations sl JOIN distributors d ON d.id=sl.distributor_id JOIN products p
   LEFT JOIN (SELECT cd.distributor_id,ci.product_id,SUM(ci.quantity) qty FROM consignment_deliveries cd JOIN consignment_delivery_items ci ON ci.delivery_id=cd.id WHERE cd.status='POSTED' AND cd.delivery_date<=? GROUP BY cd.distributor_id,ci.product_id) del ON del.distributor_id=sl.distributor_id AND del.product_id=p.id
   LEFT JOIN (SELECT r.distributor_id,i.product_id,SUM(i.quantity_sold) qty FROM distributor_sales_reports r JOIN distributor_sales_report_items i ON i.report_id=r.id WHERE r.status='APPROVED' AND r.report_date<=? GROUP BY r.distributor_id,i.product_id) sold ON sold.distributor_id=sl.distributor_id AND sold.product_id=p.id
   LEFT JOIN (SELECT rr.distributor_id,ri.product_id,SUM(ri.quantity) qty FROM distributor_sales_returns rr JOIN distributor_sales_return_items ri ON ri.distributor_sales_return_id=rr.id WHERE rr.status='POSTED' AND rr.return_date<=? GROUP BY rr.distributor_id,ri.product_id) ret ON ret.distributor_id=sl.distributor_id AND ret.product_id=p.id
