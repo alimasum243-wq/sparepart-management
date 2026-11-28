@@ -81,11 +81,11 @@ FROM users WHERE phone IS NOT NULL AND TRIM(phone)<>''
 GROUP BY phone HAVING COUNT(*)>1
 ORDER BY check_name,duplicate_value;
 
--- Required additive columns introduced by migrations 017-023; reports missing column names.
+-- Required columns from migrations 007 and 017-023; reports missing column names.
 SELECT expected.table_name,expected.column_name,
        CASE WHEN actual.COLUMN_NAME IS NULL THEN 'MISSING' ELSE 'PRESENT' END AS status
 FROM (
- SELECT 'distributor_sales_reports' table_name,'print_requested_at' column_name UNION ALL
+ SELECT 'auth_sessions' table_name,'session_id' column_name UNION ALL SELECT 'auth_sessions','user_id' UNION ALL SELECT 'auth_sessions','expires_at' UNION ALL SELECT 'auth_sessions','revoked_at' UNION ALL SELECT 'owner_setup_guard','id' UNION ALL SELECT 'distributor_sales_reports','print_requested_at' column_name UNION ALL
  SELECT 'distributor_sales_reports','print_requested_by_user_id' UNION ALL
  SELECT 'distributor_sales_reports','print_request_count' UNION ALL
  SELECT 'distributor_consignment_return_requests','request_code' UNION ALL
