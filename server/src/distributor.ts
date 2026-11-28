@@ -117,7 +117,7 @@ async function journal(conn:any, date:string, sourceType:string, sourceId:number
 router.post('/auth/owner-setup', async (req,res) => {
   if(rateLimit('setup:'+rateKey(req),3,60*60*1000)) return res.status(429).json({ok:false,message:'Percobaan setup terlalu banyak. Coba lagi nanti.'});
   const {setup_key,username,email,phone,full_name,password} = req.body || {};
-  if (!process.env.OWNER_SETUP_KEY || setup_key !== process.env.OWNER_SETUP_KEY) return res.status(403).json({ok:false,message:'Kunci setup tidak cocok.'});
+  const suppliedKey=Buffer.from(String(setup_key||'')),expectedKey=Buffer.from(process.env.OWNER_SETUP_KEY||'');\n  if (!expectedKey.length || suppliedKey.length!==expectedKey.length || !timingSafeEqual(suppliedKey,expectedKey)) return res.status(403).json({ok:false,message:'Kunci setup tidak cocok.'});
   if (!/^[a-zA-Z0-9._-]{4,50}$/.test(username||'') || !String(full_name||'').trim() || String(full_name||'').length>150 || String(password||'').length < 10 || String(password||'').length>128 || String(email||'').length>190 || String(phone||'').length>50 || (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(email)))) return res.status(400).json({ok:false,message:'Username, nama, email, nomor telepon, atau password tidak valid.'});
   const conn=await pool.getConnection();
   try {
