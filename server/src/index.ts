@@ -1234,16 +1234,16 @@ app.get("/api/transactions/history",async(req,res)=>{
  if(!isDateOnly(from)||!isDateOnly(to)||from>to)return res.status(400).json({ok:false,message:"Rentang tanggal tidak valid."});
  try{
   const [rows]=await pool.query<RowDataPacket[]>(`
-   SELECT transaction_date,transaction_code,transaction_type,party_name,amount,status,description FROM (
-    SELECT p.purchase_date transaction_date,p.purchase_code transaction_code,'PEMBELIAN' transaction_type,s.supplier_name party_name,p.grand_total amount,p.status,p.notes description FROM purchases p JOIN suppliers s ON s.id=p.supplier_id
-    UNION ALL SELECT rs.sale_date,rs.sale_code,'PENJUALAN RETAIL','Pelanggan',rs.total,rs.status,NULL FROM retail_sales rs
-    UNION ALL SELECT pr.return_date,pr.return_code,'RETUR PEMBELIAN',s.supplier_name,pr.total,pr.status,pr.notes FROM purchase_returns pr JOIN purchases p ON p.id=pr.purchase_id JOIN suppliers s ON s.id=p.supplier_id
-    UNION ALL SELECT rr.return_date,rr.return_code,'RETUR PENJUALAN','Pelanggan',rr.refund_total,rr.status,rr.notes FROM retail_sale_returns rr
-    UNION ALL SELECT sp.payment_date,sp.payment_code,'PEMBAYARAN PEMASOK',s.supplier_name,sp.amount,'POSTED',sp.notes FROM supplier_payments sp JOIN suppliers s ON s.id=sp.supplier_id
-    UNION ALL SELECT e.expense_date,e.expense_code,'PENGELUARAN',e.category,e.amount,'POSTED',e.description FROM expenses e
-    UNION ALL SELECT r.report_date,r.report_code,'PENJUALAN DISTRIBUTOR',d.distributor_name,SUM(i.line_total),r.status,r.notes FROM distributor_sales_reports r JOIN distributors d ON d.id=r.distributor_id JOIN distributor_sales_report_items i ON i.report_id=r.id GROUP BY r.id,r.report_date,r.report_code,d.distributor_name,r.status,r.notes
-    UNION ALL SELECT ps.payment_date,ps.submission_code,'PEMBAYARAN DISTRIBUTOR',d.distributor_name,ps.amount,ps.status,ps.proof_reference FROM distributor_payment_submissions ps JOIN distributors d ON d.id=ps.distributor_id
-    UNION ALL SELECT dr.return_date,dr.return_code,'RETUR PENJUALAN DISTRIBUTOR',d.distributor_name,dr.total,dr.status,dr.notes FROM distributor_sales_returns dr JOIN distributors d ON d.id=dr.distributor_id
+   SELECT transaction_date,transaction_code,transaction_type,party_name,amount,status,description,source_id,source_type FROM (
+    SELECT p.purchase_date transaction_date,p.purchase_code transaction_code,'PEMBELIAN' transaction_type,s.supplier_name party_name,p.grand_total amount,p.status,p.notes description,p.id source_id,'PURCHASE' source_type FROM purchases p JOIN suppliers s ON s.id=p.supplier_id
+    UNION ALL SELECT rs.sale_date,rs.sale_code,'PENJUALAN RETAIL','Pelanggan',rs.total,rs.status,NULL,rs.id,'RETAIL_SALE' FROM retail_sales rs
+    UNION ALL SELECT pr.return_date,pr.return_code,'RETUR PEMBELIAN',s.supplier_name,pr.total,pr.status,pr.notes,pr.id,'PURCHASE_RETURN' FROM purchase_returns pr JOIN purchases p ON p.id=pr.purchase_id JOIN suppliers s ON s.id=p.supplier_id
+    UNION ALL SELECT rr.return_date,rr.return_code,'RETUR PENJUALAN','Pelanggan',rr.refund_total,rr.status,rr.notes,rr.id,'RETAIL_RETURN' FROM retail_sale_returns rr
+    UNION ALL SELECT sp.payment_date,sp.payment_code,'PEMBAYARAN PEMASOK',s.supplier_name,sp.amount,'POSTED',sp.notes,sp.id,'SUPPLIER_PAYMENT' FROM supplier_payments sp JOIN suppliers s ON s.id=sp.supplier_id
+    UNION ALL SELECT e.expense_date,e.expense_code,'PENGELUARAN',e.category,e.amount,'POSTED',e.description,e.id,'EXPENSE' FROM expenses e
+    UNION ALL SELECT r.report_date,r.report_code,'PENJUALAN DISTRIBUTOR',d.distributor_name,SUM(i.line_total),r.status,r.notes,r.id,'DISTRIBUTOR_REPORT' FROM distributor_sales_reports r JOIN distributors d ON d.id=r.distributor_id JOIN distributor_sales_report_items i ON i.report_id=r.id GROUP BY r.id,r.report_date,r.report_code,d.distributor_name,r.status,r.notes
+    UNION ALL SELECT ps.payment_date,ps.submission_code,'PEMBAYARAN DISTRIBUTOR',d.distributor_name,ps.amount,ps.status,ps.proof_reference,ps.id,'DISTRIBUTOR_PAYMENT' FROM distributor_payment_submissions ps JOIN distributors d ON d.id=ps.distributor_id
+    UNION ALL SELECT dr.return_date,dr.return_code,'RETUR PENJUALAN DISTRIBUTOR',d.distributor_name,dr.total,dr.status,dr.notes,dr.id,'DISTRIBUTOR_RETURN' FROM distributor_sales_returns dr JOIN distributors d ON d.id=dr.distributor_id
    ) history WHERE transaction_date BETWEEN ? AND ? ORDER BY transaction_date DESC,transaction_code DESC LIMIT 1000
   `,[from,to]);
   res.json({ok:true,transactions:rows});
