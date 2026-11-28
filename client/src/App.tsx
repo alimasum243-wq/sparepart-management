@@ -316,8 +316,8 @@ function Purchases({token}:{token:string}) {
 
     try {
       const response = await fetch(`${API}/api/suppliers`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        method: 'POST', credentials:'include',
+        headers: { 'Content-Type': 'application/json', ...(token&&token!=='cookie'?{Authorization:`Bearer ${token}`}:{}) },
         body: JSON.stringify({
           supplier_name: name,
           supplier_code: code || undefined
