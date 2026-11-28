@@ -872,7 +872,7 @@ app.get("/api/balance-sheet",async(req,res)=>{
   const asOf=String(req.query.as_of||new Date().toISOString().slice(0,10));
   if(!isDateOnly(asOf))return res.status(400).json({ok:false,message:'Tanggal neraca tidak valid.'});
   try{
-    const [rows]=await pool.execute<RowDataPacket[]>(`SELECT a.id,a.account_code,a.account_name,a.account_type,COALESCE(SUM(CASE WHEN je.id IS NOT NULL THEN jl.debit ELSE 0 END),0) debit,COALESCE(SUM(CASE WHEN je.id IS NOT NULL THEN jl.credit ELSE 0 END),0) credit FROM accounts a LEFT JOIN journal_lines jl ON jl.account_id=a.id LEFT JOIN journal_entries je ON je.id=jl.journal_entry_id AND je.status='POSTED' AND je.journal_date<=? WHERE a.is_active=1 GROUP BY a.id,a.account_code,a.account_name,a.account_type ORDER BY a.account_code`,[asOf]);
+    const [rows]=await pool.execute<RowDataPacket[]>(`SELECT a.id,a.account_code,a.account_name,a.account_type,COALESCE(SUM(CASE WHEN je.id IS NOT NULL THEN jl.debit ELSE 0 END),0) debit,COALESCE(SUM(CASE WHEN je.id IS NOT NULL THEN jl.credit ELSE 0 END),0) credit FROM accounts a LEFT JOIN journal_lines jl ON jl.account_id=a.id LEFT JOIN journal_entries je ON je.id=jl.journal_entry_id AND je.status='POSTED' AND je.journal_date<=? GROUP BY a.id,a.account_code,a.account_name,a.account_type ORDER BY a.account_code`,[asOf]);
     const assets=rows.filter((a:any)=>a.account_type==='ASSET').map((a:any)=>({...a,balance:Number(a.debit)-Number(a.credit)}));
     const liabilities=rows.filter((a:any)=>a.account_type==='LIABILITY').map((a:any)=>({...a,balance:Number(a.credit)-Number(a.debit)}));
     const equity=rows.filter((a:any)=>a.account_type==='EQUITY').map((a:any)=>({...a,balance:Number(a.credit)-Number(a.debit)}));
