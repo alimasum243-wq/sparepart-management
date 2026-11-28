@@ -23,12 +23,16 @@ The SQL files are manual migration scripts. **Do not run them until preflight is
 18. `016_sales_moq_controls.sql`
 19. `017_sales_note_print_audit.sql`
 20. `018_distributor_consignment_returns.sql`
-21. `019_consignment_delivery_print_audit.sql`\n22. `020_cash_reconciliation_sessions.sql`\n23. `021_retail_receipt_print_audit.sql`
+21. `019_consignment_delivery_print_audit.sql`
+22. `020_cash_reconciliation_sessions.sql`
+23. `021_retail_receipt_print_audit.sql`
 
 ## Prefix collisions / migration tracking
 - Prefix 004 has two files; prefix 005 has two files. Do not assume filename sorting is sufficient; use the exact proposed order only after checking dependencies.
 - Migration 002 is absent; legacy table creation is outside the currently numbered migration set and must be captured by schema preflight.
-- Migration 020 adds physical cash/bank reconciliation session records; review timestamp and ledger mapping semantics before applying.\n- Migration 021 adds SKU snapshot to retail sale items and retail receipt print audit table; confirm pre-existing retail rows remain safely defaulted and the print log table is absent/present before applying.\n- The user-supplied TiDB table snapshot previously showed several expected tables missing, including accounting period guard/periods, cash transaction subledger, channel-cost allocations, and product price history. That snapshot is historical; repeat preflight.
+- Migration 020 adds physical cash/bank reconciliation session records; review timestamp and ledger mapping semantics before applying.
+- Migration 021 adds SKU snapshot to retail sale items and retail receipt print audit table; confirm pre-existing retail rows remain safely defaulted and the print log table is absent/present before applying.
+- The user-supplied TiDB table snapshot previously showed several expected tables missing, including accounting period guard/periods, cash transaction subledger, channel-cost allocations, and product price history. That snapshot is historical; repeat preflight.
 - Migration files include `CREATE TABLE IF NOT EXISTS` and additive `ADD COLUMN IF NOT EXISTS`, but not every index/seed operation is guaranteed safe under partial execution. Inspect for already-present indexes, unique-key conflicts, duplicate seed rows, and TiDB syntax compatibility.
 - DDL rollback is not generally transactional. Back up/restore is the recovery method; do not write ad-hoc DROP/DELETE rollback scripts against the user's database.
 
