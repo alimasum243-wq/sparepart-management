@@ -45,7 +45,7 @@ CREATE TABLE IF NOT EXISTS purchase_items (
   unit_cost DECIMAL(15,2) NOT NULL,
   line_total DECIMAL(18,2) NOT NULL,
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  KEY idx_purchase_item_purchase (purchase_id),
+  UNIQUE KEY uq_purchase_item_product (purchase_id,product_id),
   KEY idx_purchase_item_product (product_id)
 );
 
@@ -76,7 +76,7 @@ CREATE TABLE IF NOT EXISTS retail_sale_items (
   line_total DECIMAL(18,2) NOT NULL,
   cost_total DECIMAL(18,2) NOT NULL DEFAULT 0,
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  KEY idx_retail_sale_item_sale (sale_id),
+  UNIQUE KEY uq_retail_sale_item_product (sale_id,product_id),
   KEY idx_retail_sale_item_product (product_id)
 );
 
@@ -131,6 +131,9 @@ CREATE TABLE IF NOT EXISTS opening_balances (
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   KEY idx_opening_balance_account_date (account_id,balance_date)
 );
+
+CREATE UNIQUE INDEX IF NOT EXISTS uq_purchase_item_product ON purchase_items (purchase_id,product_id);
+CREATE UNIQUE INDEX IF NOT EXISTS uq_retail_sale_item_product ON retail_sale_items (sale_id,product_id);
 
 -- Existing stock_movements has a legacy created_by text column; backend needs the user-ID column too.
 ALTER TABLE stock_movements ADD COLUMN IF NOT EXISTS created_by_user_id BIGINT NULL;
