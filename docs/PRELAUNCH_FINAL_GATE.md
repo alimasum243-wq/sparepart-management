@@ -301,5 +301,6 @@ The application must support two separate price segments per product, with diffe
 - [ ] This is a price-exception audit control, not a full owner-approval workflow. Override reasons are recorded, but approval gate remains a separate gap.
 
 ### Latest CI evidence
-- [x] GitHub checks for the latest branch commit completed successfully: build-and-check and build (both completed successfully; repeated check runs also succeeded).
+- [x] Previous implementation commit checks succeeded (build-and-check and build).
+- [ ] Documentation update commit checks are currently queued; re-check before reporting latest commit CI as passed.
 - [ ] CI success does not replace TiDB migration/integration tests, restore test, security/IDOR review, reconciliation, or acceptance.
