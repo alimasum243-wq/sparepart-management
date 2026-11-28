@@ -42,7 +42,7 @@ This document is the handoff gate between application hardening and the user's m
 - `020_cash_reconciliation_sessions.sql`: cash/bank physical opening/closing count sessions; stores system opening and opening variance, then expected closing calculated from posted GL movement during the session.
 - `021_retail_receipt_print_audit.sql`: retail sale item SKU snapshot and persistent receipt print/reprint audit log.
 - `022_cash_account_source_type.sql`: cash/bank source classification (`RETAIL`, `SALES`, `GENERAL`); existing accounts default `GENERAL`, and owner can reclassify only before any journal/cash transaction history.
-- `023_sales_report_print_event_audit.sql`: append-only print/reprint event log for distributor sales notes; rapid-print audit uses the first logged print timestamp. Legacy reports without event logs fall back to the migration-017 last-print timestamp and are labelled as legacy.
+- `023_sales_report_print_event_audit.sql`: append-only print/reprint event log for distributor sales notes; rapid-print audit uses the first logged print timestamp. Legacy reports without event logs fall back to the migration-017 last-print timestamp and are labelled as legacy. Migration 023 is now included in the migration-order review.
 - All are additive; review schema dependencies against TiDB before running.
 
 ## Cash reconciliation sessions (migration 020)
@@ -52,17 +52,16 @@ This document is the handoff gate between application hardening and the user's m
 - Pending code review/CI/acceptance: validate time zone conversion, accounts mapped to active ASSET ledger accounts, transfers, cash receipts/refunds, expenses, purchases, supplier payments, distributor remittances, and bank reconciliation.
 - Cashier-level attribution and physical drawer identity are not yet separate from cash-account/session attribution.
 
-## Application work still tracked before the gate
-- Distributor portal: note-level totals and status, allocation drill-down, and durable print history review (migration 019 captures request log; end-to-end reprint audit must be verified).
-- Distributor portal: report history and status/rejection reason.
-- Distributor portal: note-level receivable status and payment allocation history.
-- Distributor portal: verify unsold return request, approval/rejection, reservations, mixed-condition line handling, movement posting, and no automatic refund (migration 018).
-- Owner: pending-return review queue and traceable approval/rejection.
-- Distributor stock custody reconciliation: handed-over qty minus approved sales minus approved returns; physical count and variance proposal; no automatic charge to distributor.
-- Audit/security: ownership authorization, duplicate/idempotency protection, concurrency-safe posting, approval actors/timestamps/reasons, and audit trail.
-- Investor reporting: complete source drill-down, pending vs posted clarity, channel contribution, inventory valuation, liabilities/receivables, cash-source and physical reconciliation, trial balance and balance sheet consistency.
-- Retail below-master-price exception approval workflow (reason and audit trail).
-- Additional test coverage and final CI.
+## Remaining acceptance and integration checks before the gate
+
+- Cash/bank subledger tie-out against GL and bank statements; all inflows/outflows/transfers and distributor payment allocations/unapplied amounts.
+- Distributor portal: verify note-level totals, sales/payment/return histories, pending/approved/rejected states, and durable print/reprint logs end-to-end.
+- Distributor consignment-return workflow: verify request, approval/rejection, stock reservation/validation, mixed-condition handling, movement posting, accounting-period checks, and no automatic refund.
+- Distributor stock-custody reconciliation: handover minus approved sell-through minus approved returns, physical count, and variance proposal; no automatic distributor charge.
+- Audit/security: authorization/IDOR isolation, duplicate/idempotency and concurrency safety, actor/timestamp/reason auditability; session expiry/revocation/logout and bootstrap controls.
+- Investor reporting: source drill-down, pending vs posted, channel contribution, inventory valuation, liabilities/receivables, cash-source and physical reconciliation, trial balance/balance sheet consistency.
+- Retail below-master-price exception approval workflow (reason and audit trail) and all pricing/HPP snapshot rules.
+- Complete unit, integration, and E2E coverage; CI on exact latest head SHA.
 
 ## Critical accounting rules
 - Consignment delivery is custody transfer only, not a sale, revenue, or receivable.
