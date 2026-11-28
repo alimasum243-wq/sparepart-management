@@ -23,6 +23,7 @@
 | Security and audit trail | Authenticated owner routes, session controls, transactional posting and audit logs | Code review only | Full role/IDOR/security and acceptance testing required |
 
 | Nominal operating-cost allocation | `channel_cost_allocations` table; owner assigns expense amount to RETAIL or SALES; API validates total allocations do not exceed source expense; audit log | Implemented in branch | Apply migration 015; test update, zero allocation, source-limit, audit log, and no GL journal side effects |
+| Sales MOQ / report splitting | Owner configures per-SKU MOQ; server blocks below-MOQ report quantity and stores MOQ snapshot; audit API flags repeated same-day Sales/SKU reports | Implemented in branch | Apply migration 016; test below/at MOQ, snapshot after MOQ change, split-signal false positives and cross-day boundary |
 
 ## Required acceptance evidence
 
