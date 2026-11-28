@@ -38,4 +38,11 @@ test('randomized synthetic ledger identities: 5000 trials',()=>{
   assert.ok(Math.abs(r.contribution-(gross-returns-cogs-costs))<0.011);
  }
 });
-\ntest('bank statement running balances reconcile sequential rows and reject partial/inconsistent balances',()=>{\n const valid=[{debit:0,credit:100,running_balance:100},{debit:20,credit:0,running_balance:80},{debit:0,credit:5,running_balance:85}];\n assert.equal(validBankBalanceSequence(valid),true);\n assert.equal(validBankBalanceSequence([{debit:0,credit:10,running_balance:null},{debit:0,credit:10,running_balance:20}]),false);\n assert.equal(validBankBalanceSequence([{debit:0,credit:10,running_balance:10},{debit:0,credit:10,running_balance:25}]),false);\n assert.equal(validBankBalanceSequence([{debit:0,credit:10,running_balance:null},{debit:0,credit:10,running_balance:null}]),true);\n});\n
+
+test('bank statement running balances reconcile sequential rows and reject partial/inconsistent balances',()=>{
+ const valid=[{debit:0,credit:100,running_balance:100},{debit:20,credit:0,running_balance:80},{debit:0,credit:5,running_balance:85}];
+ assert.equal(validBankBalanceSequence(valid),true);
+ assert.equal(validBankBalanceSequence([{debit:0,credit:10,running_balance:null},{debit:0,credit:10,running_balance:20}]),false);
+ assert.equal(validBankBalanceSequence([{debit:0,credit:10,running_balance:10},{debit:0,credit:10,running_balance:25}]),false);
+ assert.equal(validBankBalanceSequence([{debit:0,credit:10,running_balance:null},{debit:0,credit:10,running_balance:null}]),true);
+});
