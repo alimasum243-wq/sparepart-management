@@ -133,7 +133,7 @@ function Dashboard({apiStatus,user,token}:{apiStatus:string;user:User;token:stri
 }
 
 function AdminConsignments({token}:{token:string}){
- const [distributors,setDistributors]=useState<any[]>([]);const [products,setProducts]=useState<Product[]>([]);const [stockRows,setStockRows]=useState<any[]>([]);const [items,setItems]=useState([{product_id:'',quantity:'1'}]);const [distributorId,setDistributorId]=useState('');const [date,setDate]=useState(today());const [notes,setNotes]=useState('');const [name,setName]=useState('');const [phone,setPhone]=useState('');const [address,setAddress]=useState('');const [username,setUsername]=useState('');const [password,setPassword]=useState('');const [message,setMessage]=useState('');const [error,setError]=useState('');const [busy,setBusy]=useState(false);const [lastHandover,setLastHandover]=useState<any|null>(null
+ const [distributors,setDistributors]=useState<any[]>([]);const [products,setProducts]=useState<Product[]>([]);const [stockRows,setStockRows]=useState<any[]>([]);const [items,setItems]=useState([{product_id:'',quantity:'1'}]);const [distributorId,setDistributorId]=useState('');const [date,setDate]=useState(today());const [notes,setNotes]=useState('');const [name,setName]=useState('');const [phone,setPhone]=useState('');const [address,setAddress]=useState('');const [username,setUsername]=useState('');const [password,setPassword]=useState('');const [message,setMessage]=useState('');const [error,setError]=useState('');const [busy,setBusy]=useState(false);const [lastHandover,setLastHandover]=useState<any|null>(null);
  async function load(){try{const [d,p,s]=await Promise.all([request('/api/admin/distributors',token),request('/api/admin/products',token),request('/api/admin/distributor-stock',token)]);setDistributors(d.distributors||[]);setProducts(p.products||[]);setStockRows(s.items||[])}catch(e){setError(e instanceof Error?e.message:'Gagal memuat data')}}
  useEffect(()=>{load()},[])
  const dispatchTotals=items.reduce((sum,it)=>{
@@ -159,7 +159,7 @@ function SupplierPayments({token}:{token:string}){
  const [supplierId,setSupplierId]=useState('');const [cashId,setCashId]=useState('');
  const [date,setDate]=useState(today());const [method,setMethod]=useState('CASH');
  const [amounts,setAmounts]=useState<Record<number,string>>({});
- const [error,setError]=useState('');const [message,setMessage]=useState('');const [busy,setBusy]=useState(false);const [lastReceipt,setLastReceipt]=useState<any|null>(null);
+ const [error,setError]=useState('');const [message,setMessage]=useState('');const [busy,setBusy]=useState(false);const [lastReceipt,setLastReceipt]=useState<any|null>(null);const [lastReceipt,setLastReceipt]=useState<any|null>(null);
  async function load(){setError('');try{const [b,c]=await Promise.all([request('/api/supplier-payments/outstanding',token),request('/api/admin/cash-accounts',token)]);setBills(b.purchases||[]);setAccounts(c.accounts||[]);if(!cashId&&c.accounts?.length)setCashId(String(c.accounts[0].id));}catch(e){setError(e instanceof Error?e.message:'Gagal memuat utang pemasok.');}}
  useEffect(()=>{load()},[]);
  const suppliers=Array.from(new Map(bills.map(b=>[Number(b.supplier_id),{id:Number(b.supplier_id),name:b.supplier_name}])).values());
