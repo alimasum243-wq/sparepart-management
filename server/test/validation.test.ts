@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { money2, isDateOnly, hasAtMost2Decimals, hasAtMost3Decimals, outstandingAmount, netChannelAuditMetrics, auditPercentageChange, possibleCannibalizationSignal, detectLappingRiskFlags, needsRetailPriceOverride, validRetailOverrideReason, channelNetContribution, channelCostAllocationWithinSource, salesQuantityMeetsMoq, retailMasterPriceConfigured, expectedPhysicalStockAfterPendingReports, stockOpnameVariance, salesPriceFromStockSnapshots, rapidPrintWithinThreshold, validConsignmentReturnLine, consignmentReturnQtyWithinAvailable } from '../src/validation.js';
+import { money2, isDateOnly, hasAtMost2Decimals, hasAtMost3Decimals, outstandingAmount, netChannelAuditMetrics, auditPercentageChange, possibleCannibalizationSignal, detectLappingRiskFlags, needsRetailPriceOverride, validRetailOverrideReason, channelNetContribution, channelCostAllocationWithinSource, salesQuantityMeetsMoq, retailMasterPriceConfigured, expectedPhysicalStockAfterPendingReports, stockOpnameVariance, salesPriceFromStockSnapshots, rapidPrintWithinThreshold, validConsignmentReturnLine, consignmentReturnQtyWithinAvailable, cashSessionExpectedClosing, cashSessionVariance } from '../src/validation.js';
 
 test('date validation accepts real ISO dates and rejects malformed dates',()=>{
   assert.equal(isDateOnly('2026-11-28'),true);
@@ -143,3 +143,6 @@ test('unsold consignment return line validation rejects malformed quantities and
 
 
 test('consignment return reservation check accounts for quantities already requested across conditions',()=>{assert.equal(consignmentReturnQtyWithinAvailable(5,3,2),true);assert.equal(consignmentReturnQtyWithinAvailable(5,3,2.001),false);assert.equal(consignmentReturnQtyWithinAvailable(5,5.001),false);assert.equal(consignmentReturnQtyWithinAvailable(-1,1),false);assert.equal(consignmentReturnQtyWithinAvailable(3,1,-1),false);});
+
+
+test('cash session expected close reconciles opening ledger plus posted movement and counted variance',()=>{assert.equal(cashSessionExpectedClosing(1000,125.25),1125.25);assert.equal(cashSessionExpectedClosing(1000,-25.75),974.25);assert.equal(cashSessionVariance(1120,1125.25),-5.25);assert.equal(cashSessionVariance(1125.25,1125.25),0);});
