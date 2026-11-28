@@ -20,7 +20,7 @@ const nav = [
 const money = (n:number) => new Intl.NumberFormat('id-ID',{style:'currency',currency:'IDR',maximumFractionDigits:0}).format(Number(n)||0)
 const today = () => new Date().toLocaleDateString('en-CA')
 async function request(path:string, token:string, init:RequestInit={}) {
-  const response = await fetch(`${API}${path}`,{...init,credentials:'include',headers:{...(init.headers||{}),...(token&&token!=='cookie'?{Authorization:`Bearer ${token}`}:{})},'Content-Type':'application/json'}})
+  const response = await fetch(`${API}${path}`,{...init,credentials:'include',headers:{...(init.headers||{}),...(token&&token!=='cookie'?{Authorization:`Bearer ${token}`}:{}) ,'Content-Type':'application/json'}})
   const data = await response.json().catch(()=>({ok:false,message:'Respons server tidak valid.'}))
   if(!response.ok || data.ok===false) throw new Error(data.message||'Permintaan gagal.')
   return data
