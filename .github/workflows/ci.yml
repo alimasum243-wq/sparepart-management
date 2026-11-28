@@ -5,6 +5,7 @@ on:
     branches:
       - feature/gudang-sales-admin-2026
       - main
+      - prelaunch/hardening-and-audit
   pull_request:
     branches:
       - main
@@ -26,6 +27,8 @@ jobs:
         run: npm ci --prefix server
       - name: Install client dependencies
         run: npm ci --prefix client
+      - name: Unit tests
+        run: npm test --prefix server
       - name: Lint/static gate
         run: npm run lint
       - name: Typecheck

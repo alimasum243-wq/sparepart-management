@@ -1,0 +1,70 @@
+export const money2 = (value:number):number => { const n=Number(value); if(!Number.isFinite(n))return n; const scaled=Math.abs(n)*100; return Math.sign(n)*Math.round(scaled+Number.EPSILON*scaled)/100; };
+
+export const isDateOnly = (value:unknown):boolean => {
+  if(typeof value!=='string'||!/^(\d{4})-(\d{2})-(\d{2})$/.test(value)) return false;
+  const [year,month,day]=value.split('-').map(Number);
+  const date=new Date(Date.UTC(year,month-1,day));
+  return date.getUTCFullYear()===year&&date.getUTCMonth()===month-1&&date.getUTCDate()===day;
+};
+
+export const isSqlDateTime = (value:unknown):boolean => { if(typeof value!=='string'||![16,19].includes(value.length)||value[10]!==' '||!isDateOnly(value.slice(0,10)))return false;const parts=value.slice(11).split(':').map(Number);if(parts.length!==2&&parts.length!==3)return false;if(parts.some(n=>!Number.isInteger(n)))return false;const [h,m,s=0]=parts;return h>=0&&h<=23&&m>=0&&m<=59&&s>=0&&s<=59;};
+export const hasAtMost2Decimals = (value:number):boolean =>
+  Number.isFinite(value)&&Math.abs(Math.round(value*100)-value*100)<1e-8;
+
+export const hasAtMost3Decimals = (value:number):boolean =>
+  Number.isFinite(value)&&Math.abs(Math.round(value*1000)-value*1000)<1e-8;
+
+export const outstandingAmount = (total:number,paid:number,returns:number):number =>
+  money2(Math.max(0,Number(total)-Number(paid)-Number(returns)));
+
+export type ChannelAuditTotals = { units:number; revenue:number; cost:number };
+export const netChannelAuditMetrics = (sold:ChannelAuditTotals,returns:ChannelAuditTotals) => {
+  const units=Number(sold.units)-Number(returns.units),revenue=money2(Number(sold.revenue)-Number(returns.revenue)),cost=money2(Number(sold.cost)-Number(returns.cost));
+  return {units,revenue,cost,gross_profit:money2(revenue-cost)};
+};
+export const auditPercentageChange = (current:number,previous:number):number|null =>
+  Number.isFinite(current)&&Number.isFinite(previous)&&previous>0?money2((current-previous)/previous*100):null;
+export const possibleCannibalizationSignal = (retailRevenueChange:number|null,salesRevenueChange:number|null,retailUnitsChange:number|null,salesUnitsChange:number|null,dropThreshold=20,riseThreshold=20):boolean =>
+  (retailRevenueChange!==null&&salesRevenueChange!==null&&retailRevenueChange<=-dropThreshold&&salesRevenueChange>=riseThreshold)||
+  (retailUnitsChange!==null&&salesUnitsChange!==null&&retailUnitsChange<=-dropThreshold&&salesUnitsChange>=riseThreshold);
+
+export type RemittanceAuditReport = {id:number;report_code:string;distributor_id:number;distributor_name:string;report_date:string|Date;due_date?:string|Date|null;outstanding:number;allocated_total:number};
+export const detectLappingRiskFlags = (reports:RemittanceAuditReport[],from:string,to:string) => {
+  const groups=new Map<number,RemittanceAuditReport[]>();for(const r of reports){const key=Number(r.distributor_id);if(!groups.has(key))groups.set(key,[]);groups.get(key)!.push(r);}
+  const flags:any[]=[];for(const list of groups.values()){list.sort((a,b)=>String(a.report_date).slice(0,10).localeCompare(String(b.report_date).slice(0,10))||Number(a.id)-Number(b.id));for(let i=0;i<list.length;i++){const older=list[i];if(Number(older.outstanding)<=0.01)continue;const newer=list.slice(i+1).find(n=>String(n.report_date).slice(0,10)>=from&&String(n.report_date).slice(0,10)<=to&&Number(n.allocated_total)>0.01);if(newer)flags.push({distributor_id:older.distributor_id,distributor_name:older.distributor_name,older_report_id:older.id,older_report_code:older.report_code,older_outstanding:money2(Number(older.outstanding)),older_due_date:older.due_date,newer_report_code:newer.report_code,newer_allocated:money2(Number(newer.allocated_total)),signal:'Nota lama masih memiliki saldo, sementara nota yang lebih baru sudah menerima alokasi setoran. Periksa kronologi dan bukti; bukan bukti lapping.'});}}
+  return flags;
+};
+
+export const needsRetailPriceOverride = (retailPrice:number,transactionPrice:number):boolean => Number.isFinite(retailPrice)&&Number.isFinite(transactionPrice)&&retailPrice>0&&transactionPrice<retailPrice;
+export const validRetailOverrideReason = (reason:unknown):boolean => typeof reason==='string'&&reason.trim().length>=10&&reason.trim().length<=500;
+export const channelNetContribution = (retailGross:number,salesGross:number,retailCosts:number,salesCosts:number) => {
+  const retailNet=money2(retailGross-retailCosts),salesNet=money2(salesGross-salesCosts),total=money2(retailNet+salesNet);
+  return {retail_net_contribution:retailNet,sales_net_contribution:salesNet,total_net_contribution:total,retail_net_share:total>0?money2(retailNet/total*100):null,sales_net_share:total>0?money2(salesNet/total*100):null};
+};
+export const channelCostAllocationWithinSource = (sourceAmount:number,otherChannelAllocation:number,proposedAllocation:number):boolean => Number.isFinite(sourceAmount)&&Number.isFinite(otherChannelAllocation)&&Number.isFinite(proposedAllocation)&&sourceAmount>=0&&otherChannelAllocation>=0&&proposedAllocation>=0&&hasAtMost2Decimals(proposedAllocation)&&otherChannelAllocation+proposedAllocation<=sourceAmount+0.009;
+
+export const salesQuantityMeetsMoq = (quantity:number,minimum:number):boolean => Number.isFinite(quantity)&&Number.isFinite(minimum)&&quantity>0&&minimum>0&&quantity+0.0000001>=minimum;
+export const retailMasterPriceConfigured = (retailPrice:number):boolean => Number.isFinite(retailPrice)&&retailPrice>0;
+export const validUnitCost = (unitCost:number):boolean => Number.isFinite(unitCost)&&unitCost>0&&unitCost<=1000000000&&hasAtMost2Decimals(unitCost);
+export const expectedPhysicalStockAfterPendingReports = (ledgerStock:number,pendingReportedSales:number):number => Math.round((ledgerStock-pendingReportedSales)*1000)/1000;
+export const stockOpnameVariance = (countedQuantity:number,systemQuantity:number):number => Math.round((countedQuantity-systemQuantity)*1000)/1000;
+export const salesPriceFromStockSnapshots = (deliveryValue:number,approvedSalesValue:number,returnsValue:number,pendingSalesValue:number,availableQuantity:number):number => {
+  const stockValue=money2(deliveryValue-approvedSalesValue+returnsValue-pendingSalesValue);
+  return Number.isFinite(stockValue)&&Number.isFinite(availableQuantity)&&availableQuantity>0?money2(stockValue/availableQuantity):0;
+};
+export const consignmentReturnQtyWithinAvailable = (available:number,requested:number,alreadyReserved=0):boolean => Number.isFinite(available)&&Number.isFinite(requested)&&Number.isFinite(alreadyReserved)&&available>=0&&requested>0&&alreadyReserved>=0&&hasAtMost3Decimals(requested)&&hasAtMost3Decimals(alreadyReserved)&&requested+alreadyReserved<=available+0.0000001;
+export const validConsignmentReturnLine = (productId:number,quantity:number,condition:string):boolean => Number.isInteger(productId)&&productId>0&&Number.isFinite(quantity)&&quantity>0&&quantity<=1000000&&hasAtMost3Decimals(quantity)&&['GOOD','DAMAGED'].includes(condition);
+export const validTransactionHistoryPagination = (limit:number,offset:number):boolean => Number.isInteger(limit)&&limit>=1&&limit<=500&&Number.isInteger(offset)&&offset>=0&&offset<=100000;
+export const validCashAccountSource = (value:unknown):boolean => typeof value==='string'&&['RETAIL','SALES','GENERAL'].includes(value.trim().toUpperCase());
+export const validCashSessionCount = (value:unknown):boolean => typeof value==='number'&&Number.isFinite(value)&&value>=0&&hasAtMost2Decimals(value);
+export const validCashSessionCancelReason = (value:unknown):boolean => typeof value==='string'&&value.trim().length>=10&&value.trim().length<=1000;
+export const cashSessionExpectedClosing = (systemOpening:number,postedNetMovement:number):number => money2(Number(systemOpening)+Number(postedNetMovement));
+export const cashSessionVariance = (countedClosing:number,expectedClosing:number):number => money2(Number(countedClosing)-Number(expectedClosing));
+export const rapidPrintWithinThreshold = (secondsAfterHandover:number,thresholdMinutes:number):boolean => Number.isFinite(secondsAfterHandover)&&Number.isFinite(thresholdMinutes)&&secondsAfterHandover>=0&&thresholdMinutes>=0&&secondsAfterHandover<=thresholdMinutes*60;
+
+// Preserve intentional business-validation messages while hiding database/internal error details.
+export const safeOperationalMessage = (error:unknown,fallback:string):string => {
+  if(error&&typeof error==='object'&&'code' in error)return fallback;
+  if(error instanceof Error&&error.name!=='Error')return fallback;
+  return error instanceof Error?error.message:fallback;
+};

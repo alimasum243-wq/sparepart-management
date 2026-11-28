@@ -78,7 +78,7 @@ CREATE TABLE IF NOT EXISTS consignment_delivery_items (
   unit_cost_snapshot DECIMAL(15,2) NOT NULL DEFAULT 0,
   distributor_price_snapshot DECIMAL(15,2) NOT NULL DEFAULT 0,
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  KEY idx_consign_item_delivery (delivery_id),
+  UNIQUE KEY uq_consign_delivery_product (delivery_id,product_id),
   KEY idx_consign_item_product (product_id)
 );
 
@@ -110,7 +110,7 @@ CREATE TABLE IF NOT EXISTS distributor_sales_report_items (
   line_total DECIMAL(18,2) NOT NULL,
   cost_total DECIMAL(18,2) NOT NULL,
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  KEY idx_sales_report_item_report (report_id),
+  UNIQUE KEY uq_sales_report_product (report_id,product_id),
   KEY idx_sales_report_item_product (product_id)
 );
 
@@ -145,8 +145,13 @@ CREATE TABLE IF NOT EXISTS distributor_payment_allocations (
   allocated_amount DECIMAL(18,2) NOT NULL,
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   KEY idx_dist_payment_alloc_payment (payment_submission_id),
+  UNIQUE KEY uq_dist_payment_report (payment_submission_id,sales_report_id),
   KEY idx_dist_payment_alloc_report (sales_report_id)
 );
+
+CREATE UNIQUE INDEX IF NOT EXISTS uq_consign_delivery_product ON consignment_delivery_items (delivery_id,product_id);
+CREATE UNIQUE INDEX IF NOT EXISTS uq_sales_report_product ON distributor_sales_report_items (report_id,product_id);
+CREATE UNIQUE INDEX IF NOT EXISTS uq_dist_payment_report ON distributor_payment_allocations (payment_submission_id,sales_report_id);
 
 -- 7) Tambahkan indeks untuk pencarian jurnal sumber. Tidak mengubah jurnal lama.
 
