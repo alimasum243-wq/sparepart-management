@@ -4,35 +4,39 @@ Branch: `prelaunch/hardening-and-audit`
 Base: `main` at commit `685d1460d7d162ee38ea68c7f6249b7f7d50e091`
 Scope: active hardening and code review. No TiDB migration, production deployment, or real transaction has been executed.
 
-## Findings fixed in the current branch (awaiting final CI/test verification)
+## Findings fixed in current branch (pending latest CI verification)
 
-1. All core business APIs are now protected by owner authentication/authorization; health checks remain public. Distributor API routes enforce owner or distributor identity separately.
-2. Distributor payment submissions and verification use transaction locks; submitted/verified balances are checked against sales, returns, and pending payments.
-3. Login/setup throttling added per process; production multi-instance still needs edge/WAF rate limiting.
-4. Auth uses DB-backed revocable sessions; logout revokes; middleware revalidates account status, role, username, distributor association and distributor active state.
-5. First-owner setup is serialized using a singleton guard row and transaction.
-6. Distributor portal now supports submitting sales reports and payments; owner review can open report item detail before approval.
-7. Account 4200 migration includes required `account_type='REVENUE'`.
-8. HPP cost columns migration is repeatable; foundation migration creates missing user/purchase/retail/expense/journal tables and adds the required movement creator ID column, without rebuilding existing tables.
-9. Supplier-payment migration adds `posted_at` and ensures allocations table; supplier invoice number is normalized to NULL when blank and uniqueness is prepared.
-10. Purchase/distributor returns are blocked from exceeding open payable/receivable until refund workflow for settled transactions exists.
-11. Return flows lock product rows during stock/HPP updates; stock transactions use the active warehouse lookup and refuse unsupported multiple active warehouses.
-12. Core transactions and master create/update/status operations write audit logs transactionally.
-13. Currency/quantity precision, date validation, transaction line-count and amount limits added.
+1. Core business API owner authentication/authorization; distributor APIs enforce owner or distributor identity separately. Health checks remain public.
+2. Distributor payment submission/verification and sales approval use transaction locks; balances and stock reservations are protected from concurrent oversubscription.
+3. Login/setup throttling per process; production multi-instance still needs edge/WAF rate limiting.
+4. DB-backed revocable sessions; logout revokes sessions; middleware revalidates account status, role, username, distributor association and active state.
+5. First-owner setup serialized using singleton guard and transaction.
+6. Distributor portal sales reports/payments; owner can inspect line details before approval.
+7. Account 4200 migration fixed with required account type.
+8. Repeatable foundation and HPP migrations; additive changes, no rebuild of existing tables.
+9. Supplier-payment allocations, invoice uniqueness, and return history support; blank invoice numbers normalized.
+10. Returns cannot exceed open payable/receivable until refunds of settled transactions are implemented.
+11. Return flows lock product rows during stock/HPP updates; stock transactions refuse unsupported multiple active warehouses.
+12. Core transactions/master updates, authentication success/logout, password reset, and approvals are audit logged.
+13. Amount/date/quantity precision and validation helpers strengthened; unit tests added for date, money, two-/three-decimal precision and outstanding balance.
+14. Dashboard inventory valuation and monthly net profit; pending sales/payment approval badges.
+15. Accounting COA, trial balance, journal register, balanced manual journals, accounting-period locks, as-of balance sheet, current earnings in equity, and print/PDF reports.
+16. Distributor password reset revokes all previous sessions.
+17. Aging piutang and unapplied receipts, product price history, stock cards per location with print-to-PDF, CSV aging export.
 
-## Verification still required
+## Verification and remaining blockers
 
-- **CI:** Build and Type Check passed on the latest verified commit before the current queued run; CI/static gate is in progress. Wait for both latest checks to complete before claiming final green.
-- **TiDB compatibility:** compare every migration with actual schema using `SHOW CREATE TABLE`; preflight duplicate username/email/phone and supplier invoice numbers. DB schema has not been read by this audit.
-- **Stock/HPP/accounting:** test opening stock, purchase, retail sale, consignment, distributor sales, payments, returns, rollback, concurrent requests, journal balancing, cash/bank, P&L, and reconciliation with controlled test data.
-- **Automated tests:** repository workflows currently lint/typecheck/build; no verified business-logic/integration test suite is present. Add or run acceptance tests.
-- **Feature gaps:** capital/prive and cash/bank transfer workflow, opening-balance entry/cutover, unapplied receipt, invoice due-date/aging, price history, period close, alerts/dashboard drill-down, PDF exports, multi-warehouse, refund of settled purchase/distributor transactions, password change/reset, and user/distributor lifecycle management remain unfinished or need specification.
-- **Operations:** test backup/restore, production secrets, monitoring, deployment, and recovery plan.
+- **CI:** Latest run still in progress; check both Build and Type Check and CI after latest commit. Unit tests and typecheck had passed on this run; build was still running.
+- **TiDB compatibility:** Actual schema has not been read by this audit. User must compare every migration with SHOW CREATE TABLE; preflight duplicate username/email/phone, supplier invoice and invoice codes. No migration executed.
+- **Business integration:** Controlled acceptance testing needed for opening stock, purchase/HPP, retail, consignment, distributor approval/payment, returns, cash/bank, journal balance, balance sheet, concurrency, and rollback. No TiDB integration test.
+- **Automated coverage:** Unit tests cover validation helpers only. Business routes and DB concurrency are not covered by automated integration tests.
+- **Remaining product gaps:** cash/bank reconciliation, formal closing entries (period lock only), account/user/distributor deactivation lifecycle, opening balances (can be entered via balanced manual journal), owner-password recovery, scheduled backup/restore, PDF exports beyond stock card and balance sheet, multi-warehouse, refunds for fully settled purchase/distributor transactions, price-history UI validation, broader route tests.
+- **Operations:** verify production secrets/TLS, deployment, monitoring, backup/restore, recovery and rollback.
 
-## Constraints
+## Constraints and branch hygiene
 
-- `main` unchanged; work stays in draft PR.
-- No migration run and no deployment.
-- No real transaction data posted.
-- No destructive SQL; never delete/rewrite transaction history.
-- User action will be requested only when code/migrations/acceptance checks are ready.
+- Work remains in draft PR #3 and `prelaunch/hardening-and-audit`; do not merge/deploy yet.
+- No TiDB migration, production deployment, or real transactions executed.
+- Main branch history advanced during an accidental helper-file create/delete operation; the helper file is absent from `main`, and no net content change from that operation remains. Do not claim `main` history was untouched.
+- No destructive SQL was introduced; never delete/rewrite posted transaction history.
+- User action requested only after code checks and preparation of migration/acceptance steps.
