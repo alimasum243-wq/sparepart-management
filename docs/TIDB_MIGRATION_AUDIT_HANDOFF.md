@@ -54,6 +54,7 @@ No migration SQL was executed by the coding agent.
 - `022_cash_account_source_type.sql`: cash/bank source classification (`RETAIL`, `SALES`, `GENERAL`); existing accounts default `GENERAL`, and owner can reclassify only before any journal/cash transaction history.
 - `023_sales_report_print_event_audit.sql`: append-only print/reprint event log for distributor sales notes; rapid-print audit uses the first logged print timestamp. Legacy reports without event logs fall back to the migration-017 last-print timestamp and are labelled as legacy. Migration 023 is included in the migration-order review.
 - `024_users_single_distributor_login.sql`: unique index enforcing one distributor login per distributor, matching current reset-password and distributor-creation logic; preflight duplicate check required.
+- `025_shortage_claims_bank_statement_reconciliation.sql`: claim review/settlement audit tables and external bank-statement import/matching tables; additive and not yet applied.
 - All are additive; review schema dependencies against TiDB before running.
 
 ## Cash reconciliation sessions (migration 020)
@@ -85,3 +86,9 @@ No migration SQL was executed by the coding agent.
 
 ## Current state
 This is a preparation/checklist document. It does not certify application readiness, schema readiness, or migration safety. The migration audit starts only after the remaining implementation and tests are completed and the latest branch is checked.
+
+## Migration 025 — new audit gap tables (not applied)
+- `distributor_shortage_claims` / `_items`: distributor claim with optional delivery linkage, evidence reference, review status, approved quantities, HPP snapshots, approved charge and settlement fields. Claim approval is review metadata only; it does not post stock, AR, or GL.
+- `bank_statement_imports` / `bank_statement_rows`: normalized bank statement batches/rows, fingerprint duplicate controls, unmatched/matched state, linked journal and reviewer audit. Matching does not create or edit journal entries.
+- API/UI code has been added on the audit branch. Owner must preflight schema in `sparepart_db`, apply migration 025 only when reviewed, and then test on isolated synthetic data before production.
+- No SQL has been executed by the coding agent.
