@@ -123,6 +123,16 @@ const productSchema = z.object({
   retail_price: z.number().nonnegative().max(1000000000).refine(v=>Math.round(v*100)===v*100).default(0)
 });
 
+app.get("/api/products/:id/price-history",async(req,res)=>{
+  const id=Number(req.params.id);
+  if(!Number.isInteger(id)||id<1)return res.status(400).json({ok:false,message:'ID produk tidak valid.'});
+  try{
+    const [product]=await pool.execute<RowDataPacket[]>(`SELECT id,sku,product_name FROM products WHERE id=?`,[id]);
+    if(!product.length)return res.status(404).json({ok:false,message:'Produk tidak ditemukan.'});
+    const [rows]=await pool.execute<RowDataPacket[]>(`SELECT id,effective_date,purchase_cost,last_purchase_cost,average_cost,distributor_price,retail_price,source,changed_by_user_id,created_at FROM product_price_history WHERE product_id=? ORDER BY effective_date DESC,id DESC LIMIT 200`,[id]);
+    return res.json({ok:true,product:product[0],history:rows});
+  }catch{return res.status(500).json({ok:false,message:'Histori harga tidak dapat dimuat. Pastikan migration 010 sudah dijalankan.'});}
+});
 app.post("/api/products", async (req, res) => {
   const parsed = productSchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ ok: false, message: "Nama produk wajib diisi dan data harga harus benar." });
