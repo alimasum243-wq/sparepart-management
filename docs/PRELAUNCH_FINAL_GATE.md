@@ -365,3 +365,8 @@ Code review of `client/src/App.tsx` and `server/src/distributor.ts` confirms:
 Acceptance tests include two distributors (cross-account access denied), price master edits after handover (historical snapshots stable), partial and full payments, payment pending vs verified, partial return, damaged return, rejected return, sold qty cannot be returned as unsold, concurrency/duplicate requests, pending status has no accounting impact, approved return posts exactly once, and report totals tie to inventory/receivable/GL.
 
 **Current status:** requirements documented; these portal workflows are not implemented. Treat as blockers, do not mark app production-ready. The new requirements are also in `docs/DISTRIBUTOR_PORTAL_REQUIREMENTS.md`.
+
+
+## 19. TiDB Migration Audit Handoff
+
+The user requested code hardening to continue until the next user action is a manual TiDB migration audit. The migration audit checklist and expected preflight/migration/postflight deliverables are documented in `docs/TIDB_MIGRATION_AUDIT_HANDOFF.md`. This is a handoff checklist only; it does not indicate migration readiness. All remaining application blockers must be fixed or explicitly documented, and latest CI must pass before requesting the user to inspect or execute SQL.
