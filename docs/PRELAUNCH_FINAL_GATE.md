@@ -204,3 +204,34 @@ The application must support two separate price segments per product, with diffe
 - [ ] Sales account cannot self-approve notes, deposits, stock adjustments, shortages, or exceptions; unauthorized requests are blocked server-side.
 
 **Acceptance rule:** field-sales accountability, validated sell-through, missing-stock handling, and remittance/lapping controls are critical prelaunch blockers. Checklist items are requirements only until code implementation and test evidence are verified.
+
+## 13. Weekly/monthly profit contribution and retail-sales cannibalization audit (critical)
+
+**Objective:** transparently compare the business contribution of direct retail and field sales/consignment, and detect possible retail customer cannibalization. Use actual posted transaction data and explainable signals; AI summarizes and flags, but calculations and controls are deterministic.
+
+### Profit and volume comparison
+- [ ] Provide weekly and monthly comparison, with custom date range, for retail vs sales channel.
+- [ ] Show units sold, revenue, HPP of units sold (using historical cost snapshots), gross profit in Rupiah, direct/transaction costs, allocated shared operating costs (allocation basis clearly disclosed), and net contribution in Rupiah.
+- [ ] Show each channel's share of combined contribution profit as a percentage only for contribution reporting; this is not a product margin target or pricing rule. If total contribution is zero/negative, clearly explain that percentages are undefined or misleading and show Rupiah amounts.
+- [ ] Show channel contribution alongside units and revenue so high-volume, low-profit sales are not mistaken for higher profitability.
+- [ ] Explain how costs are categorized: direct channel costs, shared costs, unallocated costs. Never silently allocate shared costs; owner-configured allocation method and its basis must be visible, auditable, and reproducible.
+- [ ] Exclude pending, rejected, voided, and unposted transactions from official results; handle refunds/returns and corrections consistently and traceably.
+- [ ] Reconcile contribution calculations to transaction records, inventory/HPP, cash/receivables, and GL. Reports/export must agree with source data.
+
+### Possible retail cannibalization / channel conflict
+- [ ] Monitor retail sales trend and nearby field-sales transactions by units, revenue, and contribution over comparable periods; account for day-of-week, seasonality, product mix, promotions, stock availability, price changes, and unusual closures where data is available.
+- [ ] Flag material sudden drops in retail activity coinciding with increased sales-channel activity near the store/warehouse or within owner-configured zones, time windows, and thresholds.
+- [ ] Use location only when lawfully collected, transparent to the sales staff, and enabled with access/retention controls. If location is absent, state the limitation and use less-specific evidence.
+- [ ] Alerts must display measured change, comparison window, nearby/overlap evidence if available, data coverage, and alternative explanations. Do not automatically infer intent or accuse sales staff from correlation alone.
+- [ ] Provide investigation workflow: review alert, add notes/evidence, mark confirmed/false-positive/inconclusive, and record owner decision. Preserve audit trail.
+- [ ] Alert thresholds and zones are owner-configurable and changes are audited. No automatic punishment, price change, or transaction alteration based on an AI alert.
+
+### Acceptance tests
+- [ ] Weekly/monthly report calculates channel volume, revenue, HPP, gross profit, direct costs, allocated costs, net contribution, and contribution share correctly using manual verified test cases.
+- [ ] Verify returned goods, discounts/overrides, cost snapshots, shared-cost allocation, and pending/voided transactions are treated correctly.
+- [ ] Retail drop with nearby sales increase triggers an explainable review alert only when configured threshold/data conditions are met.
+- [ ] Retail drop without nearby sales increase does not produce a cannibalization claim; sales increase without retail drop is not automatically a claim either.
+- [ ] Missing/inaccurate location or incomplete data is disclosed and reduces confidence; verify no secret tracking or AI accusation.
+- [ ] Report totals reconcile to the GL and transaction source; export matches on-screen values.
+
+**Acceptance rule:** channel profit-contribution reporting and possible-cannibalization monitoring are required audit controls. This section is a requirement until code implementation, test evidence, and environment verification prove it.
