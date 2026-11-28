@@ -2,7 +2,7 @@
 
 **Current gate:** BLOCKED — not approved for real transactions.
 **Branch:** `prelaunch/hardening-and-audit`
-**Scope:** Execute remaining prelaunch checks in evidence-based order. Do not merge, deploy, or use the live business database for test transactions.
+**Scope:** Execute remaining prelaunch checks in evidence-based order. No merge or deployment is performed by this audit. User chose to skip a manual backup for initial testing and reports the target `sparepart_db` has no real business transactions; test entries, if later performed online, must be clearly synthetic and the risk is accepted by the user. Backup/restore evidence remains a production-readiness blocker.
 
 ## Verified baseline (reported/observed)
 - User reports TiDB database and migrations 019–024 are complete (user-confirmed; no direct database connection or independent verification by this document).
@@ -10,7 +10,7 @@
 - Critical code audit and listed hardening changes are reviewed; this is code review, not proof of runtime transaction correctness.
 
 ## Test environment rules
-1. Use a separate, isolated TiDB test database/instance or a sanitized clone. Never run test transactions against `sparepart_db` used as the business target.
+1. Preferred: use an isolated TiDB test database/instance or sanitized clone. User has chosen to test the currently unused online target `sparepart_db` instead and skip manual backup; this is an explicit risk choice, not a safe general recommendation. Do not enter real business transactions during test. Synthetic test records must be labeled and their cleanup/retention plan documented; do not run destructive cleanup scripts.
 2. No real credentials in Git, logs, screenshots, or test artifacts. Do not ask the assistant to connect to the user's DB.
 3. Record exact commit SHA, TiDB version, schema/migration state, tester, timestamp/timezone, test case ID, expected and actual results, evidence reference, and cleanup confirmation.
 4. Do not mark a case passed from static code review alone. Record `PASS`, `FAIL`, `BLOCKED`, or `NOT RUN`.
@@ -18,7 +18,7 @@
 6. Test data should be synthetic and tagged; test cleanup must be verified with read-only queries.
 
 ## Stage A — Integration and accounting transaction tests
-Environment required: isolated TiDB-compatible test database and test credentials configured locally (not committed).
+Environment: user chose online application testing rather than local setup. Because the assistant cannot access deployment controls or the database directly, online runtime acceptance requires the user to open the deployed app and provide observed results. The reported empty database status is not independently verified.
 
 ### A1. Opening balances and trial balance
 - [ ] Set a documented opening date and source evidence.
@@ -77,6 +77,7 @@ Use simultaneous requests from separate sessions and compare ledger snapshots:
 - [ ] All discrepancies zero or individually documented, approved, and corrected; no unexplained balancing plugs.
 
 ## Stage E — Backup and recovery
+**User decision:** manual backup before initial testing is skipped. This remains an accepted test-phase risk only; backup/restore proof is still required before production use.
 - [ ] Confirm TiDB backup/export schedule, retention, access, encryption, and backup identifier/timestamp.
 - [ ] Restore backup into isolated target (never overwrite the live database).
 - [ ] Verify schema, indexes, key table counts, inventory/cash/AR/AP/journal totals, and application connectivity.
