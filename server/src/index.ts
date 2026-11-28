@@ -878,7 +878,7 @@ app.post("/api/returns/purchase",async(req,res)=>{
  if(!Number.isInteger(purchaseId)||purchaseId<1||!/^\d{4}-\d{2}-\d{2}$/.test(date)||!Array.isArray(items)||!items.length||items.length>100)
   return res.status(400).json({ok:false,message:"Faktur, tanggal retur, dan rincian barang wajib diisi."});
  const normalized=items.map((x:any)=>({purchaseItemId:Number(x.purchase_item_id),quantity:Number(x.quantity)}));
- if(normalized.some((x:any)=>!Number.isInteger(x.purchaseItemId)||x.purchaseItemId<1||!Number.isFinite(x.quantity)||x.quantity<=0)||new Set(normalized.map((x:any)=>x.purchaseItemId)).size!==normalized.length)
+ if(normalized.some((x:any)=>!Number.isInteger(x.purchaseItemId)||x.purchaseItemId<1||!Number.isFinite(x.quantity)||x.quantity<=0||x.quantity>1000000||Math.round(x.quantity*1000)!==x.quantity*1000)||new Set(normalized.map((x:any)=>x.purchaseItemId)).size!==normalized.length)
   return res.status(400).json({ok:false,message:"Rincian retur tidak valid atau barang tercantum ganda."});
  const conn=await pool.getConnection();
  try{
@@ -940,7 +940,7 @@ app.post("/api/returns/retail-sale",async(req,res)=>{
  if(!Number.isInteger(saleId)||saleId<1||!/^\d{4}-\d{2}-\d{2}$/.test(date)||!Array.isArray(items)||!items.length||items.length>100)
   return res.status(400).json({ok:false,message:"Transaksi penjualan, tanggal retur, dan rincian barang wajib diisi."});
  const normalized=items.map((x:any)=>({saleItemId:Number(x.retail_sale_item_id),quantity:Number(x.quantity)}));
- if(normalized.some((x:any)=>!Number.isInteger(x.saleItemId)||x.saleItemId<1||!Number.isFinite(x.quantity)||x.quantity<=0)||new Set(normalized.map((x:any)=>x.saleItemId)).size!==normalized.length)
+ if(normalized.some((x:any)=>!Number.isInteger(x.saleItemId)||x.saleItemId<1||!Number.isFinite(x.quantity)||x.quantity<=0||x.quantity>1000000||Math.round(x.quantity*1000)!==x.quantity*1000)||new Set(normalized.map((x:any)=>x.saleItemId)).size!==normalized.length)
   return res.status(400).json({ok:false,message:"Rincian retur penjualan tidak valid atau barang tercantum ganda."});
  const conn=await pool.getConnection();
  try{
@@ -992,7 +992,7 @@ app.post("/api/returns/distributor-sale",async(req,res)=>{
  if(!Number.isInteger(reportId)||reportId<1||!/^\d{4}-\d{2}-\d{2}$/.test(date)||!Array.isArray(items)||!items.length||items.length>100)
   return res.status(400).json({ok:false,message:"Laporan distributor, tanggal retur, dan rincian barang wajib diisi."});
  const normalized=items.map((x:any)=>({reportItemId:Number(x.sales_report_item_id),quantity:Number(x.quantity)}));
- if(normalized.some((x:any)=>!Number.isInteger(x.reportItemId)||x.reportItemId<1||!Number.isFinite(x.quantity)||x.quantity<=0)||new Set(normalized.map((x:any)=>x.reportItemId)).size!==normalized.length)
+ if(normalized.some((x:any)=>!Number.isInteger(x.reportItemId)||x.reportItemId<1||!Number.isFinite(x.quantity)||x.quantity<=0||x.quantity>1000000||Math.round(x.quantity*1000)!==x.quantity*1000)||new Set(normalized.map((x:any)=>x.reportItemId)).size!==normalized.length)
   return res.status(400).json({ok:false,message:"Rincian retur distributor tidak valid atau barang tercantum ganda."});
  const conn=await pool.getConnection();
  try{
