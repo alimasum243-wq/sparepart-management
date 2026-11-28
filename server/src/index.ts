@@ -868,6 +868,20 @@ app.post("/api/supplier-payments", async (req,res) => {
 
 // Ringkasan dashboard berbasis transaksi yang sudah diposting.
 // COA, trial balance as-of date, and posted journal register.
+app.get("/api/balance-sheet",async(req,res)=>{
+  const asOf=String(req.query.as_of||new Date().toISOString().slice(0,10));
+  if(!isDateOnly(asOf))return res.status(400).json({ok:false,message:'Tanggal neraca tidak valid.'});
+  try{
+    const [rows]=await pool.execute<RowDataPacket[]>(`SELECT a.id,a.account_code,a.account_name,a.account_type,COALESCE(SUM(jl.debit),0) debit,COALESCE(SUM(jl.credit),0) credit FROM accounts a LEFT JOIN journal_lines jl ON jl.account_id=a.id LEFT JOIN journal_entries je ON je.id=jl.journal_entry_id AND je.status='POSTED' AND je.journal_date<=? WHERE a.is_active=1 GROUP BY a.id,a.account_code,a.account_name,a.account_type ORDER BY a.account_code`,[asOf]);
+    const assets=rows.filter((a:any)=>a.account_type==='ASSET').map((a:any)=>({...a,balance:Number(a.debit)-Number(a.credit)}));
+    const liabilities=rows.filter((a:any)=>a.account_type==='LIABILITY').map((a:any)=>({...a,balance:Number(a.credit)-Number(a.debit)});
+    const equity=rows.filter((a:any)=>a.account_type==='EQUITY').map((a:any)=>({...a,balance:Number(a.credit)-Number(a.debit)});
+    const revenue=rows.filter((a:any)=>a.account_type==='REVENUE').reduce((s:number,a:any)=>s+Number(a.credit)-Number(a.debit),0);
+    const expense=rows.filter((a:any)=>a.account_type==='EXPENSE').reduce((s:number,a:any)=>s+Number(a.debit)-Number(a.credit),0);
+    const netIncome=money2(revenue-expense),equityTotal=money2(equity.reduce((s:number,a:any)=>s+a.balance,0)+netIncome),assetTotal=money2(assets.reduce((s:number,a:any)=>s+a.balance,0)),liabilityTotal=money2(liabilities.reduce((s:number,a:any)=>s+a.balance,0));
+    return res.json({ok:true,as_of:asOf,assets,liabilities,equity,net_income:netIncome,totals:{assets:assetTotal,liabilities:liabilityTotal,equity:equityTotal,liabilities_equity:money2(liabilityTotal+equityTotal),difference:money2(assetTotal-liabilityTotal-equityTotal)}});
+  }catch{return res.status(500).json({ok:false,message:'Neraca gagal dimuat.'});}
+});
 app.get("/api/accounting/overview",async(req,res)=>{
   const from=String(req.query.from||'2000-01-01'),to=String(req.query.to||new Date().toISOString().slice(0,10));
   if(!isDateOnly(from)||!isDateOnly(to)||from>to)return res.status(400).json({ok:false,message:'Periode tanggal tidak valid.'});
