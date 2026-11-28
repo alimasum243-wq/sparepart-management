@@ -2,7 +2,7 @@ import { Router, type Request, type Response, type NextFunction } from 'express'
 import { createHmac, randomBytes, scryptSync, timingSafeEqual } from 'node:crypto';
 import type { RowDataPacket, ResultSetHeader } from 'mysql2';
 import { pool } from './db.js';
-import { money2, isDateOnly, hasAtMost2Decimals, hasAtMost3Decimals, netChannelAuditMetrics, auditPercentageChange, possibleCannibalizationSignal, detectLappingRiskFlags, channelNetContribution, channelCostAllocationWithinSource } from './validation.js';
+import { money2, isDateOnly, hasAtMost2Decimals, hasAtMost3Decimals, netChannelAuditMetrics, auditPercentageChange, possibleCannibalizationSignal, detectLappingRiskFlags, channelNetContribution, channelCostAllocationWithinSource, salesQuantityMeetsMoq } from './validation.js';
 
 const router = Router();
 // Basic per-process throttling for sensitive auth endpoints. Production deployments
@@ -240,7 +240,7 @@ router.post('/distributor/sales-reports',authMiddleware,distributor,async(req:Au
   const [loc]=await conn.execute<RowDataPacket[]>(`SELECT id FROM stock_locations WHERE distributor_id=? AND location_type='DISTRIBUTOR' AND is_active=1 LIMIT 1 FOR UPDATE`,[distId]);if(!loc.length)throw new Error('Lokasi distributor tidak ditemukan.');
   const reportCode=code('LAP');const [h]=await conn.execute<ResultSetHeader>(`INSERT INTO distributor_sales_reports (report_code,distributor_id,report_date,status,notes,sales_area_label,submitted_by_user_id) VALUES (?,?,?,'SUBMITTED',?,?,?)`,[reportCode,distId,report_date,notes||null,salesAreaLabel||null,req.identity!.id]);const reportId=Number(h.insertId);const seen=new Set<number>();let reportTotal=0,reportCostTotal=0;
   for(const raw of items){const pid=Number(raw.product_id),qty=Number(raw.quantity_sold);if(!Number.isInteger(pid)||!Number.isFinite(qty)||qty<=0||qty>1000000||Math.round(qty*1000)!==qty*1000||seen.has(pid))throw new Error('Rincian barang tidak valid atau produk ganda.');seen.add(pid);
-   const [pRows]=await conn.execute<RowDataPacket[]>(`SELECT id,product_name,average_cost,purchase_cost FROM products WHERE id=? AND is_active=1 FOR UPDATE`,[pid]);if(!pRows.length)throw new Error('Produk tidak ditemukan.');
+   const [pRows]=await conn.execute<RowDataPacket[]>(`SELECT id,product_name,average_cost,purchase_cost,sales_moq FROM products WHERE id=? AND is_active=1 FOR UPDATE`,[pid]);if(!pRows.length)throw new Error('Produk tidak ditemukan.');const minimumQty=Number(pRows[0].sales_moq||1);if(!salesQuantityMeetsMoq(qty,minimumQty))throw new Error(`Jumlah laporan ${pRows[0].product_name} ${qty} kurang dari MOQ Sales ${minimumQty}. Laporan di bawah MOQ ditolak.`);
    const [available]=await conn.execute<RowDataPacket[]>(`SELECT
     (COALESCE(SUM(CASE WHEN to_location_id=? THEN quantity ELSE 0 END),0)-COALESCE(SUM(CASE WHEN from_location_id=? THEN quantity ELSE 0 END),0))-
       COALESCE((SELECT SUM(i.quantity_sold) FROM distributor_sales_report_items i JOIN distributor_sales_reports r ON r.id=i.report_id WHERE r.distributor_id=? AND r.status='SUBMITTED' AND i.product_id=?),0) qty,
@@ -254,7 +254,7 @@ router.post('/distributor/sales-reports',authMiddleware,distributor,async(req:Au
    if(!Number.isFinite(price)||price<=0)throw new Error(`Harga distributor ${pRows[0].product_name} pada data titipan masih nol/tidak valid. Hubungi pemilik untuk memperbaiki harga sebelum mengirim laporan.`);
    if(!Number.isFinite(cost)||cost<0)throw new Error(`HPP ${pRows[0].product_name} tidak valid.`);
    const line=money2(qty*price),costTotal=money2(qty*cost);reportTotal=money2(reportTotal+line);reportCostTotal=money2(reportCostTotal+costTotal);if(reportTotal>9000000000000000||reportCostTotal>9000000000000000)throw new Error('Total laporan penjualan melebihi batas nominal sistem.');
-   await conn.execute(`INSERT INTO distributor_sales_report_items (report_id,product_id,product_name_snapshot,quantity_sold,unit_price_snapshot,unit_cost_snapshot,line_total,cost_total) VALUES (?,?,?,?,?,?,?,?)`,[reportId,pid,pRows[0].product_name,qty,price,cost,line,costTotal]);
+   await conn.execute(`INSERT INTO distributor_sales_report_items (report_id,product_id,product_name_snapshot,quantity_sold,unit_price_snapshot,unit_cost_snapshot,line_total,cost_total,sales_moq_snapshot) VALUES (?,?,?,?,?,?,?,?,?)`,[reportId,pid,pRows[0].product_name,qty,price,cost,line,costTotal,minimumQty]);
   }
   await conn.execute(`INSERT INTO audit_logs (user_id,action,entity_type,entity_id,description) VALUES (?,'SUBMIT','DISTRIBUTOR_SALES_REPORT',?,?)`,[req.identity!.id,reportId,`Laporan penjualan ${reportCode} diajukan; total ${reportTotal}; HPP ${reportCostTotal}`]);
   await conn.commit();return res.status(201).json({ok:true,message:'Laporan dikirim dan menunggu pemeriksaan pemilik.',report:{id:reportId,report_code:reportCode,status:'SUBMITTED'}});
