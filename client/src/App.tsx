@@ -14,7 +14,7 @@ type Item = { product_id:string; quantity:string; unit_cost:string }
 type Options = { suppliers:Supplier[]; products:Product[]; locations:Location[]; cash_accounts:any[] }
 const nav = [
   {label:'Dashboard',icon:LayoutDashboard},{label:'Produk & Persediaan',icon:Package},{label:'Pembelian',icon:ShoppingCart},
-  {label:'Gudang Sales',icon:Truck},{label:'Kasir Retail',icon:ReceiptText},{label:'Penjualan',icon:ReceiptText},{label:'Utang & Piutang',icon:Users},
+  {label:'Gudang Sales',icon:Truck},{label:'Kasir Retail',icon:ReceiptText},{label:'Penjualan',icon:ReceiptText},{label:'Aging Piutang',icon:BarChart3},{label:'Utang & Piutang',icon:Users},
   {label:'Kas & Pengeluaran',icon:Wallet},{label:'Kas, Modal & Transfer',icon:Wallet},{label:'Stock Opname & Adjustment',icon:ClipboardList},{label:'Retur Barang',icon:RotateCcw},{label:'Histori Transaksi',icon:History},{label:'Laporan',icon:BarChart3}
 ]
 const money = (n:number) => new Intl.NumberFormat('id-ID',{style:'currency',currency:'IDR',maximumFractionDigits:0}).format(Number(n)||0)
@@ -60,6 +60,7 @@ export default function App() {
        active==='Histori Transaksi'?<TransactionHistory token={token}/>:
        active==='Laporan'?<ProfitLoss token={token}/>:
        active==='Penjualan'?<ReviewCenter token={token}/>:
+       active==='Aging Piutang'?<ReceivablesAging token={token}/>:
        active==='Utang & Piutang'?<SupplierPayments token={token}/>:
        <section className="panel coming"><div className="panel-icon"><Package size={24}/></div><h2>{active}</h2><p>Modul ini masih dalam tahap implementasi. Data transaksi tidak diubah dari halaman ini.</p><span className="tag">Dalam pembangunan</span></section>}
       <footer>Sparepart Management System <span>•</span> MVP 0.3.0</footer></main></div>
@@ -222,6 +223,12 @@ function ProfitLoss({token}:{token:string}){
  <h3>Buku besar per akun</h3><div className="table-wrap"><table><thead><tr><th>Kode</th><th>Nama akun</th><th>Debit</th><th>Kredit</th><th>Saldo bersih (D-K)</th></tr></thead><tbody>{(ops?.ledger||[]).map((r:any)=><tr key={r.account_code}><td>{r.account_code}</td><td>{r.account_name}</td><td>{money(Number(r.debit_total))}</td><td>{money(Number(r.credit_total))}</td><td>{money(Number(r.net_debit))}</td></tr>)}</tbody></table></div>
  <div className="notice">Ekspor CSV dapat dibuka di Excel. Pastikan retur dan pembayaran telah dicatat sebelum menggunakan laporan untuk tutup buku.</div></>}</section>
 }
+function ReceivablesAging({token}:{token:string}){const [data,setData]=useState<any>({invoices:[],summary:{},unapplied:[]});const [error,setError]=useState('');const [loading,setLoading]=useState(true);async function load(){setLoading(true);try{const d=await request('/api/admin/receivables-aging',token);setData(d)}catch(e){setError(e instanceof Error?e.message:'Gagal memuat aging piutang')}finally{setLoading(false)}}useEffect(()=>{load()},[]);
+ function exportCsv(){const rows=[['Invoice','Laporan','Distributor','Tanggal','Jatuh tempo','Hari lewat','Bucket','Saldo'],...(data.invoices||[]).map((r:any)=>[r.invoice_code||r.report_code,r.report_code,r.distributor_name,String(r.report_date).slice(0,10),r.due_date?String(r.due_date).slice(0,10):'',r.days_overdue,r.bucket,r.balance])];const csv=rows.map(row=>row.map(csvCell).join(',')).join('\r\n');downloadCsv('aging-piutang.csv',csv)}
+ return <div className="page-stack"><section className="panel"><div className="section-head"><div><h2>Aging Piutang Distributor</h2><p>Piutang yang belum teralokasi pembayaran, berdasarkan invoice dan jatuh tempo.</p></div><div className="review-actions"><button className="secondary-button" onClick={load}><RefreshCw size={15}/> Refresh</button><button className="primary-button" onClick={exportCsv}><Download size={15}/> CSV</button></div></div>{error&&<div className="form-alert error-alert">{error}</div>}{loading?<p>Memuat...</p>:<div className="portal-stats">{['CURRENT','1-30','31-60','61-90','90+'].map(b=><article key={b}><small>{b==='CURRENT'?'Belum jatuh tempo':`${b} hari`}</small><strong>{money(Number(data.summary?.[b]||0))}</strong></article>)}</div>}</section>
+ <section className="panel"><div className="section-head"><div><h3>Invoice terbuka</h3><p>Saldo per invoice setelah retur dan pembayaran yang sudah dialokasikan.</p></div></div>{loading?<p>Memuat...</p>:!data.invoices?.length?<div className="empty-state"><BarChart3 size={28}/><p>Tidak ada invoice terbuka.</p></div>:<div className="product-table-wrap"><table className="product-table"><thead><tr><th>Invoice</th><th>Distributor</th><th>Tanggal</th><th>Jatuh tempo</th><th>Lewat hari</th><th>Bucket</th><th>Saldo</th></tr></thead><tbody>{data.invoices.map((r:any)=><tr key={r.id}><td>{r.invoice_code||r.report_code}</td><td>{r.distributor_name}</td><td>{String(r.report_date).slice(0,10)}</td><td>{r.due_date?String(r.due_date).slice(0,10):'—'}</td><td>{r.days_overdue}</td><td><span className="tag">{r.bucket}</span></td><td><strong>{money(Number(r.balance))}</strong></td></tr>)}</tbody></table></div>}</section>
+ <section className="panel"><h3>Uang muka belum dialokasikan</h3>{!data.unapplied?.length?<p>Tidak ada uang muka distributor.</p>:<div className="product-table-wrap"><table className="product-table"><thead><tr><th>Distributor</th><th>Uang muka</th></tr></thead><tbody>{data.unapplied.map((r:any)=><tr key={r.distributor_id}><td>{r.distributor_name}</td><td>{money(Number(r.unapplied_total))}</td></tr>)}</tbody></table></div>}</section></div>}
+
 function CashManagement({token}:{token:string}){
  const [accounts,setAccounts]=useState<any[]>([]);const [history,setHistory]=useState<any[]>([]);const [busy,setBusy]=useState(false);const [error,setError]=useState('');const [message,setMessage]=useState('');
  const [accountName,setAccountName]=useState('');const [accountType,setAccountType]=useState('CASH');
