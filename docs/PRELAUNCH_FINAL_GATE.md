@@ -342,3 +342,5 @@ The application must support two separate price segments per product, with diffe
 - [ ] These are browser-generated print/PDF dialogs, not a server-side PDF renderer. Receipt/handover reprint is currently limited to the latest record kept in the UI session; permanent history-based reprint and print/export action audit log are not yet implemented.
 - [ ] Investor report coverage is still partial: stock valuation/card, receivable/payable aging, cash-source reconciliation, physical cash session reconciliation, balance sheet/trial balance and detailed audit/approval history are not yet included in this unified investor PDF/CSV. Pending/posted separation and report-to-GL reconciliation must be completed/tested.
 - [ ] Verify CI and typecheck for the current branch tip before treating these changes as accepted. No deployment or TiDB changes.
+
+- [x] Histori transaksi: custom range CSV and browser print/Save-as-PDF now include period, generated timestamp, and transaction rows. API is currently capped at 1,000 rows; this cap must be addressed before reliable export for high volume.
