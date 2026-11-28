@@ -4,8 +4,8 @@
 
 | Audit requirement | Captured data / current implementation | Status | Remaining blocker / test |
 |---|---|---|---|
-| Retail vs Sales channel performance | Retail posted sale/return item snapshots; approved distributor sales/returns; channel-performance API and UI | Partial | Gross-profit only; allocate direct/shared operating costs for net contribution; reconcile report to GL |
-| Profit contribution share by channel | Gross-profit shares in report | Partial | Net profit contribution after cost allocation not yet available |
+| Retail vs Sales channel performance | Retail posted sale/return item snapshots; approved distributor sales/returns; channel-performance API/UI; nominal allocations from posted expenses | Partial | Allocated net contribution now available in code; unallocated expenses still excluded, and report/GL reconciliation acceptance pending |
+| Profit contribution share by channel | Manual nominal allocations from posted expenses by channel; report computes net contribution and net share | Implemented in branch; test pending | Unallocated operating costs excluded from net contribution and shown separately; allocation/report/GL reconciliation tests required |
 | Retail default price | Product retail price; cashier auto-fills master price | Implemented in branch | Confirm migration 014, test auto-fill/price changes, browser and API |
 | Retail below-master price exception | Server-side price-floor validation; reason 10–500 chars; master price snapshot; audit log | Implemented in branch | Apply migration 014; test reject without reason, accept with reason and inspect audit record |
 | Sales price and price snapshot | Distributor report item price/cost snapshots and approval flow | Code present; acceptance pending | Verify price changes after stock handover and before report, historical snapshot, returns |
@@ -22,7 +22,7 @@
 | AI audit transparency | Current signals are deterministic server rules, not AI-generated forensic conclusions | Not AI yet | Add AI explanation only after grounded structured evidence; never invent or automatically accuse |
 | Security and audit trail | Authenticated owner routes, session controls, transactional posting and audit logs | Code review only | Full role/IDOR/security and acceptance testing required |
 
-## Required acceptance evidence
+| Nominal operating-cost allocation | `channel_cost_allocations` table; owner assigns expense amount to RETAIL or SALES; API validates total allocations do not exceed source expense; audit log | Implemented in branch | Apply migration 015; test update, zero allocation, source-limit, audit log, and no GL journal side effects |\n\n## Required acceptance evidence
 
 For every requirement marked partial or code-present, attach:
 - exact commit SHA and environment/TiDB version;
