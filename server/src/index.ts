@@ -623,7 +623,7 @@ app.get("/api/retail/options", async (_req, res) => {
       [warehouseId,warehouseId,warehouseId,warehouseId]
     );
     const [accounts] = await pool.query<RowDataPacket[]>(
-      `SELECT id,account_name,account_type FROM cash_accounts WHERE is_active=1 ORDER BY account_name`
+      `SELECT id,account_name,account_type,source_type FROM cash_accounts WHERE is_active=1 AND source_type='RETAIL' ORDER BY account_name`
     );
     res.json({ok:true,products,accounts});
   } catch (error) {
@@ -652,7 +652,7 @@ app.post("/api/retail/sales", async (req,res) => {
     await conn.beginTransaction();
     await assertAccountingPeriodOpen(conn,saleDate);
     const [cash]=await conn.execute<RowDataPacket[]>(
-      `SELECT ca.id,ca.account_type,COALESCE(mapped.id,fallback.id) ledger_id FROM cash_accounts ca LEFT JOIN accounts mapped ON mapped.id=ca.ledger_account_id AND mapped.is_active=1 LEFT JOIN accounts fallback ON fallback.account_code=IF(UPPER(ca.account_type)='BANK','1110','1100') AND fallback.is_active=1 WHERE ca.id=? AND ca.is_active=1 FOR UPDATE`,[cashAccountId]
+      `SELECT ca.id,ca.account_type,ca.source_type,COALESCE(mapped.id,fallback.id) ledger_id FROM cash_accounts ca LEFT JOIN accounts mapped ON mapped.id=ca.ledger_account_id AND mapped.is_active=1 LEFT JOIN accounts fallback ON fallback.account_code=IF(UPPER(ca.account_type)='BANK','1110','1100') AND fallback.is_active=1 WHERE ca.id=? AND ca.is_active=1 AND ca.source_type='RETAIL' FOR UPDATE`,[cashAccountId]
     );
     if(!cash.length) throw new Error("Akun kas/bank tidak aktif atau tidak ditemukan.");
     await assertCashBalance(conn,Number(cash[0].ledger_id),0,'akun penerimaan penjualan retail');
