@@ -278,6 +278,7 @@ router.post('/distributor/sales-reports/:id/print-request',authMiddleware,distri
   if(!rows.length){await conn.rollback();return res.status(404).json({ok:false,message:'Laporan tidak ditemukan, bukan milik akun ini, atau belum dapat dicetak.'});}
   await conn.execute(`UPDATE distributor_sales_reports SET print_requested_at=CURRENT_TIMESTAMP,print_requested_by_user_id=?,print_request_count=print_request_count+1 WHERE id=?`,[req.identity!.id,id]);
   const [stamp]=await conn.execute<RowDataPacket[]>(`SELECT print_requested_at,print_request_count FROM distributor_sales_reports WHERE id=?`,[id]);
+  await conn.execute(`INSERT INTO distributor_sales_report_print_logs (report_id,print_number,user_id) VALUES (?,?,?)`,[id,Number(stamp[0].print_request_count),req.identity!.id]);
   await conn.execute(`INSERT INTO audit_logs (user_id,action,entity_type,entity_id,description) VALUES (?,'PRINT_REQUEST','DISTRIBUTOR_SALES_REPORT',?,?)`,[req.identity!.id,id,`Permintaan cetak nota ${rows[0].report_code}; hitungan cetak ${stamp[0].print_request_count}`]);
   await conn.commit();return res.json({ok:true,print_requested_at:stamp[0].print_requested_at,print_request_count:Number(stamp[0].print_request_count),message:'Permintaan cetak dicatat. Timestamp ini bukan konfirmasi printer fisik.'});
  }catch(e){await conn.rollback();return res.status(400).json({ok:false,message:safeOperationalMessage(e,'Gagal mencatat permintaan cetak.')});}finally{conn.release();}
