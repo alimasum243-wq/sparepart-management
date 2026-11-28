@@ -348,23 +348,23 @@ The application must support two separate price segments per product, with diffe
 - [x] Aging piutang distributor: CSV and browser print/Save-as-PDF now include bucket summary, open invoice details, due date, overdue age, and report timestamp. Aging is an as-of snapshot, not a date-range sales report.
 
 
-## 18. Verified Distributor portal gaps — confirmed by source review (PRELAUNCH BLOCKERS)
+## 18. Distributor portal — current implementation and remaining blockers
 
-Code review of `client/src/App.tsx` and `server/src/distributor.ts` confirms:
-- [x] Existing Distributor portal exposes current stock, submit sell-through reports, submit payment, and prints only the latest submitted sales report.
-- [ ] **Delivery/handover-note history**: Distributor must see each consignment note by date/reference with line items, qty, distributor price snapshot and totals. Handover is consignment and must not be mislabeled as sale or receivable.
-- [ ] **Persistent report history**: show all reports with SUBMITTED/APPROVED/REJECTED status, submitted/reviewed dates, rejection reasons, and note print/reprint. Latest-only receipt preview is insufficient.
-- [ ] **Note-level financial state**: each approved sell-through report/invoice shows gross due, approved returns/credit adjustments, verified payments allocated, unapplied advances (separate), and remaining amount. Status Unpaid/Partially Paid/Paid; no silent payment reallocation. Existing distributor summary is aggregate, not a note-by-note statement.
-- [ ] **Distributor return request workflow**: distributor requests return of unsold stock by product/qty/source note, reason, condition (good/damaged) and optional evidence reference. Request pending Owner inspection/approval/rejection; pending requests must not alter inventory, receivable, or GL. Approved returns create one idempotent stock movement into the appropriate warehouse/returns/damaged location and reverse only eligible unsold consignment stock; rejection reason is visible. Refund of amounts already paid is a separate controlled process.
-- [ ] **Owner return queue**: list pending return requests with distributor, date, items, condition, evidence, decision/reason, and review history. Owner approval/rejection is role-protected, transaction-locked, and idempotent.
-- [ ] **Stock custody reconciliation**: handed-over qty less approved sold qty less approved returned qty equals expected on-hand by product and delivery/note; physical count and variance proposal require owner approval, evidence and reason. No automatic charge to distributor.
-- [ ] **Portal dashboard**: expected consignment units, approved sold, returned, pending reports/returns, verified paid, pending payment, unapplied payment, open balance and drill-through IDs; formulas reconcile with ledger/subledger.
-- [ ] **Isolation/security**: all APIs must constrain distributor identity server-side (never trust submitted distributor ID), enforce object ownership, protect return evidence, validate quantities, serialize concurrent report/return approval, prevent duplicate posting, and audit actor/time/status/reason/source snapshots.
-- [ ] **Exports**: Distributor-specific note/report/return/payment statement CSV and printable PDF; Owner investor export should reconcile these subledgers with inventory and GL.
+Recent branch work adds distributor delivery line history, sell-through report status/rejection history, payment submission history (allocated/unapplied summary), and unsold consignment return request + Owner approval/rejection with good/damaged stock movement. These changes are pending CI and end-to-end review.
+- [x] Distributor-visible consignment delivery line history: date, delivery code, item, quantity, distributor-price snapshot, line value.
+- [x] Persistent sell-through report history with status and rejection reason.
+- [x] Payment submission history with status and aggregate allocated/unapplied amounts.
+- [x] Unsold consignment return request workflow and owner queue/detail; approve/reject routes.
+- [x] Approval posts stock movements per request item; good stock returns to warehouse, damaged stock to damaged location; no automatic refund.
+- [ ] Note-level grouping/totals, note financial status (unpaid/partial/paid), allocation drill-down, persistent print/reprint.
+- [ ] Distributor stock-custody reconciliation and dashboard (handover − approved sales − approved returns; physical variance proposal).
+- [ ] Return evidence, inspection note, source delivery note, and better traceability.
+- [ ] Investor report drill-down and stock card reconciliation of return movements.
+- [ ] Integration/concurrency tests for IDOR, stock reservations, duplicate posting, and return approvals.
 
 Acceptance tests include two distributors (cross-account access denied), price master edits after handover (historical snapshots stable), partial and full payments, payment pending vs verified, partial return, damaged return, rejected return, sold qty cannot be returned as unsold, concurrency/duplicate requests, pending status has no accounting impact, approved return posts exactly once, and report totals tie to inventory/receivable/GL.
 
-**Current status:** requirements documented; these portal workflows are not implemented. Treat as blockers, do not mark app production-ready. The new requirements are also in `docs/DISTRIBUTOR_PORTAL_REQUIREMENTS.md`.
+**Current status:** partial implementation committed; CI/end-to-end verification and remaining listed blockers are still outstanding. Do not mark app production-ready. See `docs/DISTRIBUTOR_PORTAL_REQUIREMENTS.md`.
 
 
 ## 19. TiDB Migration Audit Handoff
