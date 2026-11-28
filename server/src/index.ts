@@ -23,6 +23,11 @@ const getWarehouseLocationId = async (conn:PoolConnection):Promise<number> => {
   if(rows.length!==1) throw new Error('Harus ada tepat satu gudang aktif; dukungan multi-gudang belum tersedia.');
   return Number(rows[0].id);
 };
+const assertCashBalance = async (conn:PoolConnection, ledgerAccountId:number, amount:number, label:string):Promise<void> => {
+  const [rows]=await conn.execute<RowDataPacket[]>(`SELECT COALESCE(SUM(debit-credit),0) balance FROM journal_lines WHERE account_id=?`,[ledgerAccountId]);
+  const balance=Number(rows[0]?.balance||0);
+  if(!Number.isFinite(balance)||balance+0.009<amount) throw new Error(`Saldo ${label} tidak mencukupi. Saldo tersedia Rp${Math.max(0,balance).toLocaleString('id-ID')}.`);
+};
 const isDateOnly = (value:unknown):boolean => {
   if(typeof value!=='string'||!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
   const [year,month,day]=value.split('-').map(Number);
@@ -386,6 +391,7 @@ app.post("/api/purchases", async (req, res) => {
 
     subtotal = Math.round(subtotal * 100) / 100;
     if(!Number.isFinite(subtotal)||subtotal>9000000000000000)throw new Error('Total pembelian melebihi batas nominal sistem.');
+    if(cashLedgerId&&subtotal>0)await assertCashBalance(connection,cashLedgerId,subtotal,'kas/bank untuk pembelian');
 
     const [purchaseResult] = await connection.execute<ResultSetHeader>(
       `INSERT INTO purchases
@@ -615,6 +621,7 @@ app.post("/api/retail/sales", async (req,res) => {
   if(items.some((x:any)=>!Number.isInteger(x.productId)||x.productId<1||!Number.isFinite(x.quantity)||x.quantity<=0||x.quantity>1000000||Math.round(x.quantity*1000)!==x.quantity*1000||!Number.isFinite(x.unitPrice)||x.unitPrice<=0||x.unitPrice>1000000000||Math.round(x.unitPrice*100)!==x.unitPrice*100)){
     return res.status(400).json({ok:false,message:"Setiap barang wajib memiliki produk, jumlah positif, dan harga jual manual lebih dari nol."});
   }
+  if(new Set(items.map((x:any)=>x.productId)).size!==items.length) return res.status(400).json({ok:false,message:'Produk yang sama tidak boleh dicantumkan dua kali; gabungkan jumlah dan harga.'});
   const totalQty=new Map<number,number>();
   for(const item of items) totalQty.set(item.productId,(totalQty.get(item.productId)||0)+item.quantity);
   const conn=await pool.getConnection();
@@ -706,6 +713,7 @@ app.post('/api/expenses', async (req,res) => {
     const [expenseAccount] = await conn.execute<RowDataPacket[]>(`SELECT id FROM accounts WHERE account_code='6100' AND is_active=1 LIMIT 1`);
     const [cashAccount] = await conn.execute<RowDataPacket[]>(`SELECT ca.id,ca.account_type,COALESCE(ca.ledger_account_id,a.id) ledger_id FROM cash_accounts ca LEFT JOIN accounts a ON a.account_code=IF(UPPER(ca.account_type)='BANK','1110','1100') AND a.is_active=1 WHERE ca.id=COALESCE(?,(SELECT id FROM cash_accounts WHERE account_type=? AND is_active=1 ORDER BY id LIMIT 1)) AND ca.is_active=1 FOR UPDATE`,[data.cash_account_id||null,data.payment_method]);
     if (!expenseAccount.length || !cashAccount.length || String(cashAccount[0].account_type).toUpperCase()!==data.payment_method) throw new Error('Akun beban atau kas/bank belum tersedia.');
+    await assertCashBalance(conn,Number(cashAccount[0].ledger_id),data.amount,'kas/bank untuk pengeluaran');
     const expenseCode = `BEB-${new Date().toISOString().replace(/[-:.TZ]/g,'').slice(0,14)}-${randomUUID().slice(0,6).toUpperCase()}`;
     const [result] = await conn.execute<ResultSetHeader>(`INSERT INTO expenses (expense_code,expense_date,category,description,amount,payment_method,cash_account_id,posted_at) VALUES (?,?,?,?,?,?,?,CURRENT_TIMESTAMP)`,[expenseCode,data.expense_date,data.category,data.description||null,data.amount,data.payment_method,cashAccount[0].id]);
     const journalCode = `JU-${new Date().toISOString().replace(/[-:.TZ]/g,'').slice(0,14)}-${randomUUID().slice(0,6).toUpperCase()}`;
@@ -785,6 +793,7 @@ app.post("/api/supplier-payments", async (req,res) => {
     );
     const cashLedger=[{id:Number(cash[0].ledger_id)}];
     if(!payable.length||!cashLedger.length) throw new Error("Akun utang pemasok atau kas/bank belum tersedia.");
+    await assertCashBalance(conn,Number(cashLedger[0].id),total,'kas/bank untuk pembayaran utang');
     let lockedTotal=0;
     for(const item of normalized) {
       const [purchase]=await conn.execute<RowDataPacket[]>(
@@ -993,6 +1002,7 @@ app.post("/api/returns/retail-sale",async(req,res)=>{
    refund=Math.round((refund+refundLine)*100)/100;cost=Math.round((cost+costLine)*100)/100;prepared.push({...item,line,refundLine,costLine});
   }
   if(!Number.isFinite(refund)||refund>9000000000000000||!Number.isFinite(cost)||cost>9000000000000000)throw new Error('Total retur penjualan melebihi batas nominal sistem.');
+  await assertCashBalance(conn,Number(cash[0].ledger_id),refund,'kas/bank untuk refund retur retail');
   const code=`RJ-${Date.now()}-${randomUUID().slice(0,6).toUpperCase()}`;
   const [ret]=await conn.execute<ResultSetHeader>(`INSERT INTO retail_sale_returns (return_code,retail_sale_id,return_date,refund_total,cost_total,status,notes) VALUES (?,?,?, ?,?,'POSTED',?)`,[code,saleId,date,refund,cost,String(req.body?.notes||"").slice(0,500)||null]);
   for(let i=0;i<prepared.length;i++){
