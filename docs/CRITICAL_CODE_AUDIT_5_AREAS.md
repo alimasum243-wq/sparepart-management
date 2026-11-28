@@ -43,7 +43,7 @@ Reviewed purchase posting, retail sale, supplier payment, retail/purchase/distri
 
 - CI workflows run unit tests, lint/static gate, typecheck and build.
 - Shared positive unit-cost validation has automated tests for zero, negative, excess precision, non-finite, and upper-bound values.
-- Latest CI for the head commit must be confirmed successful before merge.
+- CI verified successful on code commit `82aa665e838320b0a78411480a14627a09a5f01a`: unit tests, lint/static gate, typecheck, and build all passed. The current PR head is a documentation-only commit after that code commit; no code changed in the documentation commit.
 
 ## Remaining prelaunch validation (not code-audit claims)
 
