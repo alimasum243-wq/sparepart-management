@@ -22,11 +22,11 @@ Scope: active hardening and code review. No TiDB migration, production deploymen
 14. Dashboard inventory valuation and monthly net profit; pending sales/payment approval badges.
 15. Accounting COA, trial balance, journal register, balanced manual journals, accounting-period locks, as-of balance sheet, current earnings in equity, and print/PDF reports.
 16. Distributor password reset revokes all previous sessions.
-17. Aging piutang and unapplied receipts, product price history, stock cards per location with print-to-PDF, CSV aging export.
+17. Aging piutang and unapplied receipts, product price history, stock cards per location with print-to-PDF, CSV aging export.\n18. Cash/bank physical reconciliation sessions: system opening, physical opening and variance, posted journal-line movement, expected closing, counted closing, closing variance; audited cancellation; no automatic journal (migration 020).
 
 ## Verification and remaining blockers
 
-- **CI:** Latest run still in progress; check both Build and Type Check and CI after latest commit. Unit tests and typecheck had passed on this run; build was still running.
+- **CI:** Latest branch-head CI/build status must be rechecked after current edits. Unit tests, static gate, typecheck and build have passed on earlier commits, not a final branch head. Cash reconciliation unit tests cover calculations/input validators; DB routes remain integration-test pending.
 - **TiDB compatibility:** Actual schema has not been read by this audit. User must compare every migration with SHOW CREATE TABLE; preflight duplicate username/email/phone, supplier invoice and invoice codes. No migration executed.
 - **Business integration:** Controlled acceptance testing needed for opening stock, purchase/HPP, retail, consignment, distributor approval/payment, returns, cash/bank, journal balance, balance sheet, concurrency, and rollback. No TiDB integration test.
 - **Automated coverage:** Unit tests cover validation helpers only. Business routes and DB concurrency are not covered by automated integration tests.
