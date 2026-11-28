@@ -604,7 +604,7 @@ app.get("/api/retail/options", async (_req, res) => {
     if(warehouseRows.length!==1)throw new Error('Harus ada tepat satu gudang aktif; dukungan multi-gudang belum tersedia.');
     const warehouseId=Number(warehouseRows[0].id);
     const [products] = await pool.query<RowDataPacket[]>(
-      `SELECT p.id,p.sku,p.product_name,p.unit,p.average_cost,p.purchase_cost,
+      `SELECT p.id,p.sku,p.product_name,p.unit,p.average_cost,p.purchase_cost,p.retail_price,
         COALESCE(st.stock_qty,0) AS stock_qty
        FROM products p
        LEFT JOIN (
@@ -664,7 +664,7 @@ app.post("/api/retail/sales", async (req,res) => {
     let subtotal=0,costTotal=0;
     for(const item of items){
       const [products]=await conn.execute<RowDataPacket[]>(
-        `SELECT id,product_name,unit,average_cost,purchase_cost,is_active FROM products WHERE id=? FOR UPDATE`,[item.productId]
+        `SELECT id,product_name,unit,average_cost,purchase_cost,retail_price,is_active FROM products WHERE id=? FOR UPDATE`,[item.productId]
       );
       if(!products.length||Number(products[0].is_active)!==1) throw new Error("Produk tidak ditemukan atau sudah nonaktif.");
       const [stocks]=await conn.execute<RowDataPacket[]>(
@@ -675,11 +675,11 @@ app.post("/api/retail/sales", async (req,res) => {
       );
       const available=Number(stocks[0]?.stock_qty||0);
       if((totalQty.get(item.productId)||0)>available) throw new Error(`Stok gudang ${products[0].product_name} tidak cukup. Tersedia ${available} ${products[0].unit||"pcs"}.`);
-      const averageCost=Number(products[0].average_cost||0),purchaseCost=Number(products[0].purchase_cost||0);const unitCost=averageCost>0?averageCost:purchaseCost;
+      const averageCost=Number(products[0].average_cost||0),purchaseCost=Number(products[0].purchase_cost||0);const unitCost=averageCost>0?averageCost:purchaseCost;const retailPriceSnapshot=Number(products[0].retail_price||0);const overrideReason=String((rawItems.find((raw:any)=>Number(raw.product_id)===item.productId)?.price_override_reason)||'').trim();if(retailPriceSnapshot>0&&item.unitPrice<retailPriceSnapshot&&overrideReason.length<10)throw new Error(`Harga retail ${products[0].product_name} di bawah harga master ${retailPriceSnapshot}; alasan override minimal 10 karakter wajib dicatat.`);if(overrideReason.length>500)throw new Error('Alasan override maksimal 500 karakter.');
       if(!Number.isFinite(unitCost)||unitCost<0) throw new Error(`HPP ${products[0].product_name} tidak valid.`);
       const lineTotal=Math.round(item.quantity*item.unitPrice*100)/100;
       const lineCost=Math.round(item.quantity*unitCost*100)/100;
-      prepared.push({...item,productName:products[0].product_name,unitCost,lineTotal,lineCost});
+      prepared.push({...item,productName:products[0].product_name,unitCost,lineTotal,lineCost,retailPriceSnapshot,overrideReason});
       subtotal=Math.round((subtotal+lineTotal)*100)/100;
       costTotal=Math.round((costTotal+lineCost)*100)/100;
     }
@@ -693,10 +693,11 @@ app.post("/api/retail/sales", async (req,res) => {
     for(let n=0;n<prepared.length;n++){
       const item=prepared[n];
       await conn.execute(
-        `INSERT INTO retail_sale_items (sale_id,product_id,product_name_snapshot,quantity,unit_price,unit_cost,line_total,cost_total)
-         VALUES (?,?,?,?,?,?,?,?)`,
-        [sale.insertId,item.productId,item.productName,item.quantity,item.unitPrice,item.unitCost,item.lineTotal,item.lineCost]
+        `INSERT INTO retail_sale_items (sale_id,product_id,product_name_snapshot,quantity,unit_price,unit_cost,line_total,cost_total,retail_price_snapshot,price_override_reason)
+         VALUES (?,?,?,?,?,?,?,?,?,?)`,
+        [sale.insertId,item.productId,item.productName,item.quantity,item.unitPrice,item.unitCost,item.lineTotal,item.lineCost,item.retailPriceSnapshot,item.overrideReason||null]
       );
+      if(item.overrideReason&&item.retailPriceSnapshot>0&&item.unitPrice<item.retailPriceSnapshot){await conn.execute(`INSERT INTO audit_logs (user_id,action,entity_type,entity_id,description) VALUES (?,'PRICE_OVERRIDE','RETAIL_SALE_ITEM',?,?)`,[(req as any).identity?.id||null,sale.insertId,`Override harga retail ${item.productName}; harga master ${item.retailPriceSnapshot}; harga transaksi ${item.unitPrice}; alasan: ${item.overrideReason}`]);}
       await conn.execute(
         `INSERT INTO stock_movements (movement_code,product_id,from_location_id,to_location_id,movement_type,quantity,unit_cost,reference_type,reference_id,note,created_by_user_id)
          VALUES (?, ?, ?, NULL, 'RETAIL_SALE_OUT', ?, ?, 'RETAIL_SALE', ?, ?, ?)`,
