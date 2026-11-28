@@ -303,15 +303,7 @@ router.post('/distributor/payments',authMiddleware,distributor,async(req:AuthedR
   // Serialize balance checks for this distributor to prevent concurrent submissions exceeding receivables.
   const [locked]=await conn.execute<RowDataPacket[]>(`SELECT id FROM distributors WHERE id=? AND is_active=1 FOR UPDATE`,[distributorId]);
   if(!locked.length)throw new Error('Distributor tidak aktif atau tidak ditemukan.');
-  const [sales]=await conn.execute<RowDataPacket[]>(`SELECT
-   COALESCE((SELECT SUM(i.line_total) FROM distributor_sales_reports r JOIN distributor_sales_report_items i ON i.report_id=r.id WHERE r.distributor_id=? AND r.status='APPROVED'),0)
-   -COALESCE((SELECT SUM(x.total) FROM distributor_sales_returns x WHERE x.distributor_id=? AND x.status='POSTED'),0) total`,[distributorId,distributorId]);
-  const [paid]=await conn.execute<RowDataPacket[]>(`SELECT COALESCE(SUM(amount),0) total FROM distributor_payment_submissions WHERE distributor_id=? AND status IN ('VERIFIED','PENDING')`,[distributorId]);
-  const outstanding=money2(Number(sales[0].total)-Number(paid[0].total));
-  if(outstanding<=0||paymentAmount>outstanding){
-   await conn.rollback();
-   return res.status(400).json({ok:false,message:`Nominal melebihi sisa tagihan. Sisa yang dapat dilaporkan: Rp${Math.max(0,outstanding).toLocaleString('id-ID')}.`});
-  }
+  // Overpayment is allowed; verification allocates against invoices and records any remainder as unapplied customer advance.
   const paymentCode=code('BYR');
   const [r]=await conn.execute<ResultSetHeader>(`INSERT INTO distributor_payment_submissions (submission_code,distributor_id,payment_date,amount,payment_method,proof_reference,notes,status,submitted_by_user_id) VALUES (?,?,?,?,?,?,?,'PENDING',?)`,[paymentCode,distributorId,payment_date,money2(paymentAmount),paymentMethod,proof_reference||null,notes||null,req.identity!.id]);
   await conn.execute(`INSERT INTO audit_logs (user_id,action,entity_type,entity_id,description) VALUES (?,'SUBMIT','DISTRIBUTOR_PAYMENT',?,?)`,[req.identity!.id,r.insertId,`Pembayaran ${paymentCode} diajukan; nominal ${money2(paymentAmount)}; metode ${paymentMethod}`]);
