@@ -124,6 +124,9 @@ Jangan jalankan migrasi yang menebak kolom tabel produksi. Sebelum migration, co
 - Sudah ditambahkan endpoint OWNER/ADMIN `GET /api/admin/distributor-stock` untuk menampilkan saldo stok per sales dan per produk, termasuk qty serta nilai persediaan berdasarkan unit_cost pada stock_movements.
 - Portal sales diubah menjadi baca-saja untuk daftar stok miliknya: SKU, nama barang, qty, dan nilai stok pada harga distributor. Sales tidak memasukkan transaksi penjualan/setoran melalui portal; input transaksi dilakukan admin.
 - Halaman admin menampilkan tabel stok per sales/per produk beserta qty, HPP/unit turunan, dan nilai stok.
+- Form penyerahan barang kini menghitung total unit dan estimasi nilai rupiah secara langsung dari harga distributor × qty; nilai ini diberi label terpisah dari HPP/nilai persediaan.
+- Belum ada aksi cepat admin untuk input penjualan sales, retur penjualan, retur stok tidak terjual, dan setoran langsung. Backend saat ini baru menyediakan verifikasi laporan penjualan/pembayaran yang diajukan melalui portal distributor; portal sales tetap baca-saja sesuai keputusan pemilik. Aksi cepat belum boleh dianggap selesai.
+- Build/typecheck belum dijalankan pada perubahan terbaru; belum ada workflow CI yang terasosiasi dengan commit ini.
 - Label navigasi konsinyasi di frontend diubah menjadi Gudang Sales; warna brand navy-oranye dan identitas teks SPAREPART ENZONIC diterapkan sebagai langkah awal.
 - Belum memasang file logo grafis final yang dikirim pemilik; monogram SE sementara. Belum mengganti login username menjadi email/nomor HP. Belum ada migrasi database.
 - Perubahan berada di branch `feature/gudang-sales-admin-2026` dan PR #2; belum digabung ke main, belum diuji terhadap database TiDB, dan belum dideploy.
