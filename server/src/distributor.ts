@@ -115,6 +115,21 @@ router.post('/admin/distributors',authMiddleware,ownerMiddleware,async(req:Authe
 });
 
 router.get('/admin/distributors',authMiddleware,ownerMiddleware,async(_req,res)=>{const [rows]=await pool.query<RowDataPacket[]>(`SELECT id,distributor_code,distributor_name,phone,address,is_active FROM distributors ORDER BY distributor_name`);return res.json({ok:true,distributors:rows});});
+router.get('/admin/distributor-stock',authMiddleware,ownerMiddleware,async(_req,res)=>{
+ try{
+  const [rows]=await pool.query<RowDataPacket[]>(`SELECT d.id distributor_id,d.distributor_name,sl.id location_id,p.id product_id,p.sku,p.product_name,p.unit,
+   SUM(CASE WHEN sm.to_location_id=sl.id THEN sm.quantity ELSE -sm.quantity END) stock_qty,
+   SUM(CASE WHEN sm.to_location_id=sl.id THEN sm.quantity*COALESCE(sm.unit_cost,0) ELSE -sm.quantity*COALESCE(sm.unit_cost,0) END) stock_value_hpp
+   FROM distributors d JOIN stock_locations sl ON sl.distributor_id=d.id AND sl.location_type='DISTRIBUTOR' AND sl.is_active=1
+   JOIN stock_movements sm ON sm.to_location_id=sl.id OR sm.from_location_id=sl.id
+   JOIN products p ON p.id=sm.product_id
+   WHERE d.is_active=1
+   GROUP BY d.id,d.distributor_name,sl.id,p.id,p.sku,p.product_name,p.unit
+   HAVING stock_qty>0
+   ORDER BY d.distributor_name,p.product_name`);
+  return res.json({ok:true,items:rows});
+ }catch(e){return res.status(500).json({ok:false,message:e instanceof Error?e.message:'Gagal memuat rincian stok sales.'});}
+});
 router.get('/admin/products',authMiddleware,ownerMiddleware,async(_req,res)=>{const [rows]=await pool.query<RowDataPacket[]>(`SELECT id,sku,product_name,unit,distributor_price,average_cost,purchase_cost FROM products WHERE is_active=1 ORDER BY product_name`);return res.json({ok:true,products:rows});});
 router.get('/admin/cash-accounts',authMiddleware,ownerMiddleware,async(_req,res)=>{const [rows]=await pool.query<RowDataPacket[]>(`SELECT id,account_code,account_name,account_type FROM cash_accounts WHERE is_active=1 ORDER BY account_name`);return res.json({ok:true,accounts:rows});});
 router.get('/admin/sales-reports/:id',authMiddleware,ownerMiddleware,async(req,res)=>{const [heads]=await pool.execute<RowDataPacket[]>(`SELECT r.*,d.distributor_name FROM distributor_sales_reports r JOIN distributors d ON d.id=r.distributor_id WHERE r.id=?`,[Number(req.params.id)]);if(!heads.length)return res.status(404).json({ok:false,message:'Laporan tidak ditemukan.'});const [items]=await pool.execute<RowDataPacket[]>(`SELECT * FROM distributor_sales_report_items WHERE report_id=?`,[Number(req.params.id)]);return res.json({ok:true,report:heads[0],items});});
