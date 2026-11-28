@@ -7,6 +7,11 @@ const router = Router();
 type Identity = { id:number; role:string; distributorId:number|null; username:string };
 type AuthedRequest = Request & { identity?: Identity };
 const secret = process.env.AUTH_TOKEN_SECRET || '';
+const AUTH_COOKIE = 'sparepart_auth';
+const authCookieOptions = `HttpOnly; Path=/; SameSite=Lax; Max-Age=${12*60*60}${process.env.NODE_ENV === 'production' ? '; Secure' : ''}`;
+const setAuthCookie = (res:Response, token:string) => res.setHeader('Set-Cookie', `${AUTH_COOKIE}=${token}; ${authCookieOptions}`);
+const clearAuthCookie = (res:Response) => res.setHeader('Set-Cookie', `${AUTH_COOKIE}=; HttpOnly; Path=/; SameSite=Lax; Max-Age=0${process.env.NODE_ENV === 'production' ? '; Secure' : ''}`);
+const readCookie = (req:Request, name:string) => String(req.headers.cookie || '').split(';').map(v=>v.trim()).find(v=>v.startsWith(`${name}=`))?.slice(name.length+1) || '';
 const money2 = (n:number) => Math.round((n + Number.EPSILON) * 100) / 100;
 const dateOnly = (value:unknown):string => {
   if (value instanceof Date && !Number.isNaN(value.getTime())) return `${value.getUTCFullYear()}-${String(value.getUTCMonth()+1).padStart(2,'0')}-${String(value.getUTCDate()).padStart(2,'0')}`;
@@ -33,7 +38,7 @@ const sign = (identity:Identity) => {
 export const authMiddleware = (req:AuthedRequest,res:Response,next:NextFunction) => {
   try {
     if (!secret) return res.status(503).json({ok:false,message:'AUTH_TOKEN_SECRET belum diatur di server.'});
-    const token = (req.headers.authorization || '').replace(/^Bearer\s+/i,'');
+    const token = (req.headers.authorization || '').replace(/^Bearer\s+/i,'') || readCookie(req, AUTH_COOKIE);
     const [payload,sig] = token.split('.');
     if (!payload || !sig) return res.status(401).json({ok:false,message:'Silakan login kembali.'});
     const expected = createHmac('sha256',secret).update(payload).digest();
@@ -92,9 +97,11 @@ router.post('/auth/login', async (req,res) => {
     if (!user || !user.is_active || !user.password_hash || !verifyPassword(String(password),String(user.password_hash))) return res.status(401).json({ok:false,message:'Username atau password salah.'});
     if (!secret) return res.status(503).json({ok:false,message:'Server belum mengatur AUTH_TOKEN_SECRET.'});
     const identity:Identity = {id:Number(user.id),username:String(user.username),role:String(user.role),distributorId:user.distributor_id==null?null:Number(user.distributor_id)};
-    return res.json({ok:true,token:sign(identity),user:{id:identity.id,username:identity.username,full_name:user.full_name,role:identity.role,distributor_id:identity.distributorId}});
+    const token = sign(identity); setAuthCookie(res, token);
+    return res.json({ok:true,user:{id:identity.id,username:identity.username,full_name:user.full_name,role:identity.role,distributor_id:identity.distributorId}});
   } catch (e) { return res.status(500).json({ok:false,message:e instanceof Error?e.message:'Login gagal.'}); }
 });
+router.post('/auth/logout',(req,res)=>{ clearAuthCookie(res); return res.json({ok:true,message:'Sesi diakhiri.'}); });
 router.get('/auth/me',authMiddleware,(req:AuthedRequest,res)=>res.json({ok:true,user:req.identity}));
 
 // Owner creates distributor master, dedicated stock location and its login account.
