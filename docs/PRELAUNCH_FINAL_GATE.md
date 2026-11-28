@@ -380,7 +380,7 @@ Acceptance tests include two distributors (cross-account access denied), price m
 
 ## 20. Cash reconciliation timestamp validation
 - [x] API validates SQL datetime fields, requires open/close not future-dated using database current time, and close cannot precede opening.
-- [ ] Controlled TiDB tests still required for server/client timezone behavior, account-ledger mapping, receipts/refunds/expenses/purchases/supplier payments/remittances, and inter-account transfers.
+- [x] Cash-ledger resolution now prefers an active mapped ledger account, falls back to active cash/bank account codes, and outgoing cash checks require active ASSET ledger type; retail receipts and distributor remittance verification also validate ASSET ledger type; transfer ledger resolution checks active ASSET accounts.\n- [ ] Controlled TiDB tests still required for timezone behavior, account-ledger mapping/fallback, receipts/refunds/expenses/purchases/supplier payments/remittances, transfers, and balance snapshots.
 - [ ] Per-cash-account sessions do not yet isolate cashier, physical drawer, or source category.
 
 
