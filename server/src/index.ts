@@ -11,7 +11,7 @@ import type { RowDataPacket, ResultSetHeader } from "mysql2";
 import type { PoolConnection } from "mysql2/promise";
 import { pool } from "./db.js";
 import distributorRouter, { authMiddleware, ownerMiddleware } from "./distributor.js";
-import { money2, isDateOnly, hasAtMost2Decimals, hasAtMost3Decimals, needsRetailPriceOverride, validRetailOverrideReason, salesQuantityMeetsMoq, retailMasterPriceConfigured, cashSessionExpectedClosing, cashSessionVariance, isSqlDateTime, validCashSessionCount, validCashSessionCancelReason, validTransactionHistoryPagination } from "./validation.js";
+import { money2, isDateOnly, hasAtMost2Decimals, hasAtMost3Decimals, needsRetailPriceOverride, validRetailOverrideReason, salesQuantityMeetsMoq, retailMasterPriceConfigured, cashSessionExpectedClosing, cashSessionVariance, validCashSessionCount, validCashSessionCancelReason, validTransactionHistoryPagination } from "./validation.js";
 
 const app = express();
 const port = Number(process.env.PORT || 4000);
