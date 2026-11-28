@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { money2, isDateOnly, hasAtMost2Decimals, hasAtMost3Decimals, outstandingAmount, netChannelAuditMetrics, auditPercentageChange, possibleCannibalizationSignal, detectLappingRiskFlags, needsRetailPriceOverride, validRetailOverrideReason, channelNetContribution, channelCostAllocationWithinSource, salesQuantityMeetsMoq, retailMasterPriceConfigured, expectedPhysicalStockAfterPendingReports, stockOpnameVariance, salesPriceFromStockSnapshots, rapidPrintWithinThreshold } from '../src/validation.js';
+import { money2, isDateOnly, hasAtMost2Decimals, hasAtMost3Decimals, outstandingAmount, netChannelAuditMetrics, auditPercentageChange, possibleCannibalizationSignal, detectLappingRiskFlags, needsRetailPriceOverride, validRetailOverrideReason, channelNetContribution, channelCostAllocationWithinSource, salesQuantityMeetsMoq, retailMasterPriceConfigured, expectedPhysicalStockAfterPendingReports, stockOpnameVariance, salesPriceFromStockSnapshots, rapidPrintWithinThreshold, validConsignmentReturnLine } from '../src/validation.js';
 
 test('date validation accepts real ISO dates and rejects malformed dates',()=>{
   assert.equal(isDateOnly('2026-11-28'),true);
@@ -137,3 +137,6 @@ test('rapid print audit threshold is exact in seconds',()=>{
   assert.equal(rapidPrintWithinThreshold(601,10),false);
   assert.equal(rapidPrintWithinThreshold(-1,10),false);
 });
+
+
+test('unsold consignment return line validation rejects malformed quantities and conditions',()=>{assert.equal(validConsignmentReturnLine(2,1,'GOOD'),true);assert.equal(validConsignmentReturnLine(2,0.125,'DAMAGED'),true);assert.equal(validConsignmentReturnLine(0,1,'GOOD'),false);assert.equal(validConsignmentReturnLine(2,0,'GOOD'),false);assert.equal(validConsignmentReturnLine(2,1.0001,'GOOD'),false);assert.equal(validConsignmentReturnLine(2,1,'OTHER'),false);assert.equal(validConsignmentReturnLine(2,1000001,'GOOD'),false);});
