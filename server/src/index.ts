@@ -370,7 +370,7 @@ app.post("/api/purchases", async (req, res) => {
     }
 
     const warehouseId=await getWarehouseLocationId(connection);
-    let cashAccountId:number|null=null,cashLedgerId:number|null=null;if(data.payment_method==='CASH'||data.payment_method==='BANK'){const [cashRows]=await connection.execute<RowDataPacket[]>(`SELECT ca.id,ca.account_type,COALESCE(ca.ledger_account_id,a.id) ledger_id FROM cash_accounts ca LEFT JOIN accounts a ON a.account_code=IF(UPPER(ca.account_type)='BANK','1110','1100') AND a.is_active=1 WHERE ca.id=COALESCE(?,(SELECT id FROM cash_accounts WHERE account_type=? AND is_active=1 ORDER BY id LIMIT 1)) AND ca.is_active=1 FOR UPDATE`,[data.cash_account_id||null,data.payment_method]);if(!cashRows.length||String(cashRows[0].account_type).toUpperCase()!==data.payment_method)throw new Error('Akun kas/bank tidak aktif atau metode tidak sesuai.');cashAccountId=Number(cashRows[0].id);cashLedgerId=Number(cashRows[0].ledger_id);}
+    let cashAccountId:number|null=null,cashLedgerId:number|null=null;if(data.payment_method==='CASH'||data.payment_method==='BANK'){const [cashRows]=await connection.execute<RowDataPacket[]>(`SELECT ca.id,ca.account_type,COALESCE(ca.ledger_account_id,a.id) ledger_id FROM cash_accounts ca LEFT JOIN accounts a ON a.account_code=IF(UPPER(ca.account_type)='BANK','1110','1100') AND a.is_active=1 WHERE ca.id=COALESCE(?,(SELECT id FROM cash_accounts WHERE account_type=? AND is_active=1 ORDER BY id LIMIT 1)) AND ca.is_active=1 FOR UPDATE`,[data.cash_account_id||null,data.payment_method]);if(!cashRows.length||!cashRows[0].ledger_id||String(cashRows[0].account_type).toUpperCase()!==data.payment_method)throw new Error('Akun kas/bank tidak aktif, belum terhubung ke ledger, atau metode tidak sesuai.');cashAccountId=Number(cashRows[0].id);cashLedgerId=Number(cashRows[0].ledger_id);}
 
     const purchaseCode =
       "PB-" +
@@ -505,8 +505,8 @@ app.post("/api/purchases", async (req, res) => {
     // Pembelian tunai langsung mengurangi kas; pembelian kredit membentuk utang.
     const [inventoryAccounts] = await connection.execute<RowDataPacket[]>(`SELECT id FROM accounts WHERE account_code='1300' AND is_active=1 LIMIT 1`);
     const contraCode = data.payment_method === "CREDIT" ? "2100" : null;
-    const [contraAccounts] = contraCode?await connection.execute<RowDataPacket[]>(`SELECT id FROM accounts WHERE account_code=? AND is_active=1 LIMIT 1`, [contraCode]):[{id:cashLedgerId}];
-    if (!inventoryAccounts.length || !contraAccounts.length) throw new Error("Akun persediaan atau akun kas/utang belum tersedia.");
+    const contraAccounts:RowDataPacket[]=contraCode?await connection.execute<RowDataPacket[]>(`SELECT id FROM accounts WHERE account_code=? AND is_active=1 LIMIT 1`, [contraCode]).then(([rows])=>rows):[{id:cashLedgerId} as RowDataPacket];
+    if (!inventoryAccounts.length || !contraAccounts.length || !contraAccounts[0].id) throw new Error("Akun persediaan atau akun kas/utang belum tersedia.");
     const journalCode = `JU-${new Date().toISOString().replace(/[-:.TZ]/g, '').slice(0,14)}-${randomUUID().slice(0,6).toUpperCase()}`;
     const description = data.payment_method === "CREDIT" ? `Pembelian ${purchaseCode} - utang pemasok` : `Pembelian ${purchaseCode} - dibayar ${data.payment_method.toLowerCase()}`;
     const [journalResult] = await connection.execute<ResultSetHeader>(
