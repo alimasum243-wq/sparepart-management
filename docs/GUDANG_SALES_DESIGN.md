@@ -36,6 +36,18 @@ Gunakan entitas distributor dan lokasi konsinyasi yang sudah ada sebagai identit
 8. Laporan Pembelian Pabrik vs Setoran: pembelian pabrik, penjualan sales, retur, setoran, stok di sales, saldo belum disetor.
 
 
+
+## Visibilitas stok sales per produk (kriteria wajib operasional)
+- Dashboard pemilik/admin wajib menampilkan daftar stok yang sedang dikuasai setiap sales, bukan hanya satu angka total nilai stok.
+- Untuk setiap sales, tampilkan per produk: SKU/kode, nama barang, satuan, kuantitas tersedia (pcs/unit), HPP per unit, dan total nilai stok (qty × HPP).
+- Sales yang login wajib memiliki halaman "Stok Saya" yang hanya menampilkan stok pada lokasi titipan miliknya sendiri, dengan SKU/kode, nama barang, satuan, kuantitas tersedia, harga/nilai yang diizinkan, dan total nilai stok sesuai kebijakan akses.
+- Sales dapat melihat barang apa yang tersedia dan jumlahnya tanpa dapat mengubah stok secara langsung. Perubahan hanya melalui dokumen penyerahan, penjualan, retur penjualan, retur stok ke gudang, dan penyesuaian yang disetujui admin.
+- Sediakan riwayat pergerakan per produk: saldo awal, barang diterima, barang terjual, retur pelanggan, barang dikembalikan ke gudang, penyesuaian, dan saldo akhir.
+- Pemilik dapat memilih satu sales untuk melihat rinciannya, atau melihat gabungan seluruh sales. Sediakan pencarian SKU/nama barang dan filter tanggal untuk riwayat.
+- Kuantitas tersedia dihitung dari mutasi stok yang sah pada lokasi sales, bukan dari angka total nilai atau input saldo manual.
+- Nilai stok menggunakan snapshot HPP/method biaya persediaan yang konsisten dengan sistem; jumlah stok dan nilai harus dapat direkonsiliasi ke stock_movements.
+- Kriteria penerimaan: admin dapat melihat setiap produk dan qty di lokasi setiap sales; sales dapat melihat daftar dan qty stok miliknya sendiri; kedua tampilan menampilkan nilai sesuai hak akses; data satu sales tidak dapat dibaca sales lain.
+
 ## Nota penyerahan stok dan ekspor
 - Setiap penyimpanan transfer ke sales otomatis menghasilkan nomor dokumen unik dan tampilan nota penyerahan barang yang rapi, bukan sekadar tabel stok.
 - Nota dapat dibuka kembali dari riwayat transaksi, dicetak, atau diekspor sebagai PDF untuk dikirim kepada sales melalui WhatsApp.
