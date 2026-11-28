@@ -854,6 +854,56 @@ app.post("/api/supplier-payments", async (req,res) => {
 });
 
 // Ringkasan dashboard berbasis transaksi yang sudah diposting.
+// COA, trial balance as-of date, and posted journal register.
+app.get("/api/accounting/overview",async(req,res)=>{
+  const from=String(req.query.from||'2000-01-01'),to=String(req.query.to||new Date().toISOString().slice(0,10));
+  if(!isDateOnly(from)||!isDateOnly(to)||from>to)return res.status(400).json({ok:false,message:'Periode tanggal tidak valid.'});
+  try{
+    const [accounts]=await pool.execute<RowDataPacket[]>(`SELECT id,account_code,account_name,account_type,is_active FROM accounts ORDER BY account_code`);
+    const [balances]=await pool.execute<RowDataPacket[]>(`SELECT a.id,a.account_code,a.account_name,a.account_type,COALESCE(SUM(jl.debit),0) debit_total,COALESCE(SUM(jl.credit),0) credit_total,COALESCE(SUM(jl.debit-jl.credit),0) net_debit FROM accounts a LEFT JOIN journal_lines jl ON jl.account_id=a.id LEFT JOIN journal_entries je ON je.id=jl.journal_entry_id AND je.status='POSTED' AND je.journal_date<=? WHERE a.is_active=1 GROUP BY a.id,a.account_code,a.account_name,a.account_type ORDER BY a.account_code`,[to]);
+    const [headers]=await pool.execute<RowDataPacket[]>(`SELECT id,journal_code,journal_date,source_type,source_id,description,status,created_by_user_id FROM journal_entries WHERE status='POSTED' AND journal_date BETWEEN ? AND ? ORDER BY journal_date DESC,id DESC LIMIT 100`,[from,to]);
+    const journalIds=headers.map(x=>Number(x.id));let lines:RowDataPacket[]=[];
+    if(journalIds.length){const placeholders=journalIds.map(()=>'?').join(',');const [rows]=await pool.execute<RowDataPacket[]>(`SELECT jl.journal_entry_id,jl.account_id,a.account_code,a.account_name,jl.debit,jl.credit,jl.description FROM journal_lines jl JOIN accounts a ON a.id=jl.account_id WHERE jl.journal_entry_id IN (${placeholders}) ORDER BY jl.journal_entry_id,jl.id`,journalIds);lines=rows;}
+    const journals=headers.map(h=>({...h,lines:lines.filter(l=>Number(l.journal_entry_id)===Number(h.id))}));
+    const [periods]=await pool.execute<RowDataPacket[]>(`SELECT period_start,period_end,status,closed_at,note FROM accounting_periods ORDER BY period_start DESC`);
+    return res.json({ok:true,accounts,balances,journals,periods,period:{from,to},journal_limit:100});
+  }catch(e){return res.status(500).json({ok:false,message:e instanceof Error?e.message:'Gagal memuat COA/jurnal. Pastikan migration 010 sudah dijalankan.'});}
+});
+app.post("/api/manual-journals",async(req,res)=>{
+  const date=String(req.body?.journal_date||''),description=String(req.body?.description||'').trim(),raw=req.body?.lines;
+  if(!isDateOnly(date)||!description||description.length>1000||!Array.isArray(raw)||raw.length<2||raw.length>50)return res.status(400).json({ok:false,message:'Tanggal, keterangan, dan minimal dua baris jurnal wajib diisi.'});
+  const lines=raw.map((x:any)=>({accountId:Number(x.account_id),debit:Number(x.debit||0),credit:Number(x.credit||0),description:String(x.description||description).trim()}));
+  if(lines.some(x=>!Number.isInteger(x.accountId)||x.accountId<=0||!Number.isFinite(x.debit)||!Number.isFinite(x.credit)||x.debit<0||x.credit<0||x.debit>1000000000000||x.credit>1000000000000||!hasAtMost2Decimals(x.debit)||!hasAtMost2Decimals(x.credit)||((x.debit>0)===(x.credit>0))||x.description.length>500))return res.status(400).json({ok:false,message:'Baris jurnal tidak valid; setiap baris hanya boleh debit atau kredit, maksimal dua desimal.'});
+  const debit=money2(lines.reduce((s,x)=>s+x.debit,0)),credit=money2(lines.reduce((s,x)=>s+x.credit,0));
+  if(debit<=0||Math.abs(debit-credit)>0.009)return res.status(400).json({ok:false,message:'Jurnal harus seimbang dan memiliki nilai debit/kredit.'});
+  const conn=await pool.getConnection();
+  try{
+    await conn.beginTransaction();
+    const [period]=await conn.execute<RowDataPacket[]>(`SELECT status FROM accounting_periods WHERE period_start<=? AND period_end>=? FOR UPDATE`,[date,date]);
+    if(period.some(x=>x.status==='CLOSED'))throw new Error('Periode akuntansi tanggal tersebut sudah ditutup.');
+    const ids=[...new Set(lines.map(x=>x.accountId))].sort((a,b)=>a-b),ph=ids.map(()=>'?').join(',');
+    const [accounts]=await conn.execute<RowDataPacket[]>(`SELECT id FROM accounts WHERE id IN (${ph}) AND is_active=1 ORDER BY id FOR UPDATE`,ids);
+    if(accounts.length!==ids.length)throw new Error('Akun jurnal tidak aktif atau tidak ditemukan.');
+    const code=`JRN-MAN-${Date.now()}-${randomUUID().slice(0,6).toUpperCase()}`;
+    const [header]=await conn.execute<ResultSetHeader>(`INSERT INTO journal_entries (journal_code,journal_date,source_type,source_id,description,status,created_by_user_id) VALUES (?,?, 'MANUAL', 0, ?, 'POSTED', ?)`,[code,date,description,(req as any).identity?.id||null]);
+    for(const line of lines)await conn.execute(`INSERT INTO journal_lines (journal_entry_id,account_id,debit,credit,description) VALUES (?,?,?,?,?)`,[header.insertId,line.accountId,line.debit,line.credit,line.description]);
+    await conn.execute(`INSERT INTO audit_logs (user_id,action,entity_type,entity_id,description) VALUES (?,'POST','MANUAL_JOURNAL',?,?)`,[(req as any).identity?.id||null,header.insertId,`Jurnal manual ${code}; debit ${debit}; kredit ${credit}`]);
+    await conn.commit();return res.status(201).json({ok:true,message:'Jurnal manual berhasil diposting.',journal_code:code,journal_id:header.insertId,debit,credit});
+  }catch(e){await conn.rollback();return res.status(400).json({ok:false,message:e instanceof Error?e.message:'Gagal memposting jurnal manual.'});}finally{conn.release();}
+});
+app.post("/api/accounting-periods/close",async(req,res)=>{
+  const start=String(req.body?.period_start||''),end=String(req.body?.period_end||''),note=String(req.body?.note||'').trim();
+  if(!isDateOnly(start)||!isDateOnly(end)||start>end||note.length>1000)return res.status(400).json({ok:false,message:'Rentang periode atau catatan penutupan tidak valid.'});
+  const conn=await pool.getConnection();
+  try{
+    await conn.beginTransaction();
+    const [overlap]=await conn.execute<RowDataPacket[]>(`SELECT id,period_start,period_end,status FROM accounting_periods WHERE period_start<=? AND period_end>=? FOR UPDATE`,[end,start]);
+    if(overlap.length)throw new Error('Rentang bertabrakan dengan periode yang sudah ada; periode tidak diubah.');
+    const [result]=await conn.execute<ResultSetHeader>(`INSERT INTO accounting_periods (period_start,period_end,status,closed_by_user_id,closed_at,note) VALUES (?,?,'CLOSED',?,CURRENT_TIMESTAMP,?)`,[start,end,(req as any).identity?.id||null,note||null]);
+    await conn.execute(`INSERT INTO audit_logs (user_id,action,entity_type,entity_id,description) VALUES (?,'CLOSE','ACCOUNTING_PERIOD',?,?)`,[(req as any).identity?.id||null,result.insertId,`Periode ${start} s.d. ${end} ditutup`]);
+    await conn.commit();return res.status(201).json({ok:true,message:'Periode dikunci dari posting transaksi baru.',period_id:result.insertId});
+  }catch(e){await conn.rollback();return res.status(400).json({ok:false,message:e instanceof Error?e.message:'Gagal menutup periode.'});}finally{conn.release();}
+});
 app.get("/api/dashboard/summary", async (_req,res) => {
   try {
     const [retail]=await pool.query<RowDataPacket[]>(`SELECT COALESCE(SUM(total),0) total FROM retail_sales WHERE status='POSTED' AND sale_date=CURRENT_DATE()`);
