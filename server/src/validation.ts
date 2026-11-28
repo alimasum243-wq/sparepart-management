@@ -60,3 +60,9 @@ export const validCashSessionCancelReason = (value:unknown):boolean => typeof va
 export const cashSessionExpectedClosing = (systemOpening:number,postedNetMovement:number):number => money2(Number(systemOpening)+Number(postedNetMovement));
 export const cashSessionVariance = (countedClosing:number,expectedClosing:number):number => money2(Number(countedClosing)-Number(expectedClosing));
 export const rapidPrintWithinThreshold = (secondsAfterHandover:number,thresholdMinutes:number):boolean => Number.isFinite(secondsAfterHandover)&&Number.isFinite(thresholdMinutes)&&secondsAfterHandover>=0&&thresholdMinutes>=0&&secondsAfterHandover<=thresholdMinutes*60;
+
+// Preserve intentional business-validation messages while hiding database/internal error details.
+export const safeOperationalMessage = (error:unknown,fallback:string):string => {
+  if(error&&typeof error==='object'&&'code' in error)return fallback;
+  return error instanceof Error?error.message:fallback;
+};
