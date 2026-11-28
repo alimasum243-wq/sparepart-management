@@ -43,6 +43,7 @@ Bukti pembayaran saat ini disimpan sebagai nomor referensi atau tautan, belum un
 15. Jalankan `server/migrations/014_retail_price_floor_audit.sql`; verifikasi kolom `retail_sale_items.retail_price_snapshot` dan `price_override_reason`.
 16. Jalankan `server/migrations/015_channel_cost_allocations.sql`; verifikasi tabel `channel_cost_allocations`, indeks unik per expense/channel, dan constraint nominal nonnegatif.
 17. Jalankan `server/migrations/016_sales_moq_controls.sql`; verifikasi kolom `products.sales_moq` dan `distributor_sales_report_items.sales_moq_snapshot`.
+18. Jalankan `server/migrations/017_sales_note_print_audit.sql`; verifikasi kolom `print_requested_at`, `print_requested_by_user_id`, `print_request_count`.
 18. Verifikasi 16 seed products, supplier INDORAYA/UD ADI JUWANA, minimum stock. Owner finalisasi SKU/unit/retail price/min_stock. Verifikasi tabel `product_price_history`, `accounting_periods`, kolom `invoice_code`, `due_date`, `unapplied_amount`, tabel `accounting_period_guard`, dan akun 2200 serta akun COA yang dibutuhkan. Jalankan migration hanya setelah backup dan pemeriksaan struktur/duplikat.
 
 Migration bersifat tambahan (additive); tidak dimaksudkan untuk menghapus transaksi/master. Jangan menjalankan semua statement sekaligus jika TiDB SQL editor menolak multi-statement. Bila error, berhenti dan kirim pesan error persisnya; jangan lanjut migration berikutnya.
@@ -118,7 +119,7 @@ Semua endpoint operasional lama (termasuk pembelian) kini memerlukan token pemil
 16. Stock opname, loss, damage, write-off dibuat draft; posting owner, stok tidak minus, movement dan jurnal loss/gain seimbang; cancel draft tidak mengubah saldo.
 17. Setoran modal, prive, dan transfer kas/bank diuji: modal Dr Kas/Bank Cr Modal; prive Dr Prive Cr Kas/Bank; transfer antar akun tidak masuk P&L dan tidak membuat saldo negatif. Pembelian tunai/bank, pengeluaran, supplier payment, retail sale, dan pembayaran distributor memakai akun kas/bank yang dipilih.
 18. Invoice due date, aging, unapplied receipt, price history, dan periode akuntansi diuji; transaksi tanggal periode tertutup harus ditolak.
-19. Migration 001/003/004/005/006/007/008/009/010/011/012/013/014/015/016 diuji pada salinan DB; ulangi migration idempotent yang memang dirancang repeatable, verifikasi tanpa kehilangan data.
+19. Migration 001/003/004/005/006/007/008/009/010/011/012/013/014/015/016/017 diuji pada salinan DB; ulangi migration idempotent yang memang dirancang repeatable, verifikasi tanpa kehilangan data.
 
 Catatan: Laporan laba-rugi hanya mencerminkan transaksi yang sudah dibukukan ke jurnal. Pastikan seluruh beban operasional dicatat dan pembelian yang belum dibayar tetap dianggap utang pemasok. Jangan mengartikan pembayaran distributor yang baru dilaporkan sebagai kas masuk sebelum diverifikasi.
 
