@@ -17,8 +17,8 @@ const allowedOrigins = (process.env.CLIENT_ORIGIN || "http://localhost:5173").sp
 
 
 const getWarehouseLocationId = async (conn:any):Promise<number> => {
-  const [rows]=await conn.execute<RowDataPacket[]>(`SELECT id FROM stock_locations WHERE location_type='WAREHOUSE' AND is_active=1 ORDER BY id LIMIT 1 FOR UPDATE`);
-  if(!rows.length) throw new Error('Gudang aktif tidak ditemukan.');
+  const [rows]=await conn.execute<RowDataPacket[]>(`SELECT id FROM stock_locations WHERE location_type='WAREHOUSE' AND is_active=1 ORDER BY id FOR UPDATE`);
+  if(rows.length!==1) throw new Error('Harus ada tepat satu gudang aktif; dukungan multi-gudang belum tersedia.');
   return Number(rows[0].id);
 };
 const isDateOnly = (value:unknown):boolean => {
@@ -568,8 +568,8 @@ const expenseSchema = z.object({
 // Kasir retail: harga jual dimasukkan manual pada setiap transaksi.
 app.get("/api/retail/options", async (_req, res) => {
   try {
-    const [warehouseRows]=await pool.query<RowDataPacket[]>(`SELECT id FROM stock_locations WHERE location_type='WAREHOUSE' AND is_active=1 ORDER BY id LIMIT 1`);
-    if(!warehouseRows.length)throw new Error('Gudang aktif tidak ditemukan.');
+    const [warehouseRows]=await pool.query<RowDataPacket[]>(`SELECT id FROM stock_locations WHERE location_type='WAREHOUSE' AND is_active=1 ORDER BY id`);
+    if(warehouseRows.length!==1)throw new Error('Harus ada tepat satu gudang aktif; dukungan multi-gudang belum tersedia.');
     const warehouseId=Number(warehouseRows[0].id);
     const [products] = await pool.query<RowDataPacket[]>(
       `SELECT p.id,p.sku,p.product_name,p.unit,p.average_cost,p.purchase_cost,
