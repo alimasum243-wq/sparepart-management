@@ -35,7 +35,7 @@ Bukti pembayaran saat ini disimpan sebagai nomor referensi atau tautan, belum un
 10. Jalankan `server/migrations/008_inventory_adjustments.sql` (lokasi barang rusak, penyesuaian persediaan, akun 4900/6500).
 11. Jalankan `server/migrations/009_cash_management.sql` (subledger kas/bank, cash transaction, dan kolom akun kas untuk transaksi).
 12. Jalankan `server/migrations/010_receivables_price_history_periods.sql` (due date invoice, uang belum dialokasikan, histori harga, dan periode akuntansi).
-13. Verifikasi tabel `product_price_history`, `accounting_periods`, kolom `invoice_code`, `due_date`, `unapplied_amount`, dan akun 2200 serta akun COA yang dibutuhkan. Jalankan migration hanya setelah backup dan pemeriksaan struktur/duplikat.
+13. Verifikasi tabel `product_price_history`, `accounting_periods`, kolom `invoice_code`, `due_date`, `unapplied_amount`, tabel `accounting_period_guard`, dan akun 2200 serta akun COA yang dibutuhkan. Jalankan migration hanya setelah backup dan pemeriksaan struktur/duplikat.
 
 Migration bersifat tambahan (additive); tidak dimaksudkan untuk menghapus transaksi/master. Jangan menjalankan semua statement sekaligus jika TiDB SQL editor menolak multi-statement. Bila error, berhenti dan kirim pesan error persisnya; jangan lanjut migration berikutnya.
 
