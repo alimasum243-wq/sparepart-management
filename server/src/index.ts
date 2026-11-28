@@ -862,7 +862,33 @@ app.get("/api/dashboard/summary", async (_req,res) => {
       COALESCE((SELECT SUM(total) FROM distributor_sales_returns WHERE status='POSTED'),0)-
       COALESCE((SELECT SUM(amount) FROM distributor_payment_submissions WHERE status='VERIFIED'),0),0) total`);
     const [expenses]=await pool.query<RowDataPacket[]>(`SELECT COALESCE(SUM(amount),0) total FROM expenses WHERE DATE_FORMAT(expense_date,'%Y-%m')=DATE_FORMAT(CURRENT_DATE(),'%Y-%m')`);
-    res.json({ok:true,as_of:new Date().toISOString().slice(0,10),retail_sales_today:Number(retail[0].total),purchases_month:Number(purchases[0].total),supplier_payables:Number(supplierDebt[0].total),distributor_receivables:Number(receivable[0].total),expenses_month:Number(expenses[0].total)});
+    const [inventory]=await pool.query<RowDataPacket[]>(`
+      SELECT sl.location_type,
+        COALESCE(SUM(stock.qty*COALESCE(NULLIF(p.average_cost,0),p.purchase_cost,0)),0) inventory_value
+      FROM (
+        SELECT sm.product_id,loc.id location_id,loc.location_type,
+          SUM(CASE WHEN sm.to_location_id=loc.id THEN sm.quantity ELSE 0 END)-
+          SUM(CASE WHEN sm.from_location_id=loc.id THEN sm.quantity ELSE 0 END) qty
+        FROM stock_locations loc
+        JOIN stock_movements sm ON sm.to_location_id=loc.id OR sm.from_location_id=loc.id
+        WHERE loc.is_active=1 AND loc.location_type IN ('WAREHOUSE','DISTRIBUTOR')
+        GROUP BY sm.product_id,loc.id,loc.location_type
+      ) stock
+      JOIN stock_locations sl ON sl.id=stock.location_id
+      JOIN products p ON p.id=stock.product_id
+      GROUP BY sl.location_type`);
+    const warehouseInventory=Number(inventory.find((x:any)=>x.location_type==='WAREHOUSE')?.inventory_value||0);
+    const consignmentInventory=Number(inventory.find((x:any)=>x.location_type==='DISTRIBUTOR')?.inventory_value||0);
+    const inventoryValue=warehouseInventory+consignmentInventory;
+    const [profit]=await pool.query<RowDataPacket[]>(`
+      SELECT COALESCE(SUM(CASE WHEN a.account_type='REVENUE' THEN jl.credit-jl.debit
+        WHEN a.account_type='EXPENSE' THEN jl.debit-jl.credit ELSE 0 END),0) net_profit
+      FROM journal_entries je JOIN journal_lines jl ON jl.journal_entry_id=je.id
+      JOIN accounts a ON a.id=jl.account_id
+      WHERE je.status='POSTED' AND je.journal_date>=DATE_FORMAT(CURRENT_DATE(),'%Y-%m-01')
+        AND je.journal_date<DATE_ADD(DATE_FORMAT(CURRENT_DATE(),'%Y-%m-01'),INTERVAL 1 MONTH)`);
+
+    res.json({ok:true,as_of:new Date().toISOString().slice(0,10),retail_sales_today:Number(retail[0].total),purchases_month:Number(purchases[0].total),supplier_payables:Number(supplierDebt[0].total),distributor_receivables:Number(receivable[0].total),expenses_month:Number(expenses[0].total),net_profit_month:Number(profit[0]?.net_profit||0),warehouse_inventory_value:warehouseInventory,consignment_inventory_value:consignmentInventory,inventory_value:inventoryValue});
   } catch(error) {
     console.error("Gagal memuat ringkasan dashboard:",error);
     res.status(500).json({ok:false,message:"Gagal memuat ringkasan dashboard."});
