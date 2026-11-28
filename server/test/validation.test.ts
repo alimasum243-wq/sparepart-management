@@ -14,12 +14,14 @@ test('date validation accepts real ISO dates and rejects malformed dates',()=>{
 test('money rounds to cents consistently',()=>{
   assert.equal(money2(1.005),1.01);
   assert.equal(money2(12.345),12.35);
-  assert.equal(money2(-12.345),-12.34);
+  assert.equal(money2(-12.345),-12.35);
+  assert.equal(money2(-1.005),-1.01);
 });
 
 test('two-decimal amount validation rejects non-finite and excess precision',()=>{
   assert.equal(hasAtMost2Decimals(10),true);
   assert.equal(hasAtMost2Decimals(10.25),true);
+  assert.equal(hasAtMost2Decimals(0.1+0.2),true);
   assert.equal(hasAtMost2Decimals(10.001),false);
   assert.equal(hasAtMost2Decimals(NaN),false);
   assert.equal(hasAtMost2Decimals(Infinity),false);
