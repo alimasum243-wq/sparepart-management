@@ -45,8 +45,8 @@ const verifyPassword = (password:string, stored:string) => {
   const expected = Buffer.from(key, 'hex');
   return actual.length === expected.length && timingSafeEqual(actual, expected);
 };
-const sign = (identity:Identity) => {
-  const payload = Buffer.from(JSON.stringify({ ...identity, exp: Date.now() + 12*60*60*1000 })).toString('base64url');
+const sign = (identity:Identity, sessionId:string) => {
+  const payload = Buffer.from(JSON.stringify({ ...identity, sid:sessionId, exp: Date.now() + 12*60*60*1000 })).toString('base64url');
   const sig = createHmac('sha256', secret).update(payload).digest('base64url');
   return `${payload}.${sig}`;
 };
