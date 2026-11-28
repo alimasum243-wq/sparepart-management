@@ -15,3 +15,14 @@ export const hasAtMost3Decimals = (value:number):boolean =>
 
 export const outstandingAmount = (total:number,paid:number,returns:number):number =>
   money2(Math.max(0,Number(total)-Number(paid)-Number(returns)));
+
+export type ChannelAuditTotals = { units:number; revenue:number; cost:number };
+export const netChannelAuditMetrics = (sold:ChannelAuditTotals,returns:ChannelAuditTotals) => {
+  const units=Number(sold.units)-Number(returns.units),revenue=money2(Number(sold.revenue)-Number(returns.revenue)),cost=money2(Number(sold.cost)-Number(returns.cost));
+  return {units,revenue,cost,gross_profit:money2(revenue-cost)};
+};
+export const auditPercentageChange = (current:number,previous:number):number|null =>
+  Number.isFinite(current)&&Number.isFinite(previous)&&previous>0?money2((current-previous)/previous*100):null;
+export const possibleCannibalizationSignal = (retailRevenueChange:number|null,salesRevenueChange:number|null,retailUnitsChange:number|null,salesUnitsChange:number|null,dropThreshold=20,riseThreshold=20):boolean =>
+  (retailRevenueChange!==null&&salesRevenueChange!==null&&retailRevenueChange<=-dropThreshold&&salesRevenueChange>=riseThreshold)||
+  (retailUnitsChange!==null&&salesUnitsChange!==null&&retailUnitsChange<=-dropThreshold&&salesUnitsChange>=riseThreshold);
