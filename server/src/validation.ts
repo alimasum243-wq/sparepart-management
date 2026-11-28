@@ -1,4 +1,4 @@
-export const money2 = (value:number):number => Math.round((Number(value)+Number.EPSILON)*100)/100;
+export const money2 = (value:number):number => { const n=Number(value); if(!Number.isFinite(n))return n; const scaled=Math.abs(n)*100; return Math.sign(n)*Math.round(scaled+Number.EPSILON*scaled)/100; };
 
 export const isDateOnly = (value:unknown):boolean => {
   if(typeof value!=='string'||!/^(\d{4})-(\d{2})-(\d{2})$/.test(value)) return false;
@@ -8,7 +8,7 @@ export const isDateOnly = (value:unknown):boolean => {
 };
 
 export const hasAtMost2Decimals = (value:number):boolean =>
-  Number.isFinite(value)&&Math.round(value*100)===value*100;
+  Number.isFinite(value)&&Math.abs(Math.round(value*100)-value*100)<1e-8;
 
 export const outstandingAmount = (total:number,paid:number,returns:number):number =>
   money2(Math.max(0,Number(total)-Number(paid)-Number(returns)));
