@@ -116,9 +116,9 @@ const productSchema = z.object({
   sku: z.string().trim().max(50).optional(),
   product_name: z.string().trim().min(1).max(150),
   unit: z.string().trim().min(1).max(30).default("pcs"),
-  purchase_cost: z.number().nonnegative().max(1000000000).default(0),
-  distributor_price: z.number().nonnegative().max(1000000000).default(0),
-  retail_price: z.number().nonnegative().max(1000000000).default(0)
+  purchase_cost: z.number().nonnegative().max(1000000000).refine(v=>Math.round(v*100)===v*100).default(0),
+  distributor_price: z.number().nonnegative().max(1000000000).refine(v=>Math.round(v*100)===v*100).default(0),
+  retail_price: z.number().nonnegative().max(1000000000).refine(v=>Math.round(v*100)===v*100).default(0)
 });
 
 app.post("/api/products", async (req, res) => {
@@ -563,7 +563,7 @@ const expenseSchema = z.object({
   expense_date: z.string().refine(isDateOnly),
   category: z.string().trim().min(1).max(100),
   description: z.string().trim().max(1000).optional(),
-  amount: z.number().positive().max(100000000000),
+  amount: z.number().positive().max(100000000000).refine(v=>Math.round(v*100)===v*100),
   payment_method: z.enum(['CASH','BANK']).default('CASH')
 });
 // Kasir retail: harga jual dimasukkan manual pada setiap transaksi.
