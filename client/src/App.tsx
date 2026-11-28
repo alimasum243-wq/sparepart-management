@@ -19,6 +19,7 @@ const nav = [
 ]
 const money = (n:number) => new Intl.NumberFormat('id-ID',{style:'currency',currency:'IDR',maximumFractionDigits:0}).format(Number(n)||0)
 const csvCell = (v:unknown) => { const s=String(v??''); const safe=typeof v==='string'&&/^[=+\-@\t\r]/.test(s.trimStart())?`'${s}`:s; return `"${safe.replaceAll('"','""')}"`; }
+const downloadCsv = (filename:string,csv:string) => { const url=URL.createObjectURL(new Blob(['\uFEFF',csv],{type:'text/csv;charset=utf-8;'})); const a=document.createElement('a'); a.href=url; a.download=filename; a.click(); URL.revokeObjectURL(url); }
 const today = () => new Date().toLocaleDateString('en-CA')
 async function request(path:string, token:string, init:RequestInit={}) {
   const response = await fetch(`${API}${path}`,{...init,credentials:'include',headers:{...(init.headers||{}),...(token&&token!=='cookie'?{Authorization:`Bearer ${token}`}:{}) ,'Content-Type':'application/json'}})
