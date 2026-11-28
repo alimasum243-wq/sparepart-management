@@ -129,6 +129,7 @@ router.post('/auth/owner-setup', async (req,res) => {
     const [existing] = await conn.execute<RowDataPacket[]>(`SELECT id FROM users WHERE password_hash IS NOT NULL LIMIT 1`);
     if (existing.length) { await conn.rollback(); return res.status(409).json({ok:false,message:'Akun login sudah pernah dibuat. Hubungi pemilik sistem.'}); }
     const [result] = await conn.execute<ResultSetHeader>(`INSERT INTO users (username,email,phone,full_name,role,password_hash,is_active) VALUES (?,?,?,?, 'OWNER', ?,1)`,[username,email?String(email).trim().toLowerCase():null,phone?String(phone).trim():null,String(full_name).trim(),hashPassword(password)]);
+    await conn.execute(`INSERT INTO audit_logs (user_id,action,entity_type,entity_id,description) VALUES (?,'BOOTSTRAP','USER',?,?)`,[result.insertId,result.insertId,`Akun pemilik pertama dibuat melalui bootstrap: ${username}`]);
     await conn.commit();
     return res.status(201).json({ok:true,message:'Akun pemilik berhasil dibuat. Silakan login.',user_id:result.insertId});
   } catch (e) { await conn.rollback(); return res.status(500).json({ok:false,message:e instanceof Error?e.message:'Gagal membuat akun.'}); }
