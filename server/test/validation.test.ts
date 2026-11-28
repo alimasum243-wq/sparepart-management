@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { money2, isDateOnly, hasAtMost2Decimals, hasAtMost3Decimals, outstandingAmount, netChannelAuditMetrics, auditPercentageChange, possibleCannibalizationSignal, detectLappingRiskFlags, needsRetailPriceOverride, validRetailOverrideReason, channelNetContribution, channelCostAllocationWithinSource, salesQuantityMeetsMoq, retailMasterPriceConfigured, expectedPhysicalStockAfterPendingReports, stockOpnameVariance, salesPriceFromStockSnapshots, rapidPrintWithinThreshold, validConsignmentReturnLine, consignmentReturnQtyWithinAvailable, cashSessionExpectedClosing, cashSessionVariance, isSqlDateTime, validCashSessionCount, validCashSessionCancelReason, validTransactionHistoryPagination } from '../src/validation.js';
+import { money2, isDateOnly, hasAtMost2Decimals, hasAtMost3Decimals, outstandingAmount, netChannelAuditMetrics, auditPercentageChange, possibleCannibalizationSignal, detectLappingRiskFlags, needsRetailPriceOverride, validRetailOverrideReason, channelNetContribution, channelCostAllocationWithinSource, salesQuantityMeetsMoq, retailMasterPriceConfigured, expectedPhysicalStockAfterPendingReports, stockOpnameVariance, salesPriceFromStockSnapshots, rapidPrintWithinThreshold, validConsignmentReturnLine, consignmentReturnQtyWithinAvailable, cashSessionExpectedClosing, cashSessionVariance, isSqlDateTime, validCashSessionCount, validCashSessionCancelReason, validTransactionHistoryPagination, validCashAccountSource } from '../src/validation.js';
 
 test('date validation accepts real ISO dates and rejects malformed dates',()=>{
   assert.equal(isDateOnly('2026-11-28'),true);
@@ -158,3 +158,5 @@ test('cash session counts and cancel reasons reject invalid values',()=>{assert.
 
 
 test('transaction history pagination enforces bounded page size and offset',()=>{assert.equal(validTransactionHistoryPagination(500,0),true);assert.equal(validTransactionHistoryPagination(1,100000),true);assert.equal(validTransactionHistoryPagination(0,0),false);assert.equal(validTransactionHistoryPagination(501,0),false);assert.equal(validTransactionHistoryPagination(500,-1),false);assert.equal(validTransactionHistoryPagination(500,100001),false);assert.equal(validTransactionHistoryPagination(1.5,0),false);});
+
+test('cash account source categories accept only RETAIL, SALES and GENERAL',()=>{assert.equal(validCashAccountSource('RETAIL'),true);assert.equal(validCashAccountSource(' sales '),true);assert.equal(validCashAccountSource('general'),true);assert.equal(validCashAccountSource('BANK'),false);assert.equal(validCashAccountSource(''),false);assert.equal(validCashAccountSource(null),false);});
