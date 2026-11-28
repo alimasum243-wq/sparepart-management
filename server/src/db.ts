@@ -12,6 +12,9 @@ const sslEnabled = process.env.DB_SSL === "true";
 if (isProduction && !sslEnabled) {
   throw new Error("DB_SSL=true wajib pada environment production untuk koneksi TiDB.");
 }
+if (isProduction && !process.env.AUTH_TOKEN_SECRET) {
+  throw new Error("AUTH_TOKEN_SECRET wajib pada environment production.");
+}
 
 export const pool = mysql.createPool({
   host: process.env.DB_HOST,
