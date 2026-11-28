@@ -133,6 +133,8 @@ app.get("/api/products/:id/price-history",async(req,res)=>{
     return res.json({ok:true,product:product[0],history:rows});
   }catch{return res.status(500).json({ok:false,message:'Histori harga tidak dapat dimuat. Pastikan migration 010 sudah dijalankan.'});}
 });
+app.get('/api/products/:id/price-history',async(req,res)=>{const id=Number(req.params.id);if(!Number.isInteger(id)||id<=0)return res.status(400).json({ok:false,message:'ID produk tidak valid.'});try{const [rows]=await pool.execute<RowDataPacket[]>(`SELECT * FROM product_price_history WHERE product_id=? ORDER BY effective_date DESC,id DESC LIMIT 200`,[id]);return res.json({ok:true,items:rows});}catch{return res.status(500).json({ok:false,message:'Gagal memuat histori harga.'});}});
+
 app.post("/api/products", async (req, res) => {
   const parsed = productSchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ ok: false, message: "Nama produk wajib diisi dan data harga harus benar." });
