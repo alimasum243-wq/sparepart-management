@@ -39,3 +39,29 @@
 .product-table-wrap{width:100%;overflow-x:auto}.product-table{width:100%;border-collapse:collapse;min-width:700px}.product-table th,.product-table td{text-align:left;padding:12px 10px;border-bottom:1px solid #edf0f4;font-size:11px;color:#53647b}.product-table th{font-size:10px;color:#8793a5;text-transform:uppercase;letter-spacing:.5px}.product-table td strong,.product-table td small{display:block}.product-table td strong{font-size:12px;color:#304763}.product-table td small{font-size:10px;color:#8793a5;margin-top:4px}.product-actions{display:flex;gap:7px}.product-actions .secondary-button{padding:7px 9px;font-size:10px}.product-table .tag{margin:0}
 .purchase-header-actions{display:flex;gap:8px;flex-wrap:wrap}.purchase-header-actions .secondary-button{font-size:11px}
 @media(max-width:760px){.purchase-header-actions{width:100%}.purchase-header-actions button{width:100%}}
+
+
+/* Sparepart Enzonic visual refresh */
+:root{font-family:'DM Sans',sans-serif;color:#17283d;background:#f5f7fa}
+.brand{gap:12px;padding-bottom:28px}
+.brand-mark{width:46px;height:46px;flex:0 0 46px;border-radius:14px;background:linear-gradient(145deg,#10283f,#203e5c 70%,#e87524);color:#fff;display:grid;place-items:center;font:800 16px Manrope;letter-spacing:-1px;box-shadow:0 5px 14px #10283f24;border:2px solid #f5a34b}
+.brand strong{font:800 14px Manrope;letter-spacing:.25px;color:#132b43}
+.brand small{max-width:170px;line-height:1.4;color:#9a6a3a}
+.sidebar{background:#fbfcfe;border-right-color:#e3e9f0}
+.nav-item:hover,.nav-item.selected{background:#edf3f8;color:#153d60}
+.nav-item.selected{box-shadow:inset 3px 0 #ef812b}
+.primary-button{background:#17344f;border-color:#17344f}
+.primary-button:hover{background:#234b6c;border-color:#234b6c}
+.welcome{background:linear-gradient(115deg,#10283f 0%,#1b4568 72%,#d66b24 150%);box-shadow:0 12px 28px #10283f18}
+.status-card,.panel{box-shadow:0 4px 16px #17283d08}
+.login-screen{background:radial-gradient(circle at 15% 15%,#fff1df 0,transparent 32%),linear-gradient(145deg,#eef3f8,#f8fafc)}
+.login-card{border-radius:18px;box-shadow:0 22px 65px #122a4214;border-color:#e3e9f0}
+.login-brand{display:grid;justify-items:center;gap:5px;text-align:center;margin-bottom:5px}
+.login-brand .brand-mark{width:66px;height:66px;font-size:21px;border-radius:19px}
+.login-brand strong{font:800 17px Manrope;letter-spacing:.4px;color:#142c43}
+.login-brand small{font-size:10px;color:#a56b35}
+.portal{max-width:1120px}
+.portal-head{border-bottom:1px solid #e5eaf0}
+.portal .status-card{border-radius:14px}
+.product-table tbody tr:hover{background:#f8fafc}
+@media(max-width:760px){.brand{padding-bottom:22px}.login-card{border-radius:15px}}
