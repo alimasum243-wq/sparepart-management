@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { money2, isDateOnly, hasAtMost2Decimals, outstandingAmount } from '../src/validation.js';
+import { money2, isDateOnly, hasAtMost2Decimals, hasAtMost3Decimals, outstandingAmount } from '../src/validation.js';
 
 test('date validation accepts real ISO dates and rejects malformed dates',()=>{
   assert.equal(isDateOnly('2026-11-28'),true);
@@ -25,6 +25,14 @@ test('two-decimal amount validation rejects non-finite and excess precision',()=
   assert.equal(hasAtMost2Decimals(10.001),false);
   assert.equal(hasAtMost2Decimals(NaN),false);
   assert.equal(hasAtMost2Decimals(Infinity),false);
+});
+
+test('quantity validation accepts up to three decimals with floating tolerance',()=>{
+  assert.equal(hasAtMost3Decimals(1),true);
+  assert.equal(hasAtMost3Decimals(1.125),true);
+  assert.equal(hasAtMost3Decimals(0.1+0.2),true);
+  assert.equal(hasAtMost3Decimals(1.0001),false);
+  assert.equal(hasAtMost3Decimals(NaN),false);
 });
 
 test('outstanding amount never goes below zero and uses cents',()=>{
