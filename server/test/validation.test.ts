@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { money2, isDateOnly, hasAtMost2Decimals, hasAtMost3Decimals, outstandingAmount } from '../src/validation.js';
+import { money2, isDateOnly, hasAtMost2Decimals, hasAtMost3Decimals, outstandingAmount, netChannelAuditMetrics, auditPercentageChange, possibleCannibalizationSignal } from '../src/validation.js';
 
 test('date validation accepts real ISO dates and rejects malformed dates',()=>{
   assert.equal(isDateOnly('2026-11-28'),true);
@@ -39,4 +39,24 @@ test('outstanding amount never goes below zero and uses cents',()=>{
   assert.equal(outstandingAmount(100,25,10),65);
   assert.equal(outstandingAmount(100,110,0),0);
   assert.equal(outstandingAmount(100.005,0,0),100.01);
+});
+
+
+test('channel audit net metrics subtract posted returns at item level',()=>{
+  const net=netChannelAuditMetrics({units:100,revenue:1000,cost:600},{units:5,revenue:50,cost:30});
+  assert.deepEqual(net,{units:95,revenue:950,cost:570,gross_profit:380});
+});
+
+test('channel audit percent change avoids misleading zero-baseline percentages',()=>{
+  assert.equal(auditPercentageChange(150,100),50);
+  assert.equal(auditPercentageChange(0,100),-100);
+  assert.equal(auditPercentageChange(50,0),null);
+  assert.equal(auditPercentageChange(20,-1),null);
+});
+
+test('cannibalization signal requires paired retail drop and sales rise',()=>{
+  assert.equal(possibleCannibalizationSignal(-25,30,-5,10),true);
+  assert.equal(possibleCannibalizationSignal(-25,10,-25,30),true);
+  assert.equal(possibleCannibalizationSignal(-25,10,-25,10),false);
+  assert.equal(possibleCannibalizationSignal(null,40,-25,40),false);
 });
