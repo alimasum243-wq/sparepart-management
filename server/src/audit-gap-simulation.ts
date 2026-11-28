@@ -12,7 +12,7 @@ export const validShortageDecision = (claimedQty:number, approvedQty:number, uni
   Number.isFinite(unitCost) && unitCost>=0 && unitCost<=1_000_000_000 &&
   Number.isFinite(chargeAmount) && chargeAmount>=0 && chargeAmount<=1_000_000_000 &&
   Math.round(claimedQty*1000)===claimedQty*1000 && Math.round(approvedQty*1000)===approvedQty*1000 &&
-  Math.round(unitCost*100)===unitCost*100 && Math.round(chargeAmount*100)===chargeAmount*100;
+  Math.round(unitCost*100)===unitCost*100 && Math.round(chargeAmount*100)===chargeAmount*100 && chargeAmount<=approvedQty*unitCost+0.009;
 
 export const shortageChargeCap = (approvedQty:number, unitCost:number) =>
   Math.round((approvedQty*unitCost+Number.EPSILON)*100)/100;
