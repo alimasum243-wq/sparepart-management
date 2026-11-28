@@ -82,3 +82,30 @@
 
 ## Evidence log
 Record date/time, tester, commit SHA, environment/TiDB version, steps or SQL, expected/actual results, and evidence. Do not mark complete based on code inspection alone.
+
+## 9. Two sales channels and margin rules (business requirement)
+
+The application must support two separate price segments per product, with different margin structures:
+
+### Direct retail (owner sells directly to end customer)
+- [ ] Store a retail price per product (editable, with audit trail).
+- [ ] Retail sale uses this price by default; no wholesale discount or sales commission is applied.
+- [ ] Retail margin/profit reporting uses actual selling price minus applicable HPP and transaction costs, not a fixed assumed margin.
+- [ ] Any price override/discount is permission-controlled, reason-recorded, and audited.
+- [ ] Retail stock is deducted from the warehouse location at transaction posting; sales, cash/receivable, HPP, and inventory journal entries reconcile.
+
+### Sales / wholesale / consignment
+- [ ] Store a separate sales/distributor price per product, lower than retail by default; allow owner to set the relationship and validate or warn if sales price is not lower.
+- [ ] Distributor/sales stock is tracked by person and location; consigned stock remains inventory owned by the business until sold (unless the contract/accounting policy explicitly defines otherwise).
+- [ ] Sales/distributor reporting uses the agreed sales price for units sold; approval is required before posting stock, receivable/cash, or journals.
+- [ ] Sales margin is computed separately from retail margin using HPP and the wholesale/sales price; do not add a sales commission by default.
+- [ ] Record separately: stock delivered to sales, units sold, units returned/unsold, payment remitted, outstanding receivable, and advances/unapplied payments.
+- [ ] Prevent unauthorized price edits and prevent applying retail pricing to sales channel or vice versa; record price snapshots on each transaction so later product-price changes do not rewrite history.
+- [ ] Test partial sell-through, partial payment, returns, price changes between stock delivery and sales reporting, rejected reports, and duplicate approvals.
+
+### Required product and transaction data
+- [ ] Product has separate retail and sales/distributor prices (and HPP/cost basis); transactions snapshot channel, unit price, discount, HPP, and quantity.
+- [ ] Reports show quantities, revenue, HPP, gross margin/profit and outstanding balance separately by channel and combined.
+- [ ] Dashboard and exports reconcile to posted transactions and GL; margin must not count delivered consignment stock as a sale before it is reported sold and approved.
+
+**Acceptance rule:** the two price channels and their distinct margin/reporting behavior are a prelaunch blocker. Existing code must be audited and tested for complete support before approval; this checklist is a requirement, not proof of implementation.
