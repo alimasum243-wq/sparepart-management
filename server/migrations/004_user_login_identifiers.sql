@@ -4,7 +4,7 @@
 ALTER TABLE users ADD COLUMN IF NOT EXISTS email VARCHAR(190) NULL;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS phone VARCHAR(50) NULL;
 
--- Identitas email/nomor telepon harus unik jika diisi.
--- Baris lama yang belum memiliki email/telepon tetap NULL dan tetap dapat login dengan username.
-ALTER TABLE users ADD UNIQUE INDEX IF NOT EXISTS uq_users_email (email);
-ALTER TABLE users ADD UNIQUE INDEX IF NOT EXISTS uq_users_phone (phone);
+-- TiDB mendukung CREATE UNIQUE INDEX IF NOT EXISTS.
+-- Nilai NULL pada akun lama tetap diperbolehkan; nilai terisi wajib unik.
+CREATE UNIQUE INDEX IF NOT EXISTS uq_users_email ON users (email);
+CREATE UNIQUE INDEX IF NOT EXISTS uq_users_phone ON users (phone);
