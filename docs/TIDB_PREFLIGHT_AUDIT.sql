@@ -12,7 +12,7 @@ ORDER BY TABLE_NAME;
 SELECT expected.table_name,
        CASE WHEN actual.TABLE_NAME IS NULL THEN 'MISSING' ELSE 'PRESENT' END AS status
 FROM (
- SELECT 'accounting_periods' table_name UNION ALL SELECT 'accounting_period_guard'
+ SELECT 'accounting_periods' table_name UNION ALL SELECT 'accounting_period_guard' UNION ALL SELECT 'auth_sessions' UNION ALL SELECT 'owner_setup_guard'
  UNION ALL SELECT 'accounts' UNION ALL SELECT 'audit_logs'
  UNION ALL SELECT 'cash_accounts' UNION ALL SELECT 'cash_transactions'
  UNION ALL SELECT 'channel_cost_allocations' UNION ALL SELECT 'consignment_deliveries'
@@ -40,7 +40,7 @@ SELECT TABLE_NAME, COLUMN_NAME, COLUMN_TYPE, IS_NULLABLE, COLUMN_DEFAULT, EXTRA
 FROM information_schema.COLUMNS
 WHERE TABLE_SCHEMA=DATABASE()
  AND TABLE_NAME IN (
- 'users','products','stock_locations','stock_movements','distributors','suppliers','supplier_payments','purchases','purchase_items',
+ 'users','auth_sessions','owner_setup_guard','products','stock_locations','stock_movements','distributors','suppliers','supplier_payments','purchases','purchase_items',
  'consignment_deliveries','consignment_delivery_items','distributor_sales_reports',
  'distributor_sales_report_items','distributor_payment_submissions',
  'distributor_payment_allocations','distributor_sales_returns','distributor_sales_return_items','supplier_payment_allocations','purchase_returns','purchase_return_items',
@@ -148,6 +148,9 @@ UNION ALL SELECT 'stock_movements',COUNT(*) FROM stock_movements
 UNION ALL SELECT 'suppliers',COUNT(*) FROM suppliers
 UNION ALL SELECT 'distributors',COUNT(*) FROM distributors
 ORDER BY table_name;
+
+-- CONDITIONAL POSTFLIGHT: run only after migration 007 created owner_setup_guard.
+SELECT id,COUNT(*) guard_rows FROM owner_setup_guard WHERE id=1 GROUP BY id;
 
 -- Read-only check of expected single active warehouse and damaged-stock location.
 SELECT location_type, is_active, COUNT(*) count_by_type
