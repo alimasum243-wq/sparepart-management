@@ -159,7 +159,7 @@ function SupplierPayments({token}:{token:string}){
  const [supplierId,setSupplierId]=useState('');const [cashId,setCashId]=useState('');
  const [date,setDate]=useState(today());const [method,setMethod]=useState('CASH');
  const [amounts,setAmounts]=useState<Record<number,string>>({});
- const [error,setError]=useState('');const [message,setMessage]=useState('');const [busy,setBusy]=useState(false);const [lastReceipt,setLastReceipt]=useState<any|null>(null);const [lastReceipt,setLastReceipt]=useState<any|null>(null);
+ const [error,setError]=useState('');const [message,setMessage]=useState('');const [busy,setBusy]=useState(false);
  async function load(){setError('');try{const [b,c]=await Promise.all([request('/api/supplier-payments/outstanding',token),request('/api/admin/cash-accounts',token)]);setBills(b.purchases||[]);setAccounts(c.accounts||[]);if(!cashId&&c.accounts?.length)setCashId(String(c.accounts[0].id));}catch(e){setError(e instanceof Error?e.message:'Gagal memuat utang pemasok.');}}
  useEffect(()=>{load()},[]);
  const suppliers=Array.from(new Map(bills.map(b=>[Number(b.supplier_id),{id:Number(b.supplier_id),name:b.supplier_name}])).values());
@@ -211,7 +211,7 @@ function RetailSales({token}:{token:string}){
  const [cashId,setCashId]=useState('');
  const [date,setDate]=useState(today());
  const [items,setItems]=useState([{product_id:'',quantity:'1',unit_price:'',price_override_reason:''}]);
- const [error,setError]=useState('');const [message,setMessage]=useState('');const [busy,setBusy]=useState(false);
+ const [error,setError]=useState('');const [message,setMessage]=useState('');const [busy,setBusy]=useState(false);const [lastReceipt,setLastReceipt]=useState<any|null>(null);
  async function load(){setError('');try{const d=await request('/api/retail/options',token);setProducts(d.products||[]);setAccounts(d.accounts||[]);if(!cashId&&d.accounts?.length)setCashId(String(d.accounts[0].id));}catch(e){setError(e instanceof Error?e.message:'Gagal memuat data kasir')}}
  useEffect(()=>{load()},[]);
  const total=items.reduce((sum,it)=>sum+Math.max(0,Number(it.quantity)||0)*Math.max(0,Number(it.unit_price)||0),0);
