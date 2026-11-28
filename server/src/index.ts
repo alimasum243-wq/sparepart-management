@@ -931,7 +931,7 @@ app.get("/api/dashboard/summary", async (_req,res) => {
     const [receivable]=await pool.query<RowDataPacket[]>(`
       SELECT GREATEST(COALESCE((SELECT SUM(i.line_total) FROM distributor_sales_reports r JOIN distributor_sales_report_items i ON i.report_id=r.id WHERE r.status='APPROVED'),0)-
       COALESCE((SELECT SUM(total) FROM distributor_sales_returns WHERE status='POSTED'),0)-
-      COALESCE((SELECT SUM(amount) FROM distributor_payment_submissions WHERE status='VERIFIED'),0),0) total`);
+      COALESCE((SELECT SUM(a.allocated_amount) FROM distributor_payment_allocations a JOIN distributor_payment_submissions p ON p.id=a.payment_submission_id WHERE p.status='VERIFIED'),0),0) total`);
     const [expenses]=await pool.query<RowDataPacket[]>(`SELECT COALESCE(SUM(amount),0) total FROM expenses WHERE DATE_FORMAT(expense_date,'%Y-%m')=DATE_FORMAT(CURRENT_DATE(),'%Y-%m')`);
     const [inventory]=await pool.query<RowDataPacket[]>(`
       SELECT sl.location_type,
