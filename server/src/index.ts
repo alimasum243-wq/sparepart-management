@@ -1042,6 +1042,7 @@ app.post("/api/returns/distributor-sale",async(req,res)=>{
    const refundLine=Math.round(item.quantity*Number(line.unit_price_snapshot)*100)/100,costLine=Math.round(item.quantity*Number(line.unit_cost_snapshot)*100)/100;
    refund=Math.round((refund+refundLine)*100)/100;cost=Math.round((cost+costLine)*100)/100;prepared.push({...item,line,refundLine,costLine});
   }
+  if(!Number.isFinite(refund)||refund>9000000000000000||!Number.isFinite(cost)||cost>9000000000000000)throw new Error('Total retur distributor melebihi batas nominal sistem.');
   // Returns reduce receivables. Until a cash-refund workflow exists, block returns beyond open AR.
   const [receivableBalance]=await conn.execute<RowDataPacket[]>(`
    SELECT COALESCE(s.sales_total,0)-COALESCE(a.paid_total,0)-COALESCE(r.returned_total,0) outstanding
