@@ -46,7 +46,7 @@ Bukti pembayaran saat ini disimpan sebagai nomor referensi atau tautan, belum un
 18. Jalankan `server/migrations/017_sales_note_print_audit.sql`; verifikasi kolom `print_requested_at`, `print_requested_by_user_id`, `print_request_count`.
 19. Verifikasi 16 seed products, supplier INDORAYA/UD ADI JUWANA, minimum stock. Owner finalisasi SKU/unit/retail price/min_stock. Verifikasi tabel `product_price_history`, `accounting_periods`, kolom `invoice_code`, `due_date`, `unapplied_amount`, tabel `accounting_period_guard`, dan akun 2200 serta akun COA yang dibutuhkan. Jalankan migration hanya setelah backup dan pemeriksaan struktur/duplikat.
 
-Migration bersifat tambahan (additive); tidak dimaksudkan untuk menghapus transaksi/master. Jangan menjalankan semua statement sekaligus jika TiDB SQL editor menolak multi-statement. Bila error, berhenti dan kirim pesan error persisnya; jangan lanjut migration berikutnya.
+Migration bersifat tambahan (additive); tidak dimaksudkan untuk menghapus transaksi/master. TiDB CHECK constraint enforcement dapat nonaktif secara default; migration 015 tidak bergantung pada CHECK, dan API server tetap memvalidasi channel/nominal alokasi. Jangan menjalankan semua statement sekaligus jika TiDB SQL editor menolak multi-statement. Bila error, berhenti dan kirim pesan error persisnya; jangan lanjut migration berikutnya.
 
 ## Konfigurasi server
 
