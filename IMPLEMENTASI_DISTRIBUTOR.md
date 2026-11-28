@@ -95,3 +95,20 @@ Semua endpoint operasional lama (termasuk pembelian) kini memerlukan token pemil
 10. Coba akses endpoint admin menggunakan token distributor; harus ditolak 403.
 
 Catatan akuntansi: laporan laba-rugi hanya mencerminkan transaksi yang sudah dibukukan ke jurnal. Pastikan seluruh beban operasional dicatat dan pembelian yang belum dibayar tetap dianggap utang pemasok. Jangan mengartikan nominal pembayaran yang baru dilaporkan distributor sebagai kas masuk sebelum diverifikasi.
+
+## Standar transaksi, pembulatan, dan koreksi
+- Mata uang sistem: IDR (Rupiah).
+- Nilai uang: DECIMAL, bukan FLOAT/DOUBLE; batas transaksi 2 desimal.
+- Kuantitas: DECIMAL(15,3).
+- Total transaksi berasal dari detail; jangan memakai angka tampilan frontend sebagai sumber kebenaran.
+- POSTED tidak boleh diedit/hapus langsung. Gunakan retur/reversal/koreksi dan catat transaksi asal, alasan, pengguna, dan waktu.
+
+## Build dan deployment gate
+Wajib lulus sebelum staging/production:
+```text
+npm run lint
+npm run typecheck
+npm run build
+```
+Root build menjalankan install dependency, quality gate, TypeScript check, backend tsc, dan Vite build. Script lint saat ini adalah static type gate (ESLint belum dipasang).
+Production wajib `DB_SSL=true`. Jangan commit `server/.env`; simpan password dan secret di environment/secret manager.
