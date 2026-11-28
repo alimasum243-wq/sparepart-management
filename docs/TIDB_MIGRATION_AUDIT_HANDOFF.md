@@ -1,0 +1,61 @@
+# Pre-Migration TiDB Audit Handoff
+
+## Purpose
+This document is the handoff gate between application hardening and the user's manual TiDB migration audit. No SQL in this repository has been executed against the user's TiDB instance by the coding agent.
+
+## User's current database facts (reported / snapshot supplied by user)
+- Database: `sparepart_db`
+- Engine: TiDB Cloud Starter, MySQL-compatible
+- Snapshot previously supplied by user: 31 tables; 25/30 required table checks were present, five tables were missing at that time:
+  - `accounting_periods`
+  - `accounting_period_guard`
+  - `cash_transactions`
+  - `channel_cost_allocations`
+  - `product_price_history`
+- User reported only exploratory setup, no production usage or real business transactions.
+- These are historical snapshot facts, not a fresh live inspection. Re-audit current schema before migration.
+
+## Gate before asking user to run SQL
+- [ ] All application-code blockers found in audit have either been fixed or explicitly listed as not implemented.
+- [ ] Build, type-check, and CI pass on the hardening branch's latest commit.
+- [ ] Migrations are consolidated, numbered, and checked for TiDB compatibility and safe re-run/partial-run behavior.
+- [ ] Migration SQL does not drop or truncate user data.
+- [ ] Every required table/column/index/constraint is compared against the actual database, not assumed.
+- [ ] Seed SQL is separated from schema changes and reviewed for duplicates/unique-key behavior.
+- [ ] Migration order/dependencies and rollback/recovery strategy are documented (where rollback is feasible; destructive DDL generally requires backup/restore plan).
+- [ ] SQL is presented as a single ordered package with preflight checks, migration scripts, postflight verification, and recovery notes.
+- [ ] Explicitly mark which SQL is safe to execute and which is conditional based on schema inspection.
+- [ ] Final application-vs-database schema mapping and required-table checklist are reviewed.
+
+## Audit outputs to produce for the user
+1. **Preflight SQL**: database name, TiDB version, tables, columns, indexes, constraints, row counts, and migration-relevant schema checks.
+2. **Migration package**: ordered scripts with exact filenames, purpose, prerequisites, and dependencies.
+3. **Conditional SQL**: instructions for only the missing columns/tables/indexes, avoiding duplicate DDL.
+4. **Seed package**: product/COA/location/account seeds and idempotency review, separated from structural migration.
+5. **Postflight SQL**: verify table/column/index presence, seed counts, references, and no accidental duplicate records.
+6. **App compatibility report**: endpoint/UI feature mapped to required schema.
+7. **Operational safety**: backup confirmation, credentials safety, transaction limitations for DDL, and how to stop if a statement fails.
+
+## Application work still tracked before the gate
+- Distributor portal: persistent consignment handover history and printable/reprint notes.
+- Distributor portal: report history and status/rejection reason.
+- Distributor portal: note-level receivable status and payment allocation history.
+- Distributor portal: request return of unsold consignment; owner review; approved stock movement only; good/damaged stock destination; no automatic refund.
+- Owner: pending-return review queue and traceable approval/rejection.
+- Distributor stock custody reconciliation: handed-over qty minus approved sales minus approved returns; physical count and variance proposal; no automatic charge to distributor.
+- Audit/security: ownership authorization, duplicate/idempotency protection, concurrency-safe posting, approval actors/timestamps/reasons, and audit trail.
+- Investor reporting: complete source drill-down, pending vs posted clarity, channel contribution, inventory valuation, liabilities/receivables, cash-source and physical reconciliation, trial balance and balance sheet consistency.
+- Retail below-master-price exception approval workflow (reason and audit trail).
+- Additional test coverage and final CI.
+
+## Critical accounting rules
+- Consignment delivery is custody transfer only, not a sale, revenue, or receivable.
+- Distributor sell-through is pending until owner approval; approved posting is exactly once.
+- Payments are not silently reallocated. Allocation is explicit and traceable.
+- Return of unsold consignment does not automatically create a refund or reduce an approved sale. It is a stock-custody return workflow.
+- Good and damaged returned stock go to distinct controlled locations/statuses.
+- Any stock/financial variance is a review item; no automatic distributor debt is created.
+- Ecer and distributor channel revenue, costs, remittances, and cash sources must stay separately traceable.
+
+## Current state
+This is a preparation/checklist document. It does not certify application readiness, schema readiness, or migration safety. The migration audit starts only after the remaining implementation and tests are completed and the latest branch is checked.
