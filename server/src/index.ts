@@ -568,6 +568,9 @@ const expenseSchema = z.object({
 // Kasir retail: harga jual dimasukkan manual pada setiap transaksi.
 app.get("/api/retail/options", async (_req, res) => {
   try {
+    const [warehouseRows]=await pool.query<RowDataPacket[]>(`SELECT id FROM stock_locations WHERE location_type='WAREHOUSE' AND is_active=1 ORDER BY id LIMIT 1`);
+    if(!warehouseRows.length)throw new Error('Gudang aktif tidak ditemukan.');
+    const warehouseId=Number(warehouseRows[0].id);
     const [products] = await pool.query<RowDataPacket[]>(
       `SELECT p.id,p.sku,p.product_name,p.unit,p.average_cost,p.purchase_cost,
         COALESCE(st.stock_qty,0) AS stock_qty
@@ -613,6 +616,7 @@ app.post("/api/retail/sales", async (req,res) => {
       `SELECT id,account_type FROM cash_accounts WHERE id=? AND is_active=1 FOR UPDATE`,[cashAccountId]
     );
     if(!cash.length) throw new Error("Akun kas/bank tidak aktif atau tidak ditemukan.");
+    const warehouseId=await getWarehouseLocationId(conn);
     const cashCode=String(cash[0].account_type).toUpperCase()==="BANK"?"1110":"1100";
     const accountCodes=[cashCode,"4100","5100","1300"];
     const [accounts]=await conn.query<RowDataPacket[]>(
@@ -893,6 +897,7 @@ app.post("/api/returns/purchase",async(req,res)=>{
  const conn=await pool.getConnection();
  try{
   await conn.beginTransaction();
+  const warehouseId=await getWarehouseLocationId(conn);
   const [purchases]=await conn.execute<RowDataPacket[]>(`SELECT id,purchase_code,supplier_id FROM purchases WHERE id=? AND status='POSTED' FOR UPDATE`,[purchaseId]);
   if(!purchases.length)throw new Error("Faktur pembelian tidak ditemukan atau belum diposting.");
   const [inventory]=await conn.execute<RowDataPacket[]>(`SELECT id FROM accounts WHERE account_code='1300' AND is_active=1 LIMIT 1`);
@@ -957,11 +962,12 @@ app.post("/api/returns/retail-sale",async(req,res)=>{
   await conn.beginTransaction();
   const [sales]=await conn.execute<RowDataPacket[]>(`SELECT id,sale_code,cash_account_id FROM retail_sales WHERE id=? AND status='POSTED' FOR UPDATE`,[saleId]);
   if(!sales.length)throw new Error("Transaksi penjualan retail tidak ditemukan.");
-  const warehouseId=await getWarehouseLocationId(conn);\n  const [cash]=await conn.execute<RowDataPacket[]>(`SELECT ca.id,ca.account_type,a.id ledger_id FROM cash_accounts ca JOIN accounts a ON a.account_code=IF(UPPER(ca.account_type)='BANK','1110','1100') AND a.is_active=1 WHERE ca.id=? AND ca.is_active=1 FOR UPDATE`,[sales[0].cash_account_id]);
+  const [cash]=await conn.execute<RowDataPacket[]>(`SELECT ca.id,ca.account_type,a.id ledger_id FROM cash_accounts ca JOIN accounts a ON a.account_code=IF(UPPER(ca.account_type)='BANK','1110','1100') AND a.is_active=1 WHERE ca.id=? AND ca.is_active=1 FOR UPDATE`,[sales[0].cash_account_id]);
   const [accounts]=await conn.query<RowDataPacket[]>(`SELECT id,account_code FROM accounts WHERE account_code IN ('4200','1300','5100') AND is_active=1`);
   const accountId=(code:string)=>Number(accounts.find((a:any)=>a.account_code===code)?.id||0);
   const returnsAccount=accountId("4200"),inventory=accountId("1300"),cogs=accountId("5100");
   if(!cash.length||!returnsAccount||!inventory||!cogs)throw new Error("Akun kas/bank, retur penjualan (4200), persediaan, atau HPP belum tersedia. Jalankan migrasi 006.");
+  const warehouseId=await getWarehouseLocationId(conn);
   let refund=0,cost=0;const prepared:any[]=[];
   for(const item of normalized){
    const [rows]=await conn.execute<RowDataPacket[]>(`
