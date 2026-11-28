@@ -2,7 +2,7 @@ import { Router, type Request, type Response, type NextFunction } from 'express'
 import { createHmac, randomBytes, scryptSync, timingSafeEqual } from 'node:crypto';
 import type { RowDataPacket, ResultSetHeader } from 'mysql2';
 import { pool } from './db.js';
-import { money2, isDateOnly, hasAtMost2Decimals, hasAtMost3Decimals, netChannelAuditMetrics, auditPercentageChange, possibleCannibalizationSignal, detectLappingRiskFlags, channelNetContribution, channelCostAllocationWithinSource, salesQuantityMeetsMoq, expectedPhysicalStockAfterPendingReports, stockOpnameVariance } from './validation.js';
+import { money2, isDateOnly, hasAtMost2Decimals, hasAtMost3Decimals, netChannelAuditMetrics, auditPercentageChange, possibleCannibalizationSignal, detectLappingRiskFlags, channelNetContribution, channelCostAllocationWithinSource, salesQuantityMeetsMoq, expectedPhysicalStockAfterPendingReports, stockOpnameVariance, salesPriceFromStockSnapshots } from './validation.js';
 
 const router = Router();
 // Basic per-process throttling for sensitive auth endpoints. Production deployments
@@ -254,7 +254,7 @@ router.post('/distributor/sales-reports',authMiddleware,distributor,async(req:Au
     COALESCE((SELECT SUM(i.line_total) FROM distributor_sales_reports r JOIN distributor_sales_report_items i ON i.report_id=r.id WHERE r.distributor_id=? AND r.status='APPROVED' AND i.product_id=?),0) approved_sales_value,
     COALESCE((SELECT SUM(ri.refund_total) FROM distributor_sales_returns rr JOIN distributor_sales_return_items ri ON ri.distributor_sales_return_id=rr.id WHERE rr.distributor_id=? AND rr.status='POSTED' AND ri.product_id=?),0) returned_value,
     COALESCE((SELECT SUM(i.line_total) FROM distributor_sales_reports r JOIN distributor_sales_report_items i ON i.report_id=r.id WHERE r.distributor_id=? AND r.status='SUBMITTED' AND i.product_id=?),0) pending_sales_value`,[distId,pid,distId,pid,distId,pid,distId,pid]);
-   const availableQty=Number(available[0].qty),availableValue=Number(available[0].stock_value),cost=availableQty>0?money2(availableValue/availableQty):0,priceStockValue=money2(Number(priceInventoryRows[0].delivery_price_value||0)-Number(priceInventoryRows[0].approved_sales_value||0)+Number(priceInventoryRows[0].returned_value||0)-Number(priceInventoryRows[0].pending_sales_value||0)),price=availableQty>0?money2(priceStockValue/availableQty):0;
+   const availableQty=Number(available[0].qty),availableValue=Number(available[0].stock_value),cost=availableQty>0?money2(availableValue/availableQty):0,priceStockValue=money2(Number(priceInventoryRows[0].delivery_price_value||0)-Number(priceInventoryRows[0].approved_sales_value||0)+Number(priceInventoryRows[0].returned_value||0)-Number(priceInventoryRows[0].pending_sales_value||0)),price=salesPriceFromStockSnapshots(Number(priceInventoryRows[0].delivery_price_value||0),Number(priceInventoryRows[0].approved_sales_value||0),Number(priceInventoryRows[0].returned_value||0),Number(priceInventoryRows[0].pending_sales_value||0),availableQty);
    if(!Number.isFinite(price)||price<=0)throw new Error(`Harga Sales berbasis snapshot titipan untuk ${pRows[0].product_name} tidak valid. Periksa harga pada titipan dan saldo stok.`);
    if(!Number.isFinite(price)||price<=0)throw new Error(`Harga distributor ${pRows[0].product_name} pada data titipan masih nol/tidak valid. Hubungi pemilik untuk memperbaiki harga sebelum mengirim laporan.`);
    if(!Number.isFinite(cost)||cost<0)throw new Error(`HPP ${pRows[0].product_name} tidak valid.`);
