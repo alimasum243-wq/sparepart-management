@@ -89,18 +89,18 @@ The application must support two separate price segments per product, with diffe
 
 ### Direct retail (owner sells directly to end customer)
 - [x] Code: retail price per product is editable; price, Sales price, and MOQ before/after values are recorded in product audit log. Acceptance testing still pending.
-- [ ] Retail sale uses this price by default; no wholesale discount or sales commission is applied.
-- [ ] Retail margin/profit reporting uses actual selling price minus applicable HPP and transaction costs, not a fixed assumed margin.
-- [ ] Any price override/discount is permission-controlled, reason-recorded, and audited.
-- [ ] Retail stock is deducted from the warehouse location at transaction posting; sales, cash/receivable, HPP, and inventory journal entries reconcile.
+- [x] Code: retail cashier defaults to master retail price; no Sales-channel price selection or commission is applied. Test pending.
+- [x] Code: channel report uses posted retail/sales price and HPP snapshots for gross profit; manual operating-cost allocations calculate net contribution. Full P&L/GL reconciliation pending.
+- [x] Code: retail below-master price requires owner-authenticated override reason and audit log. Approval workflow and acceptance pending.
+- [x] Code: retail sale posting updates warehouse stock, cash/journal, HPP and sales atomically. Integration/GL acceptance pending.
 
 ### Sales / wholesale / consignment
 - [x] Code: separate Sales and retail prices per product; server rejects Sales price above retail when retail master is positive; product price/MOQ changes log before/after. Acceptance tests pending.
-- [ ] Distributor/sales stock is tracked by person and location; consigned stock remains inventory owned by the business until sold (unless the contract/accounting policy explicitly defines otherwise).
-- [ ] Sales/distributor reporting uses the agreed sales price for units sold; approval is required before posting stock, receivable/cash, or journals.
-- [ ] Sales margin is computed separately from retail margin using HPP and the wholesale/sales price; do not add a sales commission by default.
-- [ ] Record separately: stock delivered to sales, units sold, units returned/unsold, payment remitted, outstanding receivable, and advances/unapplied payments.
-- [ ] Prevent unauthorized price edits and prevent applying retail pricing to sales channel or vice versa; record price snapshots on each transaction so later product-price changes do not rewrite history.
+- [x] Code: stock is tracked by distributor/location; consignment delivery is not a sale; approved sell-through posts stock/receivable/journal. Acceptance pending.
+- [x] Code: report price is derived from delivery price snapshots (weighted average), submitted reports await owner approval; approval posts ledger. Batch adjustment/acceptance pending.
+- [x] Code: channel audit separates Ecer/Sales gross profit and net contribution; no Sales commission is auto-added. Reconciliation/acceptance pending.
+- [x] Code: deliveries, approved reports, returns, remittances, allocations, receivable aging, and unapplied advances are separate records/views. Acceptance pending.
+- [x] Code: separate price fields, server price relationship guard, price snapshots, retail floor/override audit, and weighted Sales snapshots. Full batch-price reconciliation pending.
 - [x] Code implemented: retail cashier auto-fills master retail price; server requires a positive master retail price, rejects below-master prices without a 10-character reason, snapshots master price, and writes override audit-log entries. Migration 014 and CI/acceptance still pending.
 - [ ] Test partial sell-through, partial payment, returns, multiple delivery batches with different price snapshots, weighted-average Sales price, stock adjustments, price changes between delivery and reporting, rejected reports, and duplicate approvals.
 - [ ] Acceptance: apply migration 014 on isolated TiDB and test normal retail, zero master price, below-price no reason, below-price with reason, audit-log snapshot, and changed master price.
@@ -108,8 +108,8 @@ The application must support two separate price segments per product, with diffe
 - [x] Code implemented: owner can set per-SKU Sales MOQ; Sales reports below MOQ are server-blocked; historical MOQ snapshot is stored; multiple same-day reports for same Sales/SKU are surfaced as review signal. Migration 016 and CI/acceptance still pending.
 
 ### Required product and transaction data
-- [ ] Product has separate retail and sales/distributor prices (and HPP/cost basis); transactions snapshot channel, unit price, discount, HPP, and quantity.
-- [ ] Reports show quantities, revenue, HPP, gross margin/profit and outstanding balance separately by channel and combined.
+- [x] Code: product has separate channel prices and HPP; retail/distributor sale lines snapshot price/cost/qty. Discount policy and integration tests pending.
+- [x] Code: channel performance report shows units/revenue/HPP/gross/net contribution; remittance audit shows Sales receivables. Export and reconciliation acceptance pending.
 - [ ] Dashboard and exports reconcile to posted transactions and GL; margin must not count delivered consignment stock as a sale before it is reported sold and approved.
 
 **Acceptance rule:** the two price channels and their distinct margin/reporting behavior are a prelaunch blocker. Existing code must be audited and tested for complete support before approval; this checklist is a requirement, not proof of implementation.
@@ -120,20 +120,20 @@ The application must support two separate price segments per product, with diffe
 **Objective:** protect the higher retail margin from being bypassed by recording ordinary retail purchases under the sales/wholesale channel. Do not rely on AI guessing: implement deterministic, explainable server-side controls; AI may summarize patterns or flag anomalies but cannot override authorization or rule enforcement.
 
 ### Channel and identity checks
-- [ ] Retail transactions at store/warehouse checkout default to retail price/channel; sales price cannot be selected by an ordinary cashier for walk-in retail.
+- [x] Code: retail cashier has no Sales price/channel selector, defaults to master retail price, and server enforces a positive retail price and price floor. Acceptance pending.
 - [x] Code: Sales channel report requires authenticated distributor identity from active session/account; client cannot select distributor identity. Acceptance tests for inactive account/IDOR still pending.
-- [ ] Wholesale eligibility is server-validated for active distributor, per-SKU MOQ, price list, and role; area is a manual transparent label, not verified location. Effective-date MOQ and full location validation remain gaps.
-- [ ] A low-quantity transaction using sales price (example: 1–2 pcs) without a valid sales/distributor account is blocked. With verified account but below MOQ, block or route to explicit owner approval based on configurable policy; never silently allow.
+- [x] Code: authenticated active distributor, per-SKU MOQ and delivery price snapshots server-validated; area is manual/transparent. Effective-date MOQ and location verification remain gaps.
+- [x] Code: retail API is owner-only; Sales report requires authenticated distributor; below-MOQ reports are server-blocked. Policy-configurable owner approval is not implemented.
 - [x] Code: MOQ configurable per product/SKU and enforced per report item. Effective date, product-group MOQ, and order-level mixed-item policy are not implemented; migration 016 and tests pending.
 - [x] Code: multiple reports for the same distributor/date/SKU are flagged for review. Configurable lookback window, repeated orders across days, and false-positive acceptance tests remain pending.
-- [ ] Override requires owner/authorized approver, recorded reason, transaction evidence, and immutable audit trail; cashier cannot approve their own override.
+- [x] Code: retail below-price override requires owner auth and reason with audit log. Sales-channel price/shortage exception approval and evidence workflow remain gaps.
 
 ### Margin controls and monitoring
-- [ ] Do not require or display margin target percentages for now.
+- [x] Code: no product margin target/floor percentage; only contribution share percentage is reported, as requested.
 - [x] Code: owner sets separate retail and Sales prices per product; server rejects Sales price above retail when retail master is positive. Historical transaction snapshots are implemented; CI/acceptance pending.
 - [ ] Optional minimum permitted selling price per channel may be set as a nominal Rupiah amount (not percentage), if owner chooses to use this safeguard.
-- [ ] Profit reporting may show actual Rupiah gross profit (selling price minus HPP) per unit and transaction, without percentage targets.
-- [ ] Check transaction price against configured channel price and any nominal price floor. Unauthorized lower price blocks posting or requires owner approval; record reason and approver.
+- [x] Code: actual Rupiah gross profit per channel is reported from price/HPP snapshots; per-product/per-cashier drill-down pending.
+- [x] Code: retail price floor and owner override reason server-enforced/audited; Sales price relation and MOQ enforced. Nominal floor per channel and approver workflow pending.
 - [ ] Report margin by channel, product, cashier, sales/distributor, and time period; compare realized margin to target/floor and flag outliers, price overrides, repeated small orders, channel misclassification, and unusual discounts.
 - [ ] Alerts should distinguish hard rule violations (blocked, ineligible identity/MOQ, below authorized floor) from statistical anomalies (review needed); AI/anomaly detection may not automatically accuse users or alter transactions.
 - [ ] Validate margins on posted transactions and reconcile sales, HPP, inventory, receivable/cash, and GL; consignment stock delivery is not recognized as revenue until sell-through is approved under the accounting flow.
@@ -154,8 +154,8 @@ The application must support two separate price segments per product, with diffe
 
 ## 11. Separate cash accountability: retail vs sales remittances (critical)
 
-- [ ] Record cash receipts by source/channel: retail cash sales, distributor/sales remittances, and other receipts must have distinct ledger/accounting tags and report totals.
-- [ ] Retail cash receipts must not be allocated to sales/distributor remittance balances; sales remittances must not be recorded as retail checkout receipts.
+- [x] Code: retail receipts/refunds and verified Sales remittances are separate source categories and compared with GL. Other receipts and physical drawer tagging need acceptance.
+- [x] Code: retail and Sales receipt paths are separate and source audit cannot silently net one against the other. Acceptance pending.
 - [ ] Support cash drawer/session reconciliation by drawer, cashier, date/shift, and source category; optionally configure separate physical drawers/accounts where operationally used.
 - [ ] Opening cash, receipts, refunds, cash expenses, cash transfers, and closing counted cash must reconcile for each drawer/session and source category; prevent double-counting transfers between cash drawers/accounts.
 - [ ] Any variance (even small) is surfaced as a non-zero discrepancy with the specific source category, cashier/session, expected amount, counted amount, timestamp, and explanation/approval workflow. Do not silently net discrepancies between retail and sales categories.
@@ -174,12 +174,12 @@ The application must support two separate price segments per product, with diffe
 ### Field activity and suspicious immediate sales
 - [ ] Record each sales stock handover with sales/distributor identity, timestamp, items/quantities, agreed sales price snapshots, and accountable stock location (vehicle/bag/assigned stock).
 - [ ] Record sales-note creation/printing time, customer or outlet identity where practical, sale location where lawfully collected and enabled, item/quantity, and evidence/verification status.
-- [ ] Flag suspicious patterns for review: a sales note shortly after stock pickup, transaction location near the owner's store/warehouse, walk-in-like customer patterns, small/repeated transactions, or repeated overlap with retail customer activity.
+- [x] Code: rapid print request after matching handover, repeated same-day SKU reports and area/cannibalization signals are surfaced. Walk-in/customer identity/GPS overlap unavailable.
 - [ ] Use configurable risk signals/thresholds; avoid declaring misconduct from a single signal. Provide the timeline, reason(s) for flag, and review outcome.
 - [ ] Do not collect location data secretly; provide appropriate notice and restrict access/retention.
 
 ### Consignment-stock reconciliation and missing-stock charge
-- [ ] Reconcile per sales person and handover: stock carried = stock taken minus validated sell-through minus returns to warehouse minus authorized stock adjustments; physical count of remaining stock must match calculated balance.
+- [x] Code: audit shows delivered, approved sales, customer returns, pending reports, ledger balance, expected physical (ledger minus pending), and latest stock-opname variance. Dedicated return-to-warehouse workflow and shortage charge remain gaps.
 - [ ] Only approved/validated sales notes count as sell-through. A printed note alone is not conclusive proof; retain audit trail and validation/evidence appropriate to the policy.
 - [ ] Count returned/unsold stock at handover, and record return timestamp, quantity, condition, and warehouse receiving confirmation.
 - [ ] Any unexplained shortage is a separate exception with SKU/quantity, expected vs counted balance, handover, sales identity, and evidence; never silently write it off.
@@ -188,12 +188,12 @@ The application must support two separate price segments per product, with diffe
 - [ ] Support partial returns, partial sell-through, multiple handovers, and clear stock ownership/location cards.
 
 ### Sales-note proceeds and remittance deadline (lapping prevention)
-- [ ] Every validated sales note creates a traceable remittance obligation according to the agreed payment terms (due date/time, grace period, and recipient/account).
+- [x] Code: approved report creates invoice/receivable and due date; due date is owner-configurable at approval. Grace period and reminder notifications pending.
 - [ ] Record cash actually collected by sales from customers separately from sales-notes that are unpaid by customers (if customer credit is permitted); do not assume printed note equals cash collected.
-- [ ] Record remittance deposits/payments with timestamp, amount, bank/cash destination, proof/reference, submitter, and verifier; allocate against specific notes/obligations, not merely aggregate balances.
-- [ ] Show per sales person and per note: amount due, amount remitted, allocation, unapplied remittance, overdue amount, and age of outstanding balance.
+- [x] Code: payment submission/verification, timestamp, reference, destination, note allocations and unapplied amount are recorded. Acceptance pending.
+- [x] Code: remittance audit view shows per-note due/allocated/outstanding/age and payment history. Acceptance pending.
 - [ ] Alert before due, at due, and after overdue using configurable terms; escalation/hold on additional stock can be policy-configured and owner-authorized.
-- [ ] Detect lapping-risk patterns such as oldest notes left unpaid while newer remittances are allocated to newer notes, unexplained allocation changes, delayed posting, repeated partial deposits, deposit-reference reuse, and discrepancies between sales-note chronology, customer cash collection, and bank/cash receipt timestamps.
+- [x] Code: older unpaid notes with newer-note allocations are flagged. Collection-time, deposit-reference reuse, delayed posting and full lapping analytics remain gaps.
 - [ ] Remittance allocation must preserve history and require authorized reversal/correction; never allow silent reallocation or let new money automatically conceal older overdue obligations.
 - [ ] Sales cannot verify their own remittance or approve their own shortage/price exceptions; maintain immutable audit log for submit, approve, allocate, reverse, and investigate.
 - [ ] Reports reconcile sales notes, customer collections (if recorded), remittances, outstanding receivables, consignment stock, proposed missing-stock charges, cash/bank, and GL.
@@ -214,9 +214,9 @@ The application must support two separate price segments per product, with diffe
 **Objective:** transparently compare the business contribution of direct retail and field sales/consignment, and detect possible retail customer cannibalization. Use actual posted transaction data and explainable signals; AI summarizes and flags, but calculations and controls are deterministic.
 
 ### Profit and volume comparison
-- [ ] Provide weekly and monthly comparison, with custom date range, for retail vs sales channel.
+- [x] Code: custom date range supports weekly/monthly periods; owner selects dates.
 - [ ] Show units sold, revenue, HPP of units sold (using historical cost snapshots), gross profit in Rupiah, direct/transaction costs, allocated shared operating costs (allocation basis clearly disclosed), and net contribution in Rupiah.
-- [ ] Show each channel's share of combined contribution profit as a percentage only for contribution reporting; this is not a product margin target or pricing rule. If total contribution is zero/negative, clearly explain that percentages are undefined or misleading and show Rupiah amounts.
+- [x] Code: net contribution shares reported; if total net contribution is non-positive, shares are null and Rupiah totals remain. Acceptance pending.
 - [ ] Show channel contribution alongside units and revenue so high-volume, low-profit sales are not mistaken for higher profitability.
 - [ ] Explain how costs are categorized: direct channel costs, shared costs, unallocated costs. Never silently allocate shared costs; owner-configured allocation method and its basis must be visible, auditable, and reproducible.
 - [ ] Exclude pending, rejected, voided, and unposted transactions from official results; handle refunds/returns and corrections consistently and traceably.
