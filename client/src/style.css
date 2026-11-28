@@ -77,3 +77,5 @@
 @media(max-width:760px){.sidebar-brand-logo{max-width:205px}.login-brand-logo{width:min(100%,300px)}}
 
 .distributor-screen .form-actions{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin:12px 0}.distributor-screen .form-actions strong{font-size:13px;color:#173b68}.distributor-screen form .primary-button{margin-top:12px}.distributor-screen form .field input,.distributor-screen form .field select{min-height:42px}
+
+.review-detail{margin-top:10px;width:min(100%,780px);overflow-x:auto;border:1px solid #e6ebf2;border-radius:8px}.review-detail .product-table{min-width:620px}.review-detail .product-table th,.review-detail .product-table td{padding:8px 10px;font-size:11px}
