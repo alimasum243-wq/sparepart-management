@@ -1367,7 +1367,7 @@ app.post("/api/cash-accounts",async(req,res)=>{
     await conn.execute(`INSERT INTO accounts (account_code,account_name,account_type,is_active) VALUES (?,?, 'ASSET',1)`,[String(code),accountName]);
     const [a]=await conn.execute<RowDataPacket[]>(`SELECT id FROM accounts WHERE account_code=?`,[String(code)]);
     const [ca]=await conn.execute<ResultSetHeader>(`INSERT INTO cash_accounts (account_code,account_name,account_type,is_active,ledger_account_id,source_type) VALUES (?,?,?,1,?,?)`,[String(code),name,type,a[0].id,source]);
-    await conn.execute(`INSERT INTO audit_logs (user_id,action,entity_type,entity_id,description) VALUES (?,'CREATE','CASH_ACCOUNT',?,?)`,[(req as any).identity?.id||null,ca.insertId,`Akun ${type} ${name} dibuat; ledger ${code}`]);
+    await conn.execute(`INSERT INTO audit_logs (user_id,action,entity_type,entity_id,description) VALUES (?,'CREATE','CASH_ACCOUNT',?,?)`,[(req as any).identity?.id||null,ca.insertId,`Akun ${type} ${name} dibuat; sumber ${source}; ledger ${code}`]);
     await conn.commit();return res.status(201).json({ok:true,message:'Akun kas/bank dibuat.',id:ca.insertId,account_code:String(code)});
   }catch(e){await conn.rollback();return res.status(400).json({ok:false,message:e instanceof Error?e.message:'Gagal membuat akun kas/bank.'});}finally{conn.release();}
 });
