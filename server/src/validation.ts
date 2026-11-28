@@ -44,3 +44,5 @@ export const channelCostAllocationWithinSource = (sourceAmount:number,otherChann
 
 export const salesQuantityMeetsMoq = (quantity:number,minimum:number):boolean => Number.isFinite(quantity)&&Number.isFinite(minimum)&&quantity>0&&minimum>0&&quantity+0.0000001>=minimum;
 export const retailMasterPriceConfigured = (retailPrice:number):boolean => Number.isFinite(retailPrice)&&retailPrice>0;
+export const expectedPhysicalStockAfterPendingReports = (ledgerStock:number,pendingReportedSales:number):number => Math.round((ledgerStock-pendingReportedSales)*1000)/1000;
+export const stockOpnameVariance = (countedQuantity:number,systemQuantity:number):number => Math.round((countedQuantity-systemQuantity)*1000)/1000;
