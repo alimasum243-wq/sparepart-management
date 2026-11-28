@@ -11,11 +11,10 @@ import type { RowDataPacket, ResultSetHeader } from "mysql2";
 import type { PoolConnection } from "mysql2/promise";
 import { pool } from "./db.js";
 import distributorRouter, { authMiddleware, ownerMiddleware } from "./distributor.js";
-import { money2, isDateOnly, hasAtMost2Decimals, hasAtMost3Decimals, needsRetailPriceOverride, validRetailOverrideReason, salesQuantityMeetsMoq, retailMasterPriceConfigured, cashSessionExpectedClosing, cashSessionVariance, validCashSessionCount, validCashSessionCancelReason, validTransactionHistoryPagination, validCashAccountSource } from "./validation.js";
+import { money2, isDateOnly, hasAtMost2Decimals, hasAtMost3Decimals, needsRetailPriceOverride, validRetailOverrideReason, salesQuantityMeetsMoq, retailMasterPriceConfigured, cashSessionExpectedClosing, cashSessionVariance, validCashSessionCount, validCashSessionCancelReason, validTransactionHistoryPagination, validCashAccountSource, safeOperationalMessage } from "./validation.js";
 
 const app = express();
 const port = Number(process.env.PORT || 4000);
-const safeOperationalMessage=(error:unknown,fallback:string):string=>{if(error&&typeof error==='object'&&'code' in error)return fallback;return error instanceof Error?error.message:fallback;};
 const allowedOrigins = (process.env.CLIENT_ORIGIN || "http://localhost:5173").split(",").map(value => value.trim()).filter(Boolean);
 
 
