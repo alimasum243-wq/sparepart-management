@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { money2, isDateOnly, hasAtMost2Decimals, hasAtMost3Decimals, outstandingAmount, netChannelAuditMetrics, auditPercentageChange, possibleCannibalizationSignal, detectLappingRiskFlags, needsRetailPriceOverride, validRetailOverrideReason, channelNetContribution } from '../src/validation.js';
+import { money2, isDateOnly, hasAtMost2Decimals, hasAtMost3Decimals, outstandingAmount, netChannelAuditMetrics, auditPercentageChange, possibleCannibalizationSignal, detectLappingRiskFlags, needsRetailPriceOverride, validRetailOverrideReason, channelNetContribution, channelCostAllocationWithinSource } from '../src/validation.js';
 
 test('date validation accepts real ISO dates and rejects malformed dates',()=>{
   assert.equal(isDateOnly('2026-11-28'),true);
@@ -91,4 +91,12 @@ test('retail price floor requires auditable reason only below master price',()=>
 test('channel net contribution subtracts nominal allocated costs and shares only positive totals',()=>{
   assert.deepEqual(channelNetContribution(1500,2500,500,1000),{retail_net_contribution:1000,sales_net_contribution:1500,total_net_contribution:2500,retail_net_share:40,sales_net_share:60});
   assert.equal(channelNetContribution(100,100,200,100).retail_net_share,null);
+});
+
+
+test('channel expense allocation cannot exceed source expense amount',()=>{
+  assert.equal(channelCostAllocationWithinSource(1000,400,600),true);
+  assert.equal(channelCostAllocationWithinSource(1000,400,600.01),false);
+  assert.equal(channelCostAllocationWithinSource(1000,400,-1),false);
+  assert.equal(channelCostAllocationWithinSource(1000,400,1.001),false);
 });
