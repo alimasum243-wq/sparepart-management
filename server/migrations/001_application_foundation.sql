@@ -134,6 +134,7 @@ CREATE TABLE IF NOT EXISTS opening_balances (
 
 -- Existing stock_movements has a legacy created_by text column; backend needs the user-ID column too.
 ALTER TABLE stock_movements ADD COLUMN IF NOT EXISTS created_by_user_id BIGINT NULL;
+CREATE UNIQUE INDEX IF NOT EXISTS uq_supplier_invoice ON purchases (supplier_id,supplier_invoice_no);
 
 -- Add missing auth fields only when absent. Existing rows remain inactive unless explicitly activated.
 ALTER TABLE users ADD COLUMN IF NOT EXISTS username VARCHAR(50) NULL;
