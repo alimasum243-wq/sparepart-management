@@ -82,7 +82,7 @@ app.use("/api", distributorRouter);
 app.use("/api", authMiddleware, ownerMiddleware);
 
 // Master produk dan ringkasan stok.
-app.get("/api/products", async (_req, res) => {
+app.get("/api/products", authMiddleware, ownerMiddleware, async (_req, res) => {
   try {
     const [rows] = await pool.query<RowDataPacket[]>(
       `SELECT p.id, p.sku, p.product_name, p.unit, p.purchase_cost,
@@ -116,7 +116,7 @@ const productSchema = z.object({
   retail_price: z.number().nonnegative().max(1000000000).default(0)
 });
 
-app.post("/api/products", async (req, res) => {
+app.post("/api/products", authMiddleware, ownerMiddleware, async (req, res) => {
   const parsed = productSchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ ok: false, message: "Nama produk wajib diisi dan data harga harus benar." });
   const data = parsed.data;
@@ -134,7 +134,7 @@ app.post("/api/products", async (req, res) => {
   }
 });
 
-app.put("/api/products/:id", async (req, res) => {
+app.put("/api/products/:id", authMiddleware, ownerMiddleware, async (req, res) => {
   const id = Number(req.params.id);
   const parsed = productSchema.safeParse(req.body);
   if (!Number.isInteger(id) || id < 1 || !parsed.success) return res.status(400).json({ ok: false, message: "Data produk tidak valid." });
@@ -152,7 +152,7 @@ app.put("/api/products/:id", async (req, res) => {
   }
 });
 
-app.patch("/api/products/:id/status", async (req, res) => {
+app.patch("/api/products/:id/status", authMiddleware, ownerMiddleware, async (req, res) => {
   const id = Number(req.params.id);
   const active = req.body?.is_active;
   if (!Number.isInteger(id) || id < 1 || typeof active !== "boolean") return res.status(400).json({ ok: false, message: "Status produk tidak valid." });
@@ -166,7 +166,7 @@ app.patch("/api/products/:id/status", async (req, res) => {
 });
 
 // Data untuk formulir pembelian.
-app.get("/api/purchases/options", async (_req, res) => {
+app.get("/api/purchases/options", authMiddleware, ownerMiddleware, async (_req, res) => {
   try {
     const [suppliers] = await pool.query<RowDataPacket[]>(
       `SELECT id, supplier_code, supplier_name
@@ -210,7 +210,7 @@ const supplierSchema = z.object({
   supplier_code: z.string().trim().max(50).optional()
 });
 
-app.post("/api/suppliers", async (req, res) => {
+app.post("/api/suppliers", authMiddleware, ownerMiddleware, async (req, res) => {
   const parsed = supplierSchema.safeParse(req.body);
 
   if (!parsed.success) {
@@ -302,7 +302,7 @@ const purchaseSchema = z.object({
 });
 
 // Mencatat pembelian dan menerima barang ke gudang.
-app.post("/api/purchases", async (req, res) => {
+app.post("/api/purchases", authMiddleware, ownerMiddleware, async (req, res) => {
   const parsed = purchaseSchema.safeParse(req.body);
 
   if (!parsed.success) {
@@ -563,7 +563,7 @@ const expenseSchema = z.object({
   payment_method: z.enum(['CASH','BANK']).default('CASH')
 });
 // Kasir retail: harga jual dimasukkan manual pada setiap transaksi.
-app.get("/api/retail/options", async (_req, res) => {
+app.get("/api/retail/options", authMiddleware, ownerMiddleware, async (_req, res) => {
   try {
     const [products] = await pool.query<RowDataPacket[]>(
       `SELECT p.id,p.sku,p.product_name,p.unit,p.average_cost,p.purchase_cost,
@@ -590,7 +590,7 @@ app.get("/api/retail/options", async (_req, res) => {
   }
 });
 
-app.post("/api/retail/sales", async (req,res) => {
+app.post("/api/retail/sales", authMiddleware, ownerMiddleware, async (req,res) => {
   const saleDate=String(req.body?.sale_date||"");
   const cashAccountId=Number(req.body?.cash_account_id);
   const rawItems=req.body?.items;
@@ -681,7 +681,7 @@ app.post("/api/retail/sales", async (req,res) => {
   }finally{conn.release();}
 });
 
-app.post('/api/expenses', async (req,res) => {
+app.post('/api/expenses', authMiddleware, ownerMiddleware, async (req,res) => {
   const parsed = expenseSchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ok:false,message:'Data pengeluaran tidak valid.'});
   const data = parsed.data; const conn = await pool.getConnection();
@@ -704,7 +704,7 @@ app.post('/api/expenses', async (req,res) => {
 
 
 // Pembayaran utang pemasok: dapat dicicil dan dialokasikan ke beberapa faktur.
-app.get("/api/supplier-payments/outstanding", async (_req,res) => {
+app.get("/api/supplier-payments/outstanding", authMiddleware, ownerMiddleware, async (_req,res) => {
   try {
     const [rows] = await pool.query<RowDataPacket[]>(`
       SELECT p.id AS purchase_id,p.purchase_code,p.supplier_invoice_no,p.purchase_date,
@@ -731,7 +731,7 @@ app.get("/api/supplier-payments/outstanding", async (_req,res) => {
   }
 });
 
-app.post("/api/supplier-payments", async (req,res) => {
+app.post("/api/supplier-payments", authMiddleware, ownerMiddleware, async (req,res) => {
   const date=String(req.body?.payment_date||"");
   const supplierId=Number(req.body?.supplier_id);
   const cashAccountId=Number(req.body?.cash_account_id);
@@ -820,7 +820,7 @@ app.post("/api/supplier-payments", async (req,res) => {
 });
 
 // Ringkasan dashboard berbasis transaksi yang sudah diposting.
-app.get("/api/dashboard/summary", async (_req,res) => {
+app.get("/api/dashboard/summary", authMiddleware, ownerMiddleware, async (_req,res) => {
   try {
     const [retail]=await pool.query<RowDataPacket[]>(`SELECT COALESCE(SUM(total),0) total FROM retail_sales WHERE status='POSTED' AND sale_date=CURRENT_DATE()`);
     const [purchases]=await pool.query<RowDataPacket[]>(`SELECT COALESCE(SUM(grand_total),0) total FROM purchases WHERE status='POSTED' AND DATE_FORMAT(purchase_date,'%Y-%m')=DATE_FORMAT(CURRENT_DATE(),'%Y-%m')`);
@@ -845,7 +845,7 @@ app.get("/api/dashboard/summary", async (_req,res) => {
 
 
 /* RETUR PEMBELIAN DAN RETAIL: seluruh perubahan stok dan jurnal atomik. */
-app.get("/api/returns/options",async (_req,res)=>{
+app.get("/api/returns/options",authMiddleware,ownerMiddleware,async (_req,res)=>{
  try{
   const [purchases]=await pool.query<RowDataPacket[]>(`
    SELECT p.id,p.purchase_code,p.purchase_date,p.supplier_id,s.supplier_name,
@@ -880,7 +880,7 @@ app.get("/api/returns/options",async (_req,res)=>{
  }catch(error){console.error("Gagal memuat opsi retur:",error);res.status(500).json({ok:false,message:"Gagal memuat data faktur dan penjualan untuk retur. Pastikan migrasi 006 sudah dijalankan."});}
 });
 
-app.post("/api/returns/purchase",async(req,res)=>{
+app.post("/api/returns/purchase",authMiddleware,ownerMiddleware,async(req,res)=>{
  const purchaseId=Number(req.body?.purchase_id),date=String(req.body?.return_date||""),items=req.body?.items;
  if(!Number.isInteger(purchaseId)||purchaseId<1||!isDateOnly(date)||!Array.isArray(items)||!items.length||items.length>100)
   return res.status(400).json({ok:false,message:"Faktur, tanggal retur, dan rincian barang wajib diisi."});
@@ -942,7 +942,7 @@ app.post("/api/returns/purchase",async(req,res)=>{
  }catch(error){await conn.rollback();res.status(400).json({ok:false,message:error instanceof Error?error.message:"Retur pembelian gagal."});}finally{conn.release();}
 });
 
-app.post("/api/returns/retail-sale",async(req,res)=>{
+app.post("/api/returns/retail-sale",authMiddleware,ownerMiddleware,async(req,res)=>{
  const saleId=Number(req.body?.sale_id),date=String(req.body?.return_date||""),items=req.body?.items;
  if(!Number.isInteger(saleId)||saleId<1||!isDateOnly(date)||!Array.isArray(items)||!items.length||items.length>100)
   return res.status(400).json({ok:false,message:"Transaksi penjualan, tanggal retur, dan rincian barang wajib diisi."});
@@ -994,7 +994,7 @@ app.post("/api/returns/retail-sale",async(req,res)=>{
  }catch(error){await conn.rollback();res.status(400).json({ok:false,message:error instanceof Error?error.message:"Retur penjualan gagal."});}finally{conn.release();}
 });
 
-app.post("/api/returns/distributor-sale",async(req,res)=>{
+app.post("/api/returns/distributor-sale",authMiddleware,ownerMiddleware,async(req,res)=>{
  const reportId=Number(req.body?.sales_report_id),date=String(req.body?.return_date||""),items=req.body?.items;
  if(!Number.isInteger(reportId)||reportId<1||!isDateOnly(date)||!Array.isArray(items)||!items.length||items.length>100)
   return res.status(400).json({ok:false,message:"Laporan distributor, tanggal retur, dan rincian barang wajib diisi."});
@@ -1057,7 +1057,7 @@ app.post("/api/returns/distributor-sale",async(req,res)=>{
 });
 
 // Histori gabungan transaksi operasional.
-app.get("/api/transactions/history",async(req,res)=>{
+app.get("/api/transactions/history",authMiddleware,ownerMiddleware,async(req,res)=>{
  const from=String(req.query.from||"2000-01-01"),to=String(req.query.to||"2099-12-31");
  if(!isDateOnly(from)||!isDateOnly(to)||from>to)return res.status(400).json({ok:false,message:"Rentang tanggal tidak valid."});
  try{
@@ -1078,7 +1078,7 @@ app.get("/api/transactions/history",async(req,res)=>{
  }catch(error){console.error("Gagal memuat histori transaksi:",error);res.status(500).json({ok:false,message:"Gagal memuat histori transaksi."});}
 });
 
-app.get("/api/reports/operational",async(req,res)=>{
+app.get("/api/reports/operational",authMiddleware,ownerMiddleware,async(req,res)=>{
  const from=String(req.query.from||"2000-01-01"),to=String(req.query.to||"2099-12-31");
  if(!isDateOnly(from)||!isDateOnly(to)||from>to)return res.status(400).json({ok:false,message:"Rentang tanggal laporan tidak valid."});
  try{
