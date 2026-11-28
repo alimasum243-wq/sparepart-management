@@ -26,6 +26,7 @@ CREATE TABLE IF NOT EXISTS purchase_return_items (
   line_total DECIMAL(18,2) NOT NULL,
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   KEY idx_purchase_return_item_return (purchase_return_id),
+  UNIQUE KEY uq_purchase_return_item (purchase_return_id,purchase_item_id),
   KEY idx_purchase_return_item_purchase_item (purchase_item_id)
 );
 
@@ -57,6 +58,7 @@ CREATE TABLE IF NOT EXISTS retail_sale_return_items (
   cost_total DECIMAL(18,2) NOT NULL,
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   KEY idx_retail_sale_return_item_return (retail_sale_return_id),
+  UNIQUE KEY uq_retail_sale_return_item (retail_sale_return_id,retail_sale_item_id),
   KEY idx_retail_sale_return_item_sale_item (retail_sale_item_id)
 );
 
@@ -96,5 +98,11 @@ CREATE TABLE IF NOT EXISTS distributor_sales_return_items (
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   KEY idx_distributor_return_item_return (distributor_sales_return_id),
   KEY idx_distributor_return_item_report_item (sales_report_item_id),
+  UNIQUE KEY uq_distributor_return_item (distributor_sales_return_id,sales_report_item_id),
   KEY idx_distributor_return_item_report (sales_report_id)
 );
+
+-- Ensure unique return detail lines on existing tables.
+CREATE UNIQUE INDEX IF NOT EXISTS uq_purchase_return_item ON purchase_return_items (purchase_return_id,purchase_item_id);
+CREATE UNIQUE INDEX IF NOT EXISTS uq_retail_sale_return_item ON retail_sale_return_items (retail_sale_return_id,retail_sale_item_id);
+CREATE UNIQUE INDEX IF NOT EXISTS uq_distributor_return_item ON distributor_sales_return_items (distributor_sales_return_id,sales_report_item_id);
