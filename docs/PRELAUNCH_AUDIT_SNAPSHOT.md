@@ -4,7 +4,7 @@ Branch: `prelaunch/hardening-and-audit`
 Base: `main` at commit `685d1460d7d162ee38ea68c7f6249b7f7d50e091`
 Scope: active hardening and code review. No TiDB migration, production deployment, or real transaction has been executed.
 
-## Findings fixed in current branch (code checks verified on commit a14188fa)
+## Findings fixed in current branch (code checks verified on commit ee303873)
 
 1. Core business API owner authentication/authorization; distributor APIs enforce owner or distributor identity separately. Health checks remain public.
 2. Distributor payment submission/verification and sales approval use transaction locks; balances and stock reservations are protected from concurrent oversubscription.
@@ -27,7 +27,7 @@ Scope: active hardening and code review. No TiDB migration, production deploymen
 
 ## Verification and remaining blockers
 
-- **CI:** Commit `a14188fa` (latest code changes before documentation refresh) passed CI and Build/Type Check: unit tests, lint/static gate, typecheck and build. Documentation refresh triggers CI again. Cash reconciliation unit tests cover calculations/input validators; DB routes remain integration-test pending.
+- **CI:** Commit `ee303873` (latest code changes before documentation refresh) passed CI and Build/Type Check: unit tests, lint/static gate, typecheck and build. Documentation refresh triggers CI again. Cash reconciliation unit tests cover calculations/input validators; DB routes remain integration-test pending.
 - **TiDB compatibility:** Actual schema has not been read by this audit. User must compare every migration with SHOW CREATE TABLE; preflight duplicate username/email/phone, supplier invoice and invoice codes. No migration executed.
 - **Business integration:** Controlled acceptance testing needed for opening stock, purchase/HPP, retail, consignment, distributor approval/payment, returns, cash/bank, journal balance, balance sheet, concurrency, and rollback. No TiDB integration test.
 - **Automated coverage:** Unit tests cover validation helpers only. Business routes and DB concurrency are not covered by automated integration tests.
