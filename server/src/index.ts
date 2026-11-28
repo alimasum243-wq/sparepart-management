@@ -30,8 +30,9 @@ const assertAccountingPeriodOpen = async (conn:PoolConnection,date:string):Promi
   if(periods.some(p=>p.status==='CLOSED'))throw new Error('Periode akuntansi tanggal ini sudah ditutup. Posting transaksi tidak diperbolehkan.');
 };
 const assertCashBalance = async (conn:PoolConnection, ledgerAccountId:number, amount:number, label:string):Promise<void> => {
-  const [ledger]=await conn.execute<RowDataPacket[]>(`SELECT id FROM accounts WHERE id=? AND is_active=1 FOR UPDATE`,[ledgerAccountId]);
+  const [ledger]=await conn.execute<RowDataPacket[]>(`SELECT id,account_type FROM accounts WHERE id=? AND is_active=1 FOR UPDATE`,[ledgerAccountId]);
   if(!ledger.length)throw new Error(`Akun ledger kas/bank untuk ${label} tidak tersedia.`);
+  if(String(ledger[0].account_type).toUpperCase()!=='ASSET')throw new Error(`Akun ledger kas/bank untuk ${label} harus bertipe ASSET.`);
   const [rows]=await conn.execute<RowDataPacket[]>(`SELECT COALESCE(SUM(jl.debit-jl.credit),0) balance FROM journal_lines jl JOIN journal_entries je ON je.id=jl.journal_entry_id AND je.status='POSTED' WHERE jl.account_id=?`,[ledgerAccountId]);
   const balance=Number(rows[0]?.balance||0);
   if(!Number.isFinite(balance)||balance+0.009<amount) throw new Error(`Saldo ${label} tidak mencukupi. Saldo tersedia Rp${Math.max(0,balance).toLocaleString('id-ID')}.`);
