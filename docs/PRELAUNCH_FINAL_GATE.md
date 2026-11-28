@@ -253,3 +253,21 @@ The application must support two separate price segments per product, with diffe
 - [ ] Validate that every audit report reconciles to operational source records, inventory subledgers, receivables, cash/bank, and GL as applicable.
 
 **Acceptance rule:** auditability is a core product requirement. Before prelaunch, prove that each owner-defined audit can be run using captured data and traceable source evidence; otherwise implement the missing data capture/reporting or document the unresolved blocker for owner decision.
+
+## 15. Implementation progress against owner audit baseline (live code work; not acceptance)
+
+### Implemented in development branch — pending CI and database migration validation
+- [ ] CI/build/typecheck evidence is not yet recorded as passed for the latest implementation commit.
+- [x] Added migration 012 to capture optional transparent sales-area labels on distributor sales reports; no GPS collection is introduced.
+- [x] Sales/distributor portal form supports optional area label for audit context.
+- [x] Added owner-only channel-performance API and screen comparing posted retail sales with approved sales-channel reports, using HPP snapshots and netting posted returns.
+- [x] Added weekly/custom-range comparison with a previous equal-length period, nominal gross profit, channel contribution share, units/revenue changes, and configurable in-code threshold currently 20% for paired retail decline/sales rise signal.
+- [x] Added timing-risk query to flag reports created within 10 minutes after the latest stock handover record for the same sales account.
+- [x] Added owner-only remittance audit API and UI showing approved-note balances, allocations, due/overdue age, payment submissions and unapplied amounts; flags older unpaid notes when newer notes have allocations.
+- [ ] Net channel contribution after direct/shared operating-cost allocation is not implemented; current channel report is gross profit (net sales returns minus cost snapshots). This is a known blocker/gap, not completed profit-contribution analysis.
+- [ ] Sales area label is manually entered and optional; no verified geographic proximity to store/warehouse, GPS or retail customer location data. Cannibalization signal is correlation based on overall retail trends and optional exact area filter, not proof.
+- [ ] Lapping audit cannot compare cash-collection timestamp at end-customer level because the system does not yet capture when sales receives customer cash separately. Current allocation pattern is a limited risk signal only.
+- [ ] Migration 012 must be reviewed and owner-run in a test/isolated TiDB database before these endpoints can operate; do not execute in live database yet.
+- [ ] Add unit/integration tests for return netting, channel contribution, thresholds, report-to-handover timing, remittance allocation/lapping signals, and TiDB query compatibility.
+
+**Implementation status rule:** this section tracks code work only. No requirement in sections 1–14 is considered fully accepted by these changes. External DB migration, integration, security, reconciliation, and business acceptance evidence remain required.
