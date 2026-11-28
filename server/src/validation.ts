@@ -53,6 +53,8 @@ export const salesPriceFromStockSnapshots = (deliveryValue:number,approvedSalesV
 };
 export const consignmentReturnQtyWithinAvailable = (available:number,requested:number,alreadyReserved=0):boolean => Number.isFinite(available)&&Number.isFinite(requested)&&Number.isFinite(alreadyReserved)&&available>=0&&requested>0&&alreadyReserved>=0&&hasAtMost3Decimals(requested)&&hasAtMost3Decimals(alreadyReserved)&&requested+alreadyReserved<=available+0.0000001;
 export const validConsignmentReturnLine = (productId:number,quantity:number,condition:string):boolean => Number.isInteger(productId)&&productId>0&&Number.isFinite(quantity)&&quantity>0&&quantity<=1000000&&hasAtMost3Decimals(quantity)&&['GOOD','DAMAGED'].includes(condition);
+export const validCashSessionCount = (value:unknown):boolean => typeof value==='number'&&Number.isFinite(value)&&value>=0&&hasAtMost2Decimals(value);
+export const validCashSessionCancelReason = (value:unknown):boolean => typeof value==='string'&&value.trim().length>=10&&value.trim().length<=1000;
 export const cashSessionExpectedClosing = (systemOpening:number,postedNetMovement:number):number => money2(Number(systemOpening)+Number(postedNetMovement));
 export const cashSessionVariance = (countedClosing:number,expectedClosing:number):number => money2(Number(countedClosing)-Number(expectedClosing));
 export const rapidPrintWithinThreshold = (secondsAfterHandover:number,thresholdMinutes:number):boolean => Number.isFinite(secondsAfterHandover)&&Number.isFinite(thresholdMinutes)&&secondsAfterHandover>=0&&thresholdMinutes>=0&&secondsAfterHandover<=thresholdMinutes*60;
