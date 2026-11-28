@@ -156,7 +156,7 @@ app.post("/api/products", async (req, res) => {
       [sku, data.product_name, data.unit, data.purchase_cost, data.purchase_cost, data.purchase_cost, data.distributor_price, data.retail_price, data.min_stock, data.sales_moq]
     );
     await conn.execute(`INSERT INTO product_price_history (product_id,effective_date,purchase_cost,last_purchase_cost,average_cost,distributor_price,retail_price,source,changed_by_user_id) VALUES (?,CURRENT_DATE,?,?, ?,?,?, 'MANUAL',?)`,[result.insertId,data.purchase_cost,data.purchase_cost,data.purchase_cost,data.distributor_price,data.retail_price,(req as any).identity?.id||null]);
-    await conn.execute(`INSERT INTO audit_logs (user_id,action,entity_type,entity_id,description) VALUES (?,"CREATE","PRODUCT",?,?)`,[(req as any).identity?.id||null,result.insertId,`Produk dibuat: ${sku} - ${data.product_name}`]);
+    await conn.execute(`INSERT INTO audit_logs (user_id,action,entity_type,entity_id,description) VALUES (?,"CREATE","PRODUCT",?,?)`,[(req as any).identity?.id||null,result.insertId,`Produk dibuat: ${sku} - ${data.product_name}; harga Sales ${data.distributor_price}; harga Ecer ${data.retail_price}; MOQ ${data.sales_moq}`]);
     await conn.commit();
     res.status(201).json({ ok: true, message: "Produk berhasil ditambahkan.", product_id: result.insertId });
   } catch (error) {
@@ -174,6 +174,8 @@ app.put("/api/products/:id", async (req, res) => {
   const conn=await pool.getConnection();
   try {
     await conn.beginTransaction();
+    const [before]=await conn.execute<RowDataPacket[]>(`SELECT sales_moq,distributor_price,retail_price FROM products WHERE id=? AND is_active=1 FOR UPDATE`,[id]);
+    if(!before.length){await conn.rollback();return res.status(404).json({ok:false,message:'Produk tidak ditemukan atau nonaktif.'});}
     const sku = d.sku || `SKU-${Date.now()}-${randomUUID().slice(0, 4).toUpperCase()}`;
     const [result]=await conn.execute<ResultSetHeader>(
       `UPDATE products SET sku=?, product_name=?, unit=?, purchase_cost=?, distributor_price=?, retail_price=?, min_stock=?, sales_moq=? WHERE id=? AND is_active=1`,
@@ -183,7 +185,7 @@ app.put("/api/products/:id", async (req, res) => {
     const [current]=await conn.execute<RowDataPacket[]>(`SELECT purchase_cost,last_purchase_cost,average_cost,distributor_price,retail_price FROM products WHERE id=?`,[id]);
     await conn.execute(`INSERT INTO product_price_history (product_id,effective_date,purchase_cost,last_purchase_cost,average_cost,distributor_price,retail_price,source,changed_by_user_id) VALUES (?,CURRENT_DATE,?,?,?,?,?,'MANUAL',?)`,[id,current[0].purchase_cost,current[0].last_purchase_cost,current[0].average_cost,current[0].distributor_price,current[0].retail_price,(req as any).identity?.id||null]);
 
-    await conn.execute(`INSERT INTO audit_logs (user_id,action,entity_type,entity_id,description) VALUES (?,"UPDATE","PRODUCT",?,?)`,[(req as any).identity?.id||null,id,`Produk diperbarui: ${sku} - ${d.product_name}`]);
+    await conn.execute(`INSERT INTO audit_logs (user_id,action,entity_type,entity_id,description) VALUES (?,"UPDATE","PRODUCT",?,?)`,[(req as any).identity?.id||null,id,`Produk diperbarui: ${sku} - ${d.product_name}; harga Sales ${before[0].distributor_price} -> ${d.distributor_price}; harga Ecer ${before[0].retail_price} -> ${d.retail_price}; MOQ ${before[0].sales_moq} -> ${d.sales_moq}`]);
     await conn.commit();
     res.json({ ok: true, message: "Produk berhasil diperbarui." });
   } catch (error) {
