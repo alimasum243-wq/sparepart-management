@@ -874,7 +874,7 @@ app.get("/api/balance-sheet",async(req,res)=>{
   try{
     const [rows]=await pool.execute<RowDataPacket[]>(`SELECT a.id,a.account_code,a.account_name,a.account_type,COALESCE(SUM(jl.debit),0) debit,COALESCE(SUM(jl.credit),0) credit FROM accounts a LEFT JOIN journal_lines jl ON jl.account_id=a.id LEFT JOIN journal_entries je ON je.id=jl.journal_entry_id AND je.status='POSTED' AND je.journal_date<=? WHERE a.is_active=1 GROUP BY a.id,a.account_code,a.account_name,a.account_type ORDER BY a.account_code`,[asOf]);
     const assets=rows.filter((a:any)=>a.account_type==='ASSET').map((a:any)=>({...a,balance:Number(a.debit)-Number(a.credit)}));
-    const liabilities=rows.filter((a:any)=>a.account_type==='LIABILITY').map((a:any)=>({...a,balance:Number(a.credit)-Number(a.debit)});
+    const liabilities=rows.filter((a:any)=>a.account_type==='LIABILITY').map((a:any)=>({...a,balance:Number(a.credit)-Number(a.debit)}));
     const equity=rows.filter((a:any)=>a.account_type==='EQUITY').map((a:any)=>({...a,balance:Number(a.credit)-Number(a.debit)});
     const revenue=rows.filter((a:any)=>a.account_type==='REVENUE').reduce((s:number,a:any)=>s+Number(a.credit)-Number(a.debit),0);
     const expense=rows.filter((a:any)=>a.account_type==='EXPENSE').reduce((s:number,a:any)=>s+Number(a.debit)-Number(a.credit),0);
