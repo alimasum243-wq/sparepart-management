@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { money2, isDateOnly, hasAtMost2Decimals, hasAtMost3Decimals, outstandingAmount, netChannelAuditMetrics, auditPercentageChange, possibleCannibalizationSignal, detectLappingRiskFlags, needsRetailPriceOverride, validRetailOverrideReason } from '../src/validation.js';
+import { money2, isDateOnly, hasAtMost2Decimals, hasAtMost3Decimals, outstandingAmount, netChannelAuditMetrics, auditPercentageChange, possibleCannibalizationSignal, detectLappingRiskFlags, needsRetailPriceOverride, validRetailOverrideReason, channelNetContribution } from '../src/validation.js';
 
 test('date validation accepts real ISO dates and rejects malformed dates',()=>{
   assert.equal(isDateOnly('2026-11-28'),true);
@@ -85,4 +85,10 @@ test('retail price floor requires auditable reason only below master price',()=>
   assert.equal(validRetailOverrideReason('Promo clearance'),true);
   assert.equal(validRetailOverrideReason('short'),false);
   assert.equal(validRetailOverrideReason('x'.repeat(501)),false);
+});
+
+
+test('channel net contribution subtracts nominal allocated costs and shares only positive totals',()=>{
+  assert.deepEqual(channelNetContribution(1500,2500,500,1000),{retail_net_contribution:1000,sales_net_contribution:1500,total_net_contribution:2500,retail_net_share:40,sales_net_share:60});
+  assert.equal(channelNetContribution(100,100,200,100).retail_net_share,null);
 });
