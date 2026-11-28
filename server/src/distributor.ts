@@ -2,7 +2,7 @@ import { Router, type Request, type Response, type NextFunction } from 'express'
 import { createHmac, randomBytes, scryptSync, timingSafeEqual } from 'node:crypto';
 import type { RowDataPacket, ResultSetHeader } from 'mysql2';
 import { pool } from './db.js';
-import { money2, isDateOnly, hasAtMost2Decimals, hasAtMost3Decimals, netChannelAuditMetrics, auditPercentageChange, possibleCannibalizationSignal, detectLappingRiskFlags, channelNetContribution } from './validation.js';
+import { money2, isDateOnly, hasAtMost2Decimals, hasAtMost3Decimals, netChannelAuditMetrics, auditPercentageChange, possibleCannibalizationSignal, detectLappingRiskFlags, channelNetContribution, channelCostAllocationWithinSource } from './validation.js';
 
 const router = Router();
 // Basic per-process throttling for sensitive auth endpoints. Production deployments
@@ -290,7 +290,7 @@ router.post('/admin/audit/channel-costs',authMiddleware,ownerMiddleware,async(re
   if(!expenses.length)throw new Error('Pengeluaran posted tidak ditemukan.');
   const [allocs]=await conn.execute<RowDataPacket[]>(`SELECT channel,allocation_amount FROM channel_cost_allocations WHERE expense_id=? FOR UPDATE`,[expenseId]);
   const current=Number(allocs.find(a=>String(a.channel)===channel)?.allocation_amount||0),other=allocs.filter(a=>String(a.channel)!==channel).reduce((sum,a)=>sum+Number(a.allocation_amount||0),0);
-  if(other+amount>Number(expenses[0].amount)+0.009)throw new Error('Total alokasi Ecer dan Sales tidak boleh melebihi nilai pengeluaran sumber.');
+  if(!channelCostAllocationWithinSource(Number(expenses[0].amount),other,amount))throw new Error('Total alokasi Ecer dan Sales tidak boleh melebihi nilai pengeluaran sumber; nominal harus dua desimal.');
   await conn.execute(`INSERT INTO channel_cost_allocations (expense_id,channel,allocation_amount,allocation_note,created_by_user_id,updated_by_user_id) VALUES (?,?,?,?,?,?) ON DUPLICATE KEY UPDATE allocation_amount=VALUES(allocation_amount),allocation_note=VALUES(allocation_note),updated_by_user_id=VALUES(updated_by_user_id)`,[expenseId,channel,amount,note||null,req.identity!.id,req.identity!.id]);
   await conn.execute(`INSERT INTO audit_logs (user_id,action,entity_type,entity_id,description) VALUES (?,'ALLOCATE','CHANNEL_COST',?,?)`,[req.identity!.id,expenseId,`Alokasi biaya ${expenses[0].expense_code} ${channel}: ${current} -> ${amount}; sumber ${expenses[0].amount}; catatan: ${note||'—'}`]);
   await conn.commit();return res.json({ok:true,message:'Alokasi biaya kanal tersimpan; tidak mengubah jurnal akuntansi.'});
