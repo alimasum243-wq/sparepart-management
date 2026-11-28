@@ -22,7 +22,8 @@ Scope: active hardening and code review. No TiDB migration, production deploymen
 14. Dashboard inventory valuation and monthly net profit; pending sales/payment approval badges.
 15. Accounting COA, trial balance, journal register, balanced manual journals, accounting-period locks, as-of balance sheet, current earnings in equity, and print/PDF reports.
 16. Distributor password reset revokes all previous sessions.
-17. Aging piutang and unapplied receipts, product price history, stock cards per location with print-to-PDF, CSV aging export.\n18. Cash/bank physical reconciliation sessions: system opening, physical opening and variance, posted journal-line movement, expected closing, counted closing, closing variance; audited cancellation; no automatic journal (migration 020).
+17. Aging piutang and unapplied receipts, product price history, stock cards per location with print-to-PDF, CSV aging export.
+18. Cash/bank physical reconciliation sessions: system opening, physical opening and variance, posted journal-line movement, expected closing, counted closing, closing variance; audited cancellation; no automatic journal (migration 020).
 
 ## Verification and remaining blockers
 
