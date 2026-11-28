@@ -27,6 +27,7 @@ Bukti pembayaran saat ini disimpan sebagai nomor referensi atau tautan, belum un
 2. Pastikan tabel fondasi yang sudah ada sesuai kebutuhan aplikasi: `users`, `products`, `suppliers`, `stock_locations`, `stock_movements`, `purchases`, `purchase_items`, `supplier_payments`, `supplier_payment_allocations`, `accounts`, `cash_accounts`, `journal_entries`, `journal_lines`, dan `expenses`. Periksa dengan `SHOW CREATE TABLE`; jangan menebak.
 3. Jalankan `server/migrations/003_distributor_accounting.sql` satu statement setiap kali. Periksa skema sebelum menjalankan ALTER yang mungkin sudah ada.
 4. Jalankan `server/migrations/004_user_login_identifiers.sql`; sebelum membuat unique index, periksa email/phone duplikat yang sudah terisi. Kolom nullable memungkinkan akun lama tetap tanpa email/phone.
+   Preflight: `SELECT LOWER(TRIM(email)),COUNT(*) FROM users WHERE email IS NOT NULL AND TRIM(email)<>'' GROUP BY LOWER(TRIM(email)) HAVING COUNT(*)>1;` dan `SELECT TRIM(phone),COUNT(*) FROM users WHERE phone IS NOT NULL AND TRIM(phone)<>'' GROUP BY TRIM(phone) HAVING COUNT(*)>1;`. Jika hasil ada, jangan lanjut sebelum duplikat diselesaikan.
 5. Jalankan `server/migrations/004_cost_columns.sql`; sekarang memakai `ADD COLUMN IF NOT EXISTS`.
 6. Jalankan `server/migrations/005_supplier_payment_allocations.sql`; menambahkan `supplier_payments.posted_at` dan memastikan tabel alokasi tersedia.
 7. Jalankan `server/migrations/006_returns_history_reports.sql` satu statement setiap kali.
