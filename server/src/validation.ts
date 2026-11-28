@@ -50,3 +50,4 @@ export const salesPriceFromStockSnapshots = (deliveryValue:number,approvedSalesV
   const stockValue=money2(deliveryValue-approvedSalesValue+returnsValue-pendingSalesValue);
   return Number.isFinite(stockValue)&&Number.isFinite(availableQuantity)&&availableQuantity>0?money2(stockValue/availableQuantity):0;
 };
+export const rapidPrintWithinThreshold = (secondsAfterHandover:number,thresholdMinutes:number):boolean => Number.isFinite(secondsAfterHandover)&&Number.isFinite(thresholdMinutes)&&secondsAfterHandover>=0&&thresholdMinutes>=0&&secondsAfterHandover<=thresholdMinutes*60;
