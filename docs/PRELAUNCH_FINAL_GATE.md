@@ -319,7 +319,7 @@ The application must support two separate price segments per product, with diffe
 
 ### Date-range reports for investor/owner
 - [x] P&L/operational report: custom date range CSV and browser print/PDF with selected period, generated timestamp, P&L, channel nominal contribution, transaction summary and GL summary.
-- [x] Transaction history: custom range CSV and print/PDF with source IDs/types; currently API limit 1,000 rows.
+- [x] Transaction history: paginated API/UI (500 rows/page), custom range; CSV fetches all pages up to 100,000 rows and fails visibly above cap; PDF fetches up to 5,000 rows and labels truncation.
 - [x] Distributor receivable aging: CSV and print/PDF, as-of snapshot (not a date-range sales report).
 - [x] Cash reconciliation session history: custom date range and CSV export; no PDF report yet.
 - [ ] Every applicable owner report supports a custom date range (start/end), plus useful presets (today, this week, this month, previous month, custom), and clearly states the selected period, generated timestamp, and filter scope.
@@ -351,7 +351,7 @@ The application must support two separate price segments per product, with diffe
 - [ ] Unified investor report coverage remains partial: inventory valuation/card, payables/receivables aging, cash-source/session reconciliation, balance sheet/trial balance and detailed audit/approval drill-down are separate modules or incomplete in the unified export. Pending/posted separation and source-to-GL reconciliation require acceptance.
 - [x] Latest CI, typecheck and build evidence exists on commit 5814218; later retail-reprint changes require latest-head verification. No deployment or TiDB changes.
 
-- [x] Histori transaksi: custom range CSV and browser print/Save-as-PDF now include period, generated timestamp, and transaction rows. API is currently capped at 1,000 rows; this cap must be addressed before reliable export for high volume.
+- [x] Histori transaksi: custom range CSV and browser print/Save-as-PDF now include period, generated timestamp, and transaction rows. History now uses pagination; CSV export fetches all pages up to 100,000 and refuses to silently truncate above that, while PDF is capped at 5,000 with a visible note. Test high-volume pagination/exports and ordering.
 
 - [x] Aging piutang distributor: CSV and browser print/Save-as-PDF now include bucket summary, open invoice details, due date, overdue age, and report timestamp. Aging is an as-of snapshot, not a date-range sales report.
 
