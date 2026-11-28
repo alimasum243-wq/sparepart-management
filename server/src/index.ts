@@ -926,6 +926,7 @@ app.post("/api/returns/purchase",async(req,res)=>{
    const amount=Math.round(item.quantity*Number(line.unit_cost)*100)/100;
    total=Math.round((total+amount)*100)/100;prepared.push({...item,line,amount});
   }
+  if(!Number.isFinite(total)||total>9000000000000000)throw new Error('Total retur pembelian melebihi batas nominal sistem.');
   // Returns reduce supplier payable. Do not post a credit to payable beyond its open balance.
   const [payableBalance]=await conn.execute<RowDataPacket[]>(`
    SELECT p.grand_total-COALESCE(a.paid_total,0)-COALESCE(r.returned_total,0) outstanding
@@ -988,6 +989,7 @@ app.post("/api/returns/retail-sale",async(req,res)=>{
    const costLine=Math.round(item.quantity*Number(line.unit_cost)*100)/100;
    refund=Math.round((refund+refundLine)*100)/100;cost=Math.round((cost+costLine)*100)/100;prepared.push({...item,line,refundLine,costLine});
   }
+  if(!Number.isFinite(refund)||refund>9000000000000000||!Number.isFinite(cost)||cost>9000000000000000)throw new Error('Total retur penjualan melebihi batas nominal sistem.');
   const code=`RJ-${Date.now()}-${randomUUID().slice(0,6).toUpperCase()}`;
   const [ret]=await conn.execute<ResultSetHeader>(`INSERT INTO retail_sale_returns (return_code,retail_sale_id,return_date,refund_total,cost_total,status,notes) VALUES (?,?,?, ?,?,'POSTED',?)`,[code,saleId,date,refund,cost,String(req.body?.notes||"").slice(0,500)||null]);
   for(let i=0;i<prepared.length;i++){
