@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { money2, isDateOnly, hasAtMost2Decimals, hasAtMost3Decimals, outstandingAmount, netChannelAuditMetrics, auditPercentageChange, possibleCannibalizationSignal } from '../src/validation.js';
+import { money2, isDateOnly, hasAtMost2Decimals, hasAtMost3Decimals, outstandingAmount, netChannelAuditMetrics, auditPercentageChange, possibleCannibalizationSignal, detectLappingRiskFlags } from '../src/validation.js';
 
 test('date validation accepts real ISO dates and rejects malformed dates',()=>{
   assert.equal(isDateOnly('2026-11-28'),true);
@@ -59,4 +59,19 @@ test('cannibalization signal requires paired retail drop and sales rise',()=>{
   assert.equal(possibleCannibalizationSignal(-25,10,-25,30),true);
   assert.equal(possibleCannibalizationSignal(-25,10,-25,10),false);
   assert.equal(possibleCannibalizationSignal(null,40,-25,40),true);
+});
+
+
+test('lapping audit finds older unpaid note against newer allocated note within selected period',()=>{
+  const flags=detectLappingRiskFlags([
+    {id:1,report_code:'OLD-1',distributor_id:7,distributor_name:'Sales A',report_date:'2026-10-01',due_date:'2026-10-02',outstanding:500,allocated_total:0},
+    {id:2,report_code:'NEW-2',distributor_id:7,distributor_name:'Sales A',report_date:'2026-11-10',due_date:'2026-11-11',outstanding:0,allocated_total:200},
+    {id:3,report_code:'OTHER',distributor_id:8,distributor_name:'Sales B',report_date:'2026-11-10',outstanding:400,allocated_total:0}
+  ],'2026-11-01','2026-11-30');
+  assert.equal(flags.length,1);assert.equal(flags[0].older_report_code,'OLD-1');assert.equal(flags[0].newer_report_code,'NEW-2');
+});
+
+test('lapping audit does not flag if no newer report allocation in selected range',()=>{
+  const flags=detectLappingRiskFlags([{id:1,report_code:'OLD',distributor_id:1,distributor_name:'Sales',report_date:'2026-01-01',outstanding:300,allocated_total:0},{id:2,report_code:'NEW',distributor_id:1,distributor_name:'Sales',report_date:'2026-02-01',outstanding:100,allocated_total:0}], '2026-02-01','2026-02-28');
+  assert.equal(flags.length,0);
 });
