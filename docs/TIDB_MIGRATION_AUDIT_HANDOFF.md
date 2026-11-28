@@ -89,6 +89,6 @@ This is a preparation/checklist document. It does not certify application readin
 
 ## Migration 025 — new audit gap tables (not applied)
 - `distributor_shortage_claims` / `_items`: distributor claim with optional delivery linkage, evidence reference, review status, approved quantities, HPP snapshots, approved charge and settlement fields. Claim approval is review metadata only; it does not post stock, AR, or GL.
-- `bank_statement_imports` / `bank_statement_rows`: normalized bank statement batches/rows, fingerprint duplicate controls, unmatched/matched state, linked journal and reviewer audit. Matching does not create or edit journal entries.
+- `bank_statement_imports` / `bank_statement_rows`: normalized bank statement batches/rows, fingerprint duplicate controls, unmatched/matched state, linked journal and reviewer audit. Matching does not create or edit journal entries. A unique matched-journal index prevents one posted journal from being matched to multiple statement rows.
 - API/UI code has been added on the audit branch. Owner must preflight schema in `sparepart_db`, apply migration 025 only when reviewed, and then test on isolated synthetic data before production.
 - No SQL has been executed by the coding agent.
