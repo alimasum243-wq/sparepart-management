@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { money2, isDateOnly, hasAtMost2Decimals, hasAtMost3Decimals, outstandingAmount, netChannelAuditMetrics, auditPercentageChange, possibleCannibalizationSignal, detectLappingRiskFlags, needsRetailPriceOverride, validRetailOverrideReason, channelNetContribution, channelCostAllocationWithinSource, salesQuantityMeetsMoq, retailMasterPriceConfigured, expectedPhysicalStockAfterPendingReports, stockOpnameVariance } from '../src/validation.js';
+import { money2, isDateOnly, hasAtMost2Decimals, hasAtMost3Decimals, outstandingAmount, netChannelAuditMetrics, auditPercentageChange, possibleCannibalizationSignal, detectLappingRiskFlags, needsRetailPriceOverride, validRetailOverrideReason, channelNetContribution, channelCostAllocationWithinSource, salesQuantityMeetsMoq, retailMasterPriceConfigured, expectedPhysicalStockAfterPendingReports, stockOpnameVariance, salesPriceFromStockSnapshots } from '../src/validation.js';
 
 test('date validation accepts real ISO dates and rejects malformed dates',()=>{
   assert.equal(isDateOnly('2026-11-28'),true);
@@ -123,4 +123,10 @@ test('consignment expected physical stock subtracts submitted pending sales and 
   assert.equal(expectedPhysicalStockAfterPendingReports(2,5),-3);
   assert.equal(stockOpnameVariance(8,10),-2);
   assert.equal(stockOpnameVariance(10.333,10),0.333);
+});
+
+
+test('Sales price uses weighted delivery snapshots net of approved, returned and pending reports',()=>{
+  assert.equal(salesPriceFromStockSnapshots(22000,5500,1100,1100,150),110);
+  assert.equal(salesPriceFromStockSnapshots(0,0,0,0,0),0);
 });
