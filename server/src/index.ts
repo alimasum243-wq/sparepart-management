@@ -697,7 +697,7 @@ app.post("/api/retail/sales", async (req,res) => {
          VALUES (?,?,?,?,?,?,?,?,?,?)`,
         [sale.insertId,item.productId,item.productName,item.quantity,item.unitPrice,item.unitCost,item.lineTotal,item.lineCost,item.retailPriceSnapshot,item.overrideReason||null]
       );
-      if(item.overrideReason&&item.retailPriceSnapshot>0&&item.unitPrice<item.retailPriceSnapshot){await conn.execute(`INSERT INTO audit_logs (user_id,action,entity_type,entity_id,description) VALUES (?,'PRICE_OVERRIDE','RETAIL_SALE_ITEM',?,?)`,[(req as any).identity?.id||null,sale.insertId,`Override harga retail ${item.productName}; harga master ${item.retailPriceSnapshot}; harga transaksi ${item.unitPrice}; alasan: ${item.overrideReason}`]);}
+      if(item.overrideReason&&item.retailPriceSnapshot>0&&item.unitPrice<item.retailPriceSnapshot){await conn.execute(`INSERT INTO audit_logs (user_id,action,entity_type,entity_id,description) VALUES (?,'PRICE_OVERRIDE','RETAIL_SALE',?,?)`,[(req as any).identity?.id||null,sale.insertId,`Override harga retail ${item.productName}; harga master ${item.retailPriceSnapshot}; harga transaksi ${item.unitPrice}; alasan: ${item.overrideReason}`]);}
       await conn.execute(
         `INSERT INTO stock_movements (movement_code,product_id,from_location_id,to_location_id,movement_type,quantity,unit_cost,reference_type,reference_id,note,created_by_user_id)
          VALUES (?, ?, ?, NULL, 'RETAIL_SALE_OUT', ?, ?, 'RETAIL_SALE', ?, ?, ?)`,
