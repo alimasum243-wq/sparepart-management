@@ -758,6 +758,7 @@ app.post("/api/supplier-payments", async (req,res) => {
     return res.status(400).json({ok:false,message:"Rincian alokasi tidak valid atau faktur tercantum lebih dari sekali."});
   }
   const total=Math.round(normalized.reduce((sum:number,x:any)=>sum+x.amount,0)*100)/100;
+  if(total>9999999999999.99)return res.status(400).json({ok:false,message:'Total pembayaran melebihi batas nominal sistem.'});
   const conn=await pool.getConnection();
   try {
     await conn.beginTransaction();
