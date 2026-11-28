@@ -17,6 +17,7 @@ const port = Number(process.env.PORT || 4000);
 const allowedOrigins = (process.env.CLIENT_ORIGIN || "http://localhost:5173").split(",").map(value => value.trim()).filter(Boolean);
 
 
+const money2 = (n:number):number => Math.round((Number(n)+Number.EPSILON)*100)/100;
 const getWarehouseLocationId = async (conn:PoolConnection):Promise<number> => {
   const [rows]=await conn.execute<RowDataPacket[]>(`SELECT id FROM stock_locations WHERE location_type='WAREHOUSE' AND is_active=1 ORDER BY id FOR UPDATE`);
   if(rows.length!==1) throw new Error('Harus ada tepat satu gudang aktif; dukungan multi-gudang belum tersedia.');
