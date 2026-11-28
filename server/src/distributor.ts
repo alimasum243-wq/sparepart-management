@@ -233,7 +233,36 @@ router.post('/admin/sales-reports/:id/reject',authMiddleware,ownerMiddleware,asy
  }finally{conn.release();}
 });
 
-router.post('/distributor/payments',authMiddleware,distributor,async(req:AuthedRequest,res)=>{const {payment_date,amount,payment_method,proof_reference,notes}=req.body||{};if(!/^\d{4}-\d{2}-\d{2}$/.test(payment_date||'')||!(Number(amount)>0))return res.status(400).json({ok:false,message:'Tanggal dan nominal pembayaran wajib benar.'});try{const distributorId=req.identity!.distributorId!;const [sales]=await pool.execute<RowDataPacket[]>(`SELECT COALESCE(SUM(i.line_total),0)-COALESCE((SELECT SUM(x.total) FROM distributor_sales_returns x WHERE x.distributor_id=? AND x.status='POSTED'),0) total FROM distributor_sales_reports r JOIN distributor_sales_report_items i ON i.report_id=r.id WHERE r.distributor_id=? AND r.status='APPROVED'`,[distributorId,distributorId]);const [paid]=await pool.execute<RowDataPacket[]>(`SELECT COALESCE(SUM(amount),0) total FROM distributor_payment_submissions WHERE distributor_id=? AND status IN ('VERIFIED','PENDING')`,[distributorId]);const outstanding=money2(Number(sales[0].total)-Number(paid[0].total));if(Number(amount)>outstanding) return res.status(400).json({ok:false,message:`Nominal melebihi sisa tagihan. Sisa yang dapat dilaporkan: Rp${outstanding.toLocaleString('id-ID')}.`});const paymentCode=code('BYR');const [r]=await pool.execute<ResultSetHeader>(`INSERT INTO distributor_payment_submissions (submission_code,distributor_id,payment_date,amount,payment_method,proof_reference,notes,status,submitted_by_user_id) VALUES (?,?,?,?,?,?,?,'PENDING',?)`,[paymentCode,distributorId,payment_date,money2(Number(amount)),payment_method||'TRANSFER',proof_reference||null,notes||null,req.identity!.id]);return res.status(201).json({ok:true,message:'Bukti pembayaran terkirim dan menunggu verifikasi pemilik.',submission:{id:r.insertId,submission_code:paymentCode,status:'PENDING'}});}catch(e){return res.status(500).json({ok:false,message:e instanceof Error?e.message:'Gagal mengirim pembayaran.'});}});
+router.post('/distributor/payments',authMiddleware,distributor,async(req:AuthedRequest,res)=>{
+ const {payment_date,amount,payment_method,proof_reference,notes}=req.body||{};
+ const paymentAmount=Number(amount);
+ if(!/^\\d{4}-\\d{2}-\\d{2}$/.test(payment_date||'')||!Number.isFinite(paymentAmount)||paymentAmount<=0||Math.round(paymentAmount*100)!==paymentAmount*100)
+  return res.status(400).json({ok:false,message:'Tanggal dan nominal pembayaran wajib benar (nominal maksimal 2 angka desimal).'});
+ const conn=await pool.getConnection();
+ try{
+  await conn.beginTransaction();
+  const distributorId=req.identity!.distributorId!;
+  // Serialize balance checks for this distributor to prevent concurrent submissions exceeding receivables.
+  const [locked]=await conn.execute<RowDataPacket[]>(`SELECT id FROM distributors WHERE id=? AND is_active=1 FOR UPDATE`,[distributorId]);
+  if(!locked.length)throw new Error('Distributor tidak aktif atau tidak ditemukan.');
+  const [sales]=await conn.execute<RowDataPacket[]>(`SELECT
+   COALESCE((SELECT SUM(i.line_total) FROM distributor_sales_reports r JOIN distributor_sales_report_items i ON i.report_id=r.id WHERE r.distributor_id=? AND r.status='APPROVED'),0)
+   -COALESCE((SELECT SUM(x.total) FROM distributor_sales_returns x WHERE x.distributor_id=? AND x.status='POSTED'),0) total`,[distributorId,distributorId]);
+  const [paid]=await conn.execute<RowDataPacket[]>(`SELECT COALESCE(SUM(amount),0) total FROM distributor_payment_submissions WHERE distributor_id=? AND status IN ('VERIFIED','PENDING')`,[distributorId]);
+  const outstanding=money2(Number(sales[0].total)-Number(paid[0].total));
+  if(outstanding<=0||paymentAmount>outstanding){
+   await conn.rollback();
+   return res.status(400).json({ok:false,message:`Nominal melebihi sisa tagihan. Sisa yang dapat dilaporkan: Rp${Math.max(0,outstanding).toLocaleString('id-ID')}.`});
+  }
+  const paymentCode=code('BYR');
+  const [r]=await conn.execute<ResultSetHeader>(`INSERT INTO distributor_payment_submissions (submission_code,distributor_id,payment_date,amount,payment_method,proof_reference,notes,status,submitted_by_user_id) VALUES (?,?,?,?,?,?,?,'PENDING',?)`,[paymentCode,distributorId,payment_date,money2(paymentAmount),payment_method||'TRANSFER',proof_reference||null,notes||null,req.identity!.id]);
+  await conn.commit();
+  return res.status(201).json({ok:true,message:'Bukti pembayaran terkirim dan menunggu verifikasi pemilik.',submission:{id:r.insertId,submission_code:paymentCode,status:'PENDING'}});
+ }catch(e){
+  await conn.rollback();
+  return res.status(500).json({ok:false,message:e instanceof Error?e.message:'Gagal mengirim pembayaran.'});
+ }finally{conn.release();}
+});
 router.get('/admin/payments',authMiddleware,ownerMiddleware,async(_req,res)=>{const [rows]=await pool.query<RowDataPacket[]>(`SELECT p.*,d.distributor_name FROM distributor_payment_submissions p JOIN distributors d ON d.id=p.distributor_id ORDER BY p.created_at DESC`);res.json({ok:true,payments:rows});});
 router.post('/admin/payments/:id/verify',authMiddleware,ownerMiddleware,async(req:AuthedRequest,res)=>{const conn=await pool.getConnection();try{await conn.beginTransaction();const [rows]=await conn.execute<RowDataPacket[]>(`SELECT * FROM distributor_payment_submissions WHERE id=? AND status='PENDING' FOR UPDATE`,[Number(req.params.id)]);if(!rows.length)throw new Error('Pembayaran tidak ditemukan atau sudah diproses.');const p=rows[0];
 const paymentAmount=money2(Number(p.amount));
