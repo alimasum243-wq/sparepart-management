@@ -960,6 +960,8 @@ app.post("/api/returns/retail-sale",async(req,res)=>{
     FROM retail_sale_items si WHERE si.id=? AND si.sale_id=? FOR UPDATE`,[item.saleItemId,saleId]);
    if(!rows.length)throw new Error("Barang bukan bagian dari transaksi penjualan yang dipilih.");
    const line=rows[0],remaining=Number(line.quantity)-Number(line.returned_qty);
+   const [productLock]=await conn.execute<RowDataPacket[]>(`SELECT id FROM products WHERE id=? FOR UPDATE`,[line.product_id]);
+   if(!productLock.length)throw new Error('Produk retur tidak ditemukan.');
    if(item.quantity>remaining+0.000001)throw new Error(`Jumlah retur ${line.product_name_snapshot} melebihi sisa yang dapat diretur (${remaining}).`);
    const refundLine=Math.round(item.quantity*Number(line.unit_price)*100)/100;
    const costLine=Math.round(item.quantity*Number(line.unit_cost)*100)/100;
