@@ -926,7 +926,7 @@ app.get("/api/stock-card/options",async(_req,res)=>{
   }catch{return res.status(500).json({ok:false,message:'Opsi kartu stok gagal dimuat.'});}
 });
 app.get("/api/stock-card",async(req,res)=>{
-  const productId=Number(req.query.product_id),locationId=Number(req.query.location_id),from=String(req.query.from||'2000-01-01'),to=String(req.query.to||today());
+  const productId=Number(req.query.product_id),locationId=Number(req.query.location_id),from=String(req.query.from||'2000-01-01'),to=String(req.query.to||new Date().toISOString().slice(0,10));
   if(!Number.isInteger(productId)||productId<1||!Number.isInteger(locationId)||locationId<1||!isDateOnly(from)||!isDateOnly(to)||from>to)return res.status(400).json({ok:false,message:'Produk, lokasi, atau rentang tanggal kartu stok tidak valid.'});
   try{
     const [product]=await pool.execute<RowDataPacket[]>(`SELECT id,sku,product_name,unit FROM products WHERE id=?`,[productId]);
