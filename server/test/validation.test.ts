@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { money2, isDateOnly, hasAtMost2Decimals, hasAtMost3Decimals, outstandingAmount, netChannelAuditMetrics, auditPercentageChange, possibleCannibalizationSignal, detectLappingRiskFlags, needsRetailPriceOverride, validRetailOverrideReason, channelNetContribution, channelCostAllocationWithinSource } from '../src/validation.js';
+import { money2, isDateOnly, hasAtMost2Decimals, hasAtMost3Decimals, outstandingAmount, netChannelAuditMetrics, auditPercentageChange, possibleCannibalizationSignal, detectLappingRiskFlags, needsRetailPriceOverride, validRetailOverrideReason, channelNetContribution, channelCostAllocationWithinSource, salesQuantityMeetsMoq } from '../src/validation.js';
 
 test('date validation accepts real ISO dates and rejects malformed dates',()=>{
   assert.equal(isDateOnly('2026-11-28'),true);
@@ -99,4 +99,12 @@ test('channel expense allocation cannot exceed source expense amount',()=>{
   assert.equal(channelCostAllocationWithinSource(1000,400,600.01),false);
   assert.equal(channelCostAllocationWithinSource(1000,400,-1),false);
   assert.equal(channelCostAllocationWithinSource(1000,400,1.001),false);
+});
+
+
+test('sales report quantity meets configured per-product MOQ',()=>{
+  assert.equal(salesQuantityMeetsMoq(5,5),true);
+  assert.equal(salesQuantityMeetsMoq(4.999,5),false);
+  assert.equal(salesQuantityMeetsMoq(1,1),true);
+  assert.equal(salesQuantityMeetsMoq(0,1),false);
 });
