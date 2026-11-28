@@ -26,7 +26,7 @@ Scope: active hardening and code review. No TiDB migration, production deploymen
 - **TiDB compatibility:** compare every migration with actual schema using `SHOW CREATE TABLE`; preflight duplicate username/email/phone and supplier invoice numbers. DB schema has not been read by this audit.
 - **Stock/HPP/accounting:** test opening stock, purchase, retail sale, consignment, distributor sales, payments, returns, rollback, concurrent requests, journal balancing, cash/bank, P&L, and reconciliation with controlled test data.
 - **Automated tests:** repository workflows currently lint/typecheck/build; no verified business-logic/integration test suite is present. Add or run acceptance tests.
-- **Feature gaps:** balance sheet, manual journal, opening-balance entry UI, cash/bank reconciliation, stock opname, multi-warehouse, refund of settled purchase/distributor transactions, password change/reset, and user/distributor lifecycle management remain unfinished or need specification.
+- **Feature gaps:** capital/prive and cash/bank transfer workflow, opening-balance entry/cutover, unapplied receipt, invoice due-date/aging, price history, period close, alerts/dashboard drill-down, PDF exports, multi-warehouse, refund of settled purchase/distributor transactions, password change/reset, and user/distributor lifecycle management remain unfinished or need specification.
 - **Operations:** test backup/restore, production secrets, monitoring, deployment, and recovery plan.
 
 ## Constraints
