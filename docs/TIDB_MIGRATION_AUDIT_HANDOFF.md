@@ -36,6 +36,16 @@ This document is the handoff gate between application hardening and the user's m
 6. **App compatibility report**: endpoint/UI feature mapped to required schema.
 7. **Operational safety**: backup confirmation, credentials safety, transaction limitations for DDL, and how to stop if a statement fails.
 
+## Current migration status note (important)
+The user has confirmed completion of the 11 migration checks they previously reported (including 017 after column verification and 018). That does **not** verify the newer migration files 019–024. Before final database handoff, check each of these against the actual `sparepart_db` schema and run only missing, preflight-approved statements:
+- 019 consignment delivery print audit
+- 020 cash reconciliation sessions
+- 021 retail receipt print audit
+- 022 cash account source type
+- 023 distributor sales-report print event audit
+- 024 single distributor login unique index (duplicate preflight is mandatory)
+No migration SQL was executed by the coding agent.
+
 ## Additional migrations created during hardening
 - `018_distributor_consignment_returns.sql`: unsold consignment return request tables. Pending requests do not post stock; owner approval posts movement.
 - `019_consignment_delivery_print_audit.sql`: audited print/reprint requests for distributor delivery notes.
