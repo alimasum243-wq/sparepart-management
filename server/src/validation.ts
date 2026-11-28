@@ -46,3 +46,7 @@ export const salesQuantityMeetsMoq = (quantity:number,minimum:number):boolean =>
 export const retailMasterPriceConfigured = (retailPrice:number):boolean => Number.isFinite(retailPrice)&&retailPrice>0;
 export const expectedPhysicalStockAfterPendingReports = (ledgerStock:number,pendingReportedSales:number):number => Math.round((ledgerStock-pendingReportedSales)*1000)/1000;
 export const stockOpnameVariance = (countedQuantity:number,systemQuantity:number):number => Math.round((countedQuantity-systemQuantity)*1000)/1000;
+export const salesPriceFromStockSnapshots = (deliveryValue:number,approvedSalesValue:number,returnsValue:number,pendingSalesValue:number,availableQuantity:number):number => {
+  const stockValue=money2(deliveryValue-approvedSalesValue+returnsValue-pendingSalesValue);
+  return Number.isFinite(stockValue)&&Number.isFinite(availableQuantity)&&availableQuantity>0?money2(stockValue/availableQuantity):0;
+};
