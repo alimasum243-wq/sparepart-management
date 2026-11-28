@@ -161,3 +161,46 @@ The application must support two separate price segments per product, with diffe
 - [ ] Test retail cash shortage with sales-remittance surplus and vice versa: discrepancies must remain separately visible and must not cancel each other out.
 
 **Acceptance rule:** channel/source-specific cash accountability and discrepancy detection are critical prelaunch controls. AI may help explain or flag patterns, but deterministic ledger reconciliation is the source of truth.
+
+
+## 12. Sales field accountability: consignment, sell-through, and remittance timing (critical)
+
+**Objective:** sales-channel pricing is conditional on legitimate field selling and accountable consignment stock. These controls must be deterministic and server-enforced; AI is an assistant for pattern detection, not a source of proof or authority.
+
+### Field activity and suspicious immediate sales
+- [ ] Record each sales stock handover with sales/distributor identity, timestamp, items/quantities, agreed sales price snapshots, and accountable stock location (vehicle/bag/assigned stock).
+- [ ] Record sales-note creation/printing time, customer or outlet identity where practical, sale location where lawfully collected and enabled, item/quantity, and evidence/verification status.
+- [ ] Flag suspicious patterns for review: a sales note shortly after stock pickup, transaction location near the owner's store/warehouse, walk-in-like customer patterns, small/repeated transactions, or repeated overlap with retail customer activity.
+- [ ] Use configurable risk signals/thresholds; avoid declaring misconduct from a single signal. Provide the timeline, reason(s) for flag, and review outcome.
+- [ ] Do not collect location data secretly; provide appropriate notice and restrict access/retention.
+
+### Consignment-stock reconciliation and missing-stock charge
+- [ ] Reconcile per sales person and handover: stock carried = stock taken minus validated sell-through minus returns to warehouse minus authorized stock adjustments; physical count of remaining stock must match calculated balance.
+- [ ] Only approved/validated sales notes count as sell-through. A printed note alone is not conclusive proof; retain audit trail and validation/evidence appropriate to the policy.
+- [ ] Count returned/unsold stock at handover, and record return timestamp, quantity, condition, and warehouse receiving confirmation.
+- [ ] Any unexplained shortage is a separate exception with SKU/quantity, expected vs counted balance, handover, sales identity, and evidence; never silently write it off.
+- [ ] Contract/policy may make missing units chargeable at the agreed sales price. Calculate proposed charge as missing quantity × applicable sales-price snapshot, show it separately from ordinary sales receivables, and require documented review/approval or dispute handling before final posting.
+- [ ] Damaged, lost, disputed, or adjusted units require reason, evidence where available, authorized approval, and stock/accounting correction entry; no self-approval by sales or cashier.
+- [ ] Support partial returns, partial sell-through, multiple handovers, and clear stock ownership/location cards.
+
+### Sales-note proceeds and remittance deadline (lapping prevention)
+- [ ] Every validated sales note creates a traceable remittance obligation according to the agreed payment terms (due date/time, grace period, and recipient/account).
+- [ ] Record cash actually collected by sales from customers separately from sales-notes that are unpaid by customers (if customer credit is permitted); do not assume printed note equals cash collected.
+- [ ] Record remittance deposits/payments with timestamp, amount, bank/cash destination, proof/reference, submitter, and verifier; allocate against specific notes/obligations, not merely aggregate balances.
+- [ ] Show per sales person and per note: amount due, amount remitted, allocation, unapplied remittance, overdue amount, and age of outstanding balance.
+- [ ] Alert before due, at due, and after overdue using configurable terms; escalation/hold on additional stock can be policy-configured and owner-authorized.
+- [ ] Detect lapping-risk patterns such as oldest notes left unpaid while newer remittances are allocated to newer notes, unexplained allocation changes, delayed posting, repeated partial deposits, deposit-reference reuse, and discrepancies between sales-note chronology, customer cash collection, and bank/cash receipt timestamps.
+- [ ] Remittance allocation must preserve history and require authorized reversal/correction; never allow silent reallocation or let new money automatically conceal older overdue obligations.
+- [ ] Sales cannot verify their own remittance or approve their own shortage/price exceptions; maintain immutable audit log for submit, approve, allocate, reverse, and investigate.
+- [ ] Reports reconcile sales notes, customer collections (if recorded), remittances, outstanding receivables, consignment stock, proposed missing-stock charges, cash/bank, and GL.
+
+### Required acceptance tests
+- [ ] Sales picks up stock and creates a suspiciously immediate note near store: alert shows explainable signals, but no automatic accusation or penalty.
+- [ ] Handover 100 units, validated sell-through 35, returned 50, physical count 12: shortage of 3 is identified; proposed charge uses agreed sales-price snapshot and remains reviewable.
+- [ ] Printed/invalid/unapproved note does not reduce accountable stock or create final posted receivable.
+- [ ] Sales note with collection/remittance due terms: due-date reminders and overdue alert work; receipt can be allocated to specific note(s).
+- [ ] New remittance cannot silently cover a newer note while older note remains overdue; allocation changes are authorized and logged, lapping-risk flags visible.
+- [ ] Partial sales, partial returns, partial remittances, advances/unapplied amounts, disputed shortage, and authorized corrections reconcile without duplicate stock/receivable/cash/journal postings.
+- [ ] Sales account cannot self-approve notes, deposits, stock adjustments, shortages, or exceptions; unauthorized requests are blocked server-side.
+
+**Acceptance rule:** field-sales accountability, validated sell-through, missing-stock handling, and remittance/lapping controls are critical prelaunch blockers. Checklist items are requirements only until code implementation and test evidence are verified.
