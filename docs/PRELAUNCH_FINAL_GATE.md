@@ -156,7 +156,7 @@ The application must support two separate price segments per product, with diffe
 
 - [x] Code: retail receipts/refunds and verified Sales remittances are separate source categories and compared with GL. Other receipts and physical drawer tagging need acceptance.
 - [x] Code: retail and Sales receipt paths are separate and source audit cannot silently net one against the other. Acceptance pending.
-- [x] Support cash/bank opening and closing count sessions per account, with expected closing from posted GL movement during session, and variance recorded without auto-journal (migration 020).
+- [x] Support cash/bank opening and closing count sessions per account, with expected closing from posted journal-line movement during session, and variance recorded without auto-journal (migration 020).
 - [ ] Extend cashier/source-category attribution and validate multiple physical drawers and transfer edge cases.
 - [ ] Acceptance test session expected movement includes receipts/refunds, cash expenses, purchases, supplier payments, transfers, verified distributor remittances, and opening journals; transfers must not double-count, and cashier/source categories must be traced separately.
 - [ ] Any variance (even small) is surfaced as a non-zero discrepancy with the specific source category, cashier/session, expected amount, counted amount, timestamp, and explanation/approval workflow. Do not silently net discrepancies between retail and sales categories.
@@ -292,7 +292,7 @@ The application must support two separate price segments per product, with diffe
 
 ### Cash-source audit implementation progress
 - [x] Added owner-only cash-source reconciliation API and screen: retail receipts/refunds and verified sales remittances are compared to their posted cash/bank journal source per account and date.
-- [x] Physical cash/bank sessions added (migration 020): opening count, posted GL movement during session, expected closing, counted closing, variance; no automatic journal. Pending latest CI and acceptance review.
+- [x] Physical cash/bank sessions added (migration 020): opening count, posted journal-line movement during session, expected closing, counted closing, variance; no automatic journal. Pending latest CI and acceptance review.
 - [ ] Cashier/source-category-specific drawer attribution and edge-case validation for transfers, expense/purchase/supplier payment, refunds, and verified remittances remain outstanding.
 
 ### Retail price floor audit implementation progress
