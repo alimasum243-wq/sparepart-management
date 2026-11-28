@@ -770,7 +770,7 @@ app.post("/api/supplier-payments", async (req,res) => {
     );
     if(!supplier.length) throw new Error("Pemasok tidak ditemukan atau tidak aktif.");
     const [cash]=await conn.execute<RowDataPacket[]>(
-      `SELECT id,account_type FROM cash_accounts WHERE id=? AND is_active=1 FOR UPDATE`,[cashAccountId]
+      `SELECT ca.id,ca.account_type,COALESCE(ca.ledger_account_id,a.id) ledger_id FROM cash_accounts ca LEFT JOIN accounts a ON a.account_code=IF(UPPER(ca.account_type)='BANK','1110','1100') AND a.is_active=1 WHERE ca.id=? AND ca.is_active=1 FOR UPDATE`,[cashAccountId]
     );
     if(!cash.length) throw new Error("Akun kas/bank tidak aktif atau tidak ditemukan.");
     const accountCode=String(cash[0].account_type).toUpperCase()==="BANK"?"1110":"1100";
@@ -778,9 +778,7 @@ app.post("/api/supplier-payments", async (req,res) => {
     const [payable]=await conn.execute<RowDataPacket[]>(
       `SELECT id FROM accounts WHERE account_code='2100' AND is_active=1 LIMIT 1`
     );
-    const [cashLedger]=await conn.execute<RowDataPacket[]>(
-      `SELECT id FROM accounts WHERE account_code=? AND is_active=1 LIMIT 1`,[accountCode]
-    );
+    const cashLedger=[{id:Number(cash[0].ledger_id)}];
     if(!payable.length||!cashLedger.length) throw new Error("Akun utang pemasok atau kas/bank belum tersedia.");
     let lockedTotal=0;
     for(const item of normalized) {
