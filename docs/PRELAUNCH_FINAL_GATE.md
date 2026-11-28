@@ -58,7 +58,7 @@
 - [ ] Test no-auth, owner, admin (if enabled), and distributor access for all API routes.
 - [ ] Distributor A cannot access B data through altered IDs, URLs, or bodies.
 - [ ] Verify session revocation on logout, reset, deactivation, role/distributor changes.
-- [ ] Bootstrap setup is one-time, rate-limited, and disabled after owner setup.
+- [ ] Bootstrap setup is one-time, rate-limited, and disabled after owner setup. Code correction: initial owner bootstrap now writes an audit-log entry in the same transaction; controlled auth tests pending.
 - [ ] Verify validation, parameterized SQL, safe errors, and sensitive-data redaction.
 - [ ] Verify secrets are absent from repository; production TLS/secure cookies configured.
 - [ ] Audit logs exist for create/edit/approve/reject/post/void/adjust and are protected.
