@@ -42,7 +42,7 @@ export default function App() {
   if(!token||!user)return <Login onLogin={login} error={authError} apiStatus={apiStatus}/>
   if(user.role==='DISTRIBUTOR')return <DistributorPortal token={token} user={user} onLogout={logout}/>
   return <div className="shell">
-    <aside className={`sidebar ${menuOpen?'open':''}`}><div className="brand"><div className="brand-wordmark"><strong>SPAREPART</strong><b>ENZONIC</b></div><small>Solusi Suku Cadang Kompor Terpercaya</small></div><button className="mobile-close" onClick={()=>setMenuOpen(false)} aria-label="Tutup menu"><X size={20}/></button></div>
+    <aside className={`sidebar ${menuOpen?'open':''}`}><div className="brand"><div className="brand-lockup"><div className="brand-wordmark"><strong>SPAREPART</strong><b>ENZONIC</b></div><small>Solusi Suku Cadang Kompor Terpercaya</small></div><button className="mobile-close" onClick={()=>setMenuOpen(false)} aria-label="Tutup menu"><X size={20}/></button></div>
       <div className="nav-caption">MENU UTAMA</div><nav>{nav.map(item=>{const Icon=item.icon;return <button key={item.label} className={`nav-item ${active===item.label?'selected':''}`} onClick={()=>{setActive(item.label);setMenuOpen(false)}}><Icon size={18}/><span>{item.label}</span>{active===item.label&&<ChevronRight size={16} className="nav-arrow"/>}</button>})}</nav>
       <div className="sidebar-bottom"><ShieldCheck size={16}/><span>Masuk sebagai pemilik</span></div></aside>
     {menuOpen&&<button className="scrim" onClick={()=>setMenuOpen(false)} aria-label="Tutup navigasi"/>}
