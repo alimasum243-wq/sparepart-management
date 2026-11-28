@@ -88,14 +88,14 @@ Record date/time, tester, commit SHA, environment/TiDB version, steps or SQL, ex
 The application must support two separate price segments per product, with different margin structures:
 
 ### Direct retail (owner sells directly to end customer)
-- [ ] Store a retail price per product (editable, with audit trail).
+- [x] Code: retail price per product is editable; price, Sales price, and MOQ before/after values are recorded in product audit log. Acceptance testing still pending.
 - [ ] Retail sale uses this price by default; no wholesale discount or sales commission is applied.
 - [ ] Retail margin/profit reporting uses actual selling price minus applicable HPP and transaction costs, not a fixed assumed margin.
 - [ ] Any price override/discount is permission-controlled, reason-recorded, and audited.
 - [ ] Retail stock is deducted from the warehouse location at transaction posting; sales, cash/receivable, HPP, and inventory journal entries reconcile.
 
 ### Sales / wholesale / consignment
-- [ ] Store a separate sales/distributor price per product, lower than retail by default; allow owner to set the relationship and validate or warn if sales price is not lower.
+- [x] Code: separate Sales and retail prices per product; server rejects Sales price above retail when retail master is positive; product price/MOQ changes log before/after. Acceptance tests pending.
 - [ ] Distributor/sales stock is tracked by person and location; consigned stock remains inventory owned by the business until sold (unless the contract/accounting policy explicitly defines otherwise).
 - [ ] Sales/distributor reporting uses the agreed sales price for units sold; approval is required before posting stock, receivable/cash, or journals.
 - [ ] Sales margin is computed separately from retail margin using HPP and the wholesale/sales price; do not add a sales commission by default.
