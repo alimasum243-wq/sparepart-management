@@ -11,7 +11,7 @@ import type { RowDataPacket, ResultSetHeader } from "mysql2";
 import type { PoolConnection } from "mysql2/promise";
 import { pool } from "./db.js";
 import distributorRouter, { authMiddleware, ownerMiddleware } from "./distributor.js";
-import { money2, isDateOnly, hasAtMost2Decimals, hasAtMost3Decimals, needsRetailPriceOverride, validRetailOverrideReason } from "./validation.js";
+import { money2, isDateOnly, hasAtMost2Decimals, hasAtMost3Decimals, needsRetailPriceOverride, validRetailOverrideReason, salesQuantityMeetsMoq } from "./validation.js";
 
 const app = express();
 const port = Number(process.env.PORT || 4000);
@@ -99,7 +99,7 @@ app.get("/api/products", async (_req, res) => {
   try {
     const [rows] = await pool.query<RowDataPacket[]>(
       `SELECT p.id, p.sku, p.product_name, p.unit, p.purchase_cost,
-              p.distributor_price, p.retail_price, p.min_stock, p.is_active,
+              p.distributor_price, p.retail_price, p.min_stock, p.sales_moq, p.is_active,
               COALESCE(st.stock_qty, 0) AS stock_qty
        FROM products p
        LEFT JOIN (
@@ -127,8 +127,9 @@ const productSchema = z.object({
   purchase_cost: z.number().nonnegative().max(1000000000).refine(v=>hasAtMost2Decimals(v)).default(0),
   distributor_price: z.number().nonnegative().max(1000000000).refine(v=>hasAtMost2Decimals(v)).default(0),
   retail_price: z.number().nonnegative().max(1000000000).refine(v=>hasAtMost2Decimals(v)).default(0),
-  min_stock: z.number().nonnegative().max(1000000).refine(v=>hasAtMost3Decimals(v)).default(0)
-});
+  min_stock: z.number().nonnegative().max(1000000).refine(v=>hasAtMost3Decimals(v)).default(0),
+  sales_moq: z.number().positive().max(1000000).refine(v=>hasAtMost3Decimals(v)).default(1)
+}).superRefine((data,ctx)=>{if(data.retail_price>0&&data.distributor_price>data.retail_price)ctx.addIssue({code:z.ZodIssueCode.custom,path:['distributor_price'],message:'Harga Sales tidak boleh lebih tinggi dari harga Ecer jika harga Ecer sudah diisi.'});});
 
 app.get("/api/products/:id/price-history",async(req,res)=>{
   const id=Number(req.params.id);
@@ -150,9 +151,9 @@ app.post("/api/products", async (req, res) => {
   try {
     await conn.beginTransaction();
     const [result] = await conn.execute<ResultSetHeader>(
-      `INSERT INTO products (sku, product_name, unit, purchase_cost, last_purchase_cost, average_cost, distributor_price, retail_price, min_stock, is_active)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1)`,
-      [sku, data.product_name, data.unit, data.purchase_cost, data.purchase_cost, data.purchase_cost, data.distributor_price, data.retail_price, data.min_stock]
+      `INSERT INTO products (sku, product_name, unit, purchase_cost, last_purchase_cost, average_cost, distributor_price, retail_price, min_stock, sales_moq, is_active)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)`,
+      [sku, data.product_name, data.unit, data.purchase_cost, data.purchase_cost, data.purchase_cost, data.distributor_price, data.retail_price, data.min_stock, data.sales_moq]
     );
     await conn.execute(`INSERT INTO product_price_history (product_id,effective_date,purchase_cost,last_purchase_cost,average_cost,distributor_price,retail_price,source,changed_by_user_id) VALUES (?,CURRENT_DATE,?,?, ?,?,?, 'MANUAL',?)`,[result.insertId,data.purchase_cost,data.purchase_cost,data.purchase_cost,data.distributor_price,data.retail_price,(req as any).identity?.id||null]);
     await conn.execute(`INSERT INTO audit_logs (user_id,action,entity_type,entity_id,description) VALUES (?,"CREATE","PRODUCT",?,?)`,[(req as any).identity?.id||null,result.insertId,`Produk dibuat: ${sku} - ${data.product_name}`]);
@@ -175,8 +176,8 @@ app.put("/api/products/:id", async (req, res) => {
     await conn.beginTransaction();
     const sku = d.sku || `SKU-${Date.now()}-${randomUUID().slice(0, 4).toUpperCase()}`;
     const [result]=await conn.execute<ResultSetHeader>(
-      `UPDATE products SET sku=?, product_name=?, unit=?, purchase_cost=?, distributor_price=?, retail_price=?, min_stock=? WHERE id=? AND is_active=1`,
-      [sku, d.product_name, d.unit, d.purchase_cost, d.distributor_price, d.retail_price, d.min_stock, id]
+      `UPDATE products SET sku=?, product_name=?, unit=?, purchase_cost=?, distributor_price=?, retail_price=?, min_stock=?, sales_moq=? WHERE id=? AND is_active=1`,
+      [sku, d.product_name, d.unit, d.purchase_cost, d.distributor_price, d.retail_price, d.min_stock, d.sales_moq, id]
     );
     if(!result.affectedRows){await conn.rollback();return res.status(404).json({ok:false,message:"Produk tidak ditemukan atau nonaktif."});}
     const [current]=await conn.execute<RowDataPacket[]>(`SELECT purchase_cost,last_purchase_cost,average_cost,distributor_price,retail_price FROM products WHERE id=?`,[id]);
