@@ -294,13 +294,10 @@ app.post("/api/suppliers", async (req, res) => {
   } catch (error) {
     await connection.rollback();
     console.error("Gagal menambahkan pemasok:", error);
-
-    return res.status(500).json({
+    const duplicate=(error as {code?:string})?.code==='ER_DUP_ENTRY';
+    return res.status(duplicate?409:500).json({
       ok: false,
-      message:
-        error instanceof Error
-          ? error.message
-          : "Terjadi kesalahan saat menambahkan pemasok."
+      message:duplicate?"Kode pemasok sudah digunakan.":error instanceof Error?error.message:"Terjadi kesalahan saat menambahkan pemasok."
     });
   } finally {
     connection.release();
