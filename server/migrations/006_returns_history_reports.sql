@@ -60,8 +60,9 @@ CREATE TABLE IF NOT EXISTS retail_sale_return_items (
   KEY idx_retail_sale_return_item_sale_item (retail_sale_item_id)
 );
 
-INSERT INTO accounts (account_code,account_name,is_active)
-SELECT '4200','Retur Penjualan',1
+-- account_type is required by the foundation schema; sales returns reduce revenue.
+INSERT INTO accounts (account_code,account_name,account_type,is_active)
+SELECT '4200','Retur Penjualan','REVENUE',1
 WHERE NOT EXISTS (SELECT 1 FROM accounts WHERE account_code='4200');
 
 CREATE TABLE IF NOT EXISTS distributor_sales_returns (
