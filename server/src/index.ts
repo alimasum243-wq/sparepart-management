@@ -126,7 +126,8 @@ const productSchema = z.object({
   unit: z.string().trim().min(1).max(30).default("pcs"),
   purchase_cost: z.number().nonnegative().max(1000000000).refine(v=>hasAtMost2Decimals(v)).default(0),
   distributor_price: z.number().nonnegative().max(1000000000).refine(v=>Math.round(v*100)===v*100).default(0),
-  retail_price: z.number().nonnegative().max(1000000000).refine(v=>Math.round(v*100)===v*100).default(0)
+  retail_price: z.number().nonnegative().max(1000000000).refine(v=>Math.round(v*100)===v*100).default(0),
+  min_stock: z.number().nonnegative().max(1000000).refine(v=>Math.round(v*1000)===v*1000).default(0)
 });
 
 app.get("/api/products/:id/price-history",async(req,res)=>{
@@ -150,9 +151,9 @@ app.post("/api/products", async (req, res) => {
   try {
     await conn.beginTransaction();
     const [result] = await conn.execute<ResultSetHeader>(
-      `INSERT INTO products (sku, product_name, unit, purchase_cost, last_purchase_cost, average_cost, distributor_price, retail_price, is_active)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1)`,
-      [sku, data.product_name, data.unit, data.purchase_cost, data.purchase_cost, data.purchase_cost, data.distributor_price, data.retail_price]
+      `INSERT INTO products (sku, product_name, unit, purchase_cost, last_purchase_cost, average_cost, distributor_price, retail_price, min_stock, is_active)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1)`,
+      [sku, data.product_name, data.unit, data.purchase_cost, data.purchase_cost, data.purchase_cost, data.distributor_price, data.retail_price, data.min_stock]
     );
     await conn.execute(`INSERT INTO product_price_history (product_id,effective_date,purchase_cost,last_purchase_cost,average_cost,distributor_price,retail_price,source,changed_by_user_id) VALUES (?,CURRENT_DATE,?,?, ?,?,?, 'MANUAL',?)`,[result.insertId,data.purchase_cost,data.purchase_cost,data.purchase_cost,data.distributor_price,data.retail_price,(req as any).identity?.id||null]);
     await conn.execute(`INSERT INTO audit_logs (user_id,action,entity_type,entity_id,description) VALUES (?,"CREATE","PRODUCT",?,?)`,[(req as any).identity?.id||null,result.insertId,`Produk dibuat: ${sku} - ${data.product_name}`]);
@@ -175,8 +176,8 @@ app.put("/api/products/:id", async (req, res) => {
     await conn.beginTransaction();
     const sku = d.sku || `SKU-${Date.now()}-${randomUUID().slice(0, 4).toUpperCase()}`;
     const [result]=await conn.execute<ResultSetHeader>(
-      `UPDATE products SET sku=?, product_name=?, unit=?, purchase_cost=?, distributor_price=?, retail_price=? WHERE id=? AND is_active=1`,
-      [sku, d.product_name, d.unit, d.purchase_cost, d.distributor_price, d.retail_price, id]
+      `UPDATE products SET sku=?, product_name=?, unit=?, purchase_cost=?, distributor_price=?, retail_price=?, min_stock=? WHERE id=? AND is_active=1`,
+      [sku, d.product_name, d.unit, d.purchase_cost, d.distributor_price, d.retail_price, d.min_stock, id]
     );
     if(!result.affectedRows){await conn.rollback();return res.status(404).json({ok:false,message:"Produk tidak ditemukan atau nonaktif."});}
     const [current]=await conn.execute<RowDataPacket[]>(`SELECT purchase_cost,last_purchase_cost,average_cost,distributor_price,retail_price FROM products WHERE id=?`,[id]);
