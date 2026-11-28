@@ -45,6 +45,7 @@ export const channelCostAllocationWithinSource = (sourceAmount:number,otherChann
 
 export const salesQuantityMeetsMoq = (quantity:number,minimum:number):boolean => Number.isFinite(quantity)&&Number.isFinite(minimum)&&quantity>0&&minimum>0&&quantity+0.0000001>=minimum;
 export const retailMasterPriceConfigured = (retailPrice:number):boolean => Number.isFinite(retailPrice)&&retailPrice>0;
+export const validUnitCost = (unitCost:number):boolean => Number.isFinite(unitCost)&&unitCost>0&&unitCost<=1000000000&&hasAtMost2Decimals(unitCost);
 export const expectedPhysicalStockAfterPendingReports = (ledgerStock:number,pendingReportedSales:number):number => Math.round((ledgerStock-pendingReportedSales)*1000)/1000;
 export const stockOpnameVariance = (countedQuantity:number,systemQuantity:number):number => Math.round((countedQuantity-systemQuantity)*1000)/1000;
 export const salesPriceFromStockSnapshots = (deliveryValue:number,approvedSalesValue:number,returnsValue:number,pendingSalesValue:number,availableQuantity:number):number => {
