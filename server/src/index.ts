@@ -667,7 +667,7 @@ app.post("/api/retail/sales", async (req,res) => {
     let subtotal=0,costTotal=0;
     for(const item of items){
       const [products]=await conn.execute<RowDataPacket[]>(
-        `SELECT id,product_name,unit,average_cost,purchase_cost,retail_price,is_active FROM products WHERE id=? FOR UPDATE`,[item.productId]
+        `SELECT id,sku,product_name,unit,average_cost,purchase_cost,retail_price,is_active FROM products WHERE id=? FOR UPDATE`,[item.productId]
       );
       if(!products.length||Number(products[0].is_active)!==1) throw new Error("Produk tidak ditemukan atau sudah nonaktif.");
       const [stocks]=await conn.execute<RowDataPacket[]>(
@@ -682,7 +682,7 @@ app.post("/api/retail/sales", async (req,res) => {
       if(!Number.isFinite(unitCost)||unitCost<0) throw new Error(`HPP ${products[0].product_name} tidak valid.`);
       const lineTotal=Math.round(item.quantity*item.unitPrice*100)/100;
       const lineCost=Math.round(item.quantity*unitCost*100)/100;
-      prepared.push({...item,productName:products[0].product_name,unitCost,lineTotal,lineCost,retailPriceSnapshot,overrideReason});
+      prepared.push({...item,skuSnapshot:String(products[0].sku||''),productName:products[0].product_name,unitCost,lineTotal,lineCost,retailPriceSnapshot,overrideReason});
       subtotal=Math.round((subtotal+lineTotal)*100)/100;
       costTotal=Math.round((costTotal+lineCost)*100)/100;
     }
@@ -696,9 +696,9 @@ app.post("/api/retail/sales", async (req,res) => {
     for(let n=0;n<prepared.length;n++){
       const item=prepared[n];
       await conn.execute(
-        `INSERT INTO retail_sale_items (sale_id,product_id,product_name_snapshot,quantity,unit_price,unit_cost,line_total,cost_total,retail_price_snapshot,price_override_reason)
-         VALUES (?,?,?,?,?,?,?,?,?,?)`,
-        [sale.insertId,item.productId,item.productName,item.quantity,item.unitPrice,item.unitCost,item.lineTotal,item.lineCost,item.retailPriceSnapshot,item.overrideReason||null]
+        `INSERT INTO retail_sale_items (sale_id,product_id,product_name_snapshot,sku_snapshot,quantity,unit_price,unit_cost,line_total,cost_total,retail_price_snapshot,price_override_reason)
+         VALUES (?,?,?,?,?,?,?,?,?,?,?)`,
+        [sale.insertId,item.productId,item.productName,item.skuSnapshot,item.quantity,item.unitPrice,item.unitCost,item.lineTotal,item.lineCost,item.retailPriceSnapshot,item.overrideReason||null]
       );
       if(item.overrideReason&&item.retailPriceSnapshot>0&&item.unitPrice<item.retailPriceSnapshot){await conn.execute(`INSERT INTO audit_logs (user_id,action,entity_type,entity_id,description) VALUES (?,'PRICE_OVERRIDE','RETAIL_SALE',?,?)`,[(req as any).identity?.id||null,sale.insertId,`Override harga retail ${item.productName}; harga master ${item.retailPriceSnapshot}; harga transaksi ${item.unitPrice}; alasan: ${item.overrideReason}`]);}
       await conn.execute(
