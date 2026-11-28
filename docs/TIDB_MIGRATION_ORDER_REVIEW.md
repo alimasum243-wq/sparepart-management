@@ -26,6 +26,7 @@ The SQL files are manual migration scripts. **Do not run them until preflight is
 21. `019_consignment_delivery_print_audit.sql`
 22. `020_cash_reconciliation_sessions.sql`
 23. `021_retail_receipt_print_audit.sql`
+24. `022_cash_account_source_type.sql` (cash accounts are categorized RETAIL, SALES, or GENERAL; legacy accounts default GENERAL and owner reclassification is allowed only before transactions)
 
 ## Prefix collisions / migration tracking
 - Prefix 004 has two files; prefix 005 has two files. Do not assume filename sorting is sufficient; use the exact proposed order only after checking dependencies.
