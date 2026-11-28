@@ -48,6 +48,15 @@ Gunakan entitas distributor dan lokasi konsinyasi yang sudah ada sebagai identit
 - Nilai stok menggunakan snapshot HPP/method biaya persediaan yang konsisten dengan sistem; jumlah stok dan nilai harus dapat direkonsiliasi ke stock_movements.
 - Kriteria penerimaan: admin dapat melihat setiap produk dan qty di lokasi setiap sales; sales dapat melihat daftar dan qty stok miliknya sendiri; kedua tampilan menampilkan nilai sesuai hak akses; data satu sales tidak dapat dibaca sales lain.
 
+## Audit teknis sebelum dinyatakan siap
+- Workflow GitHub Actions sebelumnya hanya berjalan pada push ke main/fix dan pull request ke main. Trigger push untuk feature/* serta workflow_dispatch telah ditambahkan agar branch pengembangan juga dapat diuji otomatis. Hasil build tetap harus dibaca setelah workflow benar-benar berjalan.
+- Build CI saat ini hanya menjalankan TypeScript/Vite build backend dan frontend. Belum ada test suite integrasi TiDB, sehingga CI hijau tidak membuktikan saldo stok atau jurnal benar pada database.
+- Ditemukan dua berkas migrasi fondasi distributor yang tidak konsisten: database/migrations/002_distributor_accounting_foundation.sql membuat consignment_dispatches/consignment_dispatch_items dan memakai nama kolom pembayaran berbeda; server/migrations/003_distributor_accounting.sql adalah skema yang sesuai dengan kode aktif (consignment_deliveries/consignment_delivery_items, payment_date, destination_cash_account_id). Jangan menjalankan migration 002 bersamaan dengan 003. Verifikasi riwayat migrasi aktual di TiDB sebelum ada perubahan skema.
+- Query stok sales harus diuji terhadap data nyata dan mutasi berulang. Kode penyerahan mengunci baris produk dengan FOR UPDATE di dalam transaksi, tetapi keselamatan konkurensi menyeluruh hanya terjamin bila semua jalur perubahan stok mengunci produk/lokasi dengan urutan yang konsisten. Perlu uji dua transaksi paralel dan rekonsiliasi saldo mutasi.
+- Autentikasi aktif memakai scrypt dengan salt acak dan perbandingan timing-safe, token HMAC-SHA256, dan masa berlaku 12 jam. Username/password masih menjadi metode login. Belum ada rate limit login maupun pencabutan sesi individual; AUTH_TOKEN_SECRET wajib kuat dan rahasia di environment server. Jangan menganggap kontrol tambahan itu sudah tersedia.
+- Logo resmi Sparepart Enzonic belum ditemukan sebagai aset file di repositori maupun Library. Monogram SE masih sementara; integrasi logo menunggu file logo resmi (SVG/PNG) dari pemilik.
+- Nota cetak serah terima dan laporan pertanggungjawaban investor belum menjadi fitur aplikasi. Dokumen spesifikasi bukan bukti fitur telah tersedia.
+
 ## Penyederhanaan operasional yang dikonfirmasi pemilik
 - Form penyerahan sales dibuat satu alur: pilih sales, pilih barang dan jumlah. Layar langsung menghitung total unit dan estimasi nilai rupiah memakai snapshot harga distributor; HPP/nilai persediaan tetap dipisahkan untuk kontrol internal.
 - Tidak ada input nama pelanggan akhir, toko, atau akun "Pelanggan Umum". Penjualan sales cukup dicatat per sales, tanggal, barang, dan kuantitas.
