@@ -35,7 +35,8 @@ Bukti pembayaran saat ini disimpan sebagai nomor referensi atau tautan, belum un
 10. Jalankan `server/migrations/008_inventory_adjustments.sql` (lokasi barang rusak, penyesuaian persediaan, akun 4900/6500).
 11. Jalankan `server/migrations/009_cash_management.sql` (subledger kas/bank, cash transaction, dan kolom akun kas untuk transaksi).
 12. Jalankan `server/migrations/010_receivables_price_history_periods.sql` (due date invoice, uang belum dialokasikan, histori harga, dan periode akuntansi).
-13. Verifikasi tabel `product_price_history`, `accounting_periods`, kolom `invoice_code`, `due_date`, `unapplied_amount`, tabel `accounting_period_guard`, dan akun 2200 serta akun COA yang dibutuhkan. Jalankan migration hanya setelah backup dan pemeriksaan struktur/duplikat.
+13. Jalankan `server/migrations/011_seed_products_min_stock.sql` (16 seed produk, supplier, minimum stok; SKU seed sementara dan retail price 0).
+14. Verifikasi 16 seed products, supplier INDORAYA/UD ADI JUWANA, minimum stock. Owner finalisasi SKU/unit/retail price/min_stock. Verifikasi tabel `product_price_history`, `accounting_periods`, kolom `invoice_code`, `due_date`, `unapplied_amount`, tabel `accounting_period_guard`, dan akun 2200 serta akun COA yang dibutuhkan. Jalankan migration hanya setelah backup dan pemeriksaan struktur/duplikat.
 
 Migration bersifat tambahan (additive); tidak dimaksudkan untuk menghapus transaksi/master. Jangan menjalankan semua statement sekaligus jika TiDB SQL editor menolak multi-statement. Bila error, berhenti dan kirim pesan error persisnya; jangan lanjut migration berikutnya.
 
@@ -106,11 +107,11 @@ Semua endpoint operasional lama (termasuk pembelian) kini memerlukan token pemil
 12. Pembelian, retail, supplier payment, pengeluaran, retur diuji; cek stok, HPP, utang/piutang, jurnal debit=credit, audit log, dan rollback jika gagal.
 13. Retur pembelian/distributor yang melebihi saldo terbuka harus ditolak (refund transaksi lunas belum tersedia). Retur retail mengembalikan kas, stok, dan HPP.
 14. Kirim request transaksi bersamaan untuk produk/supplier/distributor yang sama; tidak boleh saldo/stock oversold, double payment, atau negative balance.
-15. Laba-rugi periode menampilkan transaksi jurnal. Bandingkan dengan jurnal detail dan rekonsiliasi kas/bank. Balance sheet, manual journal, dan rekonsiliasi otomatis belum tersedia.
+15. Laba-rugi periode menampilkan transaksi jurnal. Bandingkan dengan jurnal detail dan rekonsiliasi kas/bank. Balance sheet/manual journal/rekonsiliasi otomatis masih harus diverifikasi di aplikasi dan diuji.
 16. Stock opname, loss, damage, write-off dibuat draft; posting owner, stok tidak minus, movement dan jurnal loss/gain seimbang; cancel draft tidak mengubah saldo.
 17. Setoran modal, prive, dan transfer kas/bank diuji: modal Dr Kas/Bank Cr Modal; prive Dr Prive Cr Kas/Bank; transfer antar akun tidak masuk P&L dan tidak membuat saldo negatif. Pembelian tunai/bank, pengeluaran, supplier payment, retail sale, dan pembayaran distributor memakai akun kas/bank yang dipilih.
 18. Invoice due date, aging, unapplied receipt, price history, dan periode akuntansi diuji; transaksi tanggal periode tertutup harus ditolak.
-19. Migration 001/003/004/005/006/007/008/009/010 diuji pada salinan DB; ulangi migration idempotent yang memang dirancang repeatable, verifikasi tanpa kehilangan data.
+19. Migration 001/003/004/005/006/007/008/009/010/011 diuji pada salinan DB; ulangi migration idempotent yang memang dirancang repeatable, verifikasi tanpa kehilangan data.
 
 Catatan: Laporan laba-rugi hanya mencerminkan transaksi yang sudah dibukukan ke jurnal. Pastikan seluruh beban operasional dicatat dan pembelian yang belum dibayar tetap dianggap utang pemasok. Jangan mengartikan pembayaran distributor yang baru dilaporkan sebagai kas masuk sebelum diverifikasi.
 
