@@ -26,7 +26,7 @@ FROM (
  UNION ALL SELECT 'inventory_adjustment_items' UNION ALL SELECT 'journal_entries' UNION ALL SELECT 'journal_lines'
  UNION ALL SELECT 'opening_balances' UNION ALL SELECT 'product_price_history' UNION ALL SELECT 'products'
  UNION ALL SELECT 'purchase_items' UNION ALL SELECT 'purchase_returns' UNION ALL SELECT 'purchase_return_items'
- UNION ALL SELECT 'purchases' UNION ALL SELECT 'retail_sale_items' UNION ALL SELECT 'retail_sale_returns'
+ UNION ALL SELECT 'purchases' UNION ALL SELECT 'retail_sale_items' UNION ALL SELECT 'retail_sale_print_logs' UNION ALL SELECT 'retail_sale_returns'
  UNION ALL SELECT 'retail_sale_return_items' UNION ALL SELECT 'retail_sales' UNION ALL SELECT 'stock_locations'
  UNION ALL SELECT 'stock_movements' UNION ALL SELECT 'supplier_payment_allocations'
  UNION ALL SELECT 'supplier_payments' UNION ALL SELECT 'suppliers' UNION ALL SELECT 'users'
