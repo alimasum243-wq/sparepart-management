@@ -12,7 +12,7 @@ const authRate = new Map<string,RateEntry>();
 const rateLimit = (key:string, max:number, windowMs:number) => {
   const now=Date.now();
   // Bound memory growth from arbitrary client IPs and remove expired buckets.
-  if(authRate.size>1000) for(const [k,v] of authRate) if(v.resetAt<=now) authRate.delete(k);
+  if(authRate.size>=2000){for(const [k,v] of authRate)if(v.resetAt<=now)authRate.delete(k);while(authRate.size>=2000){const oldest=authRate.keys().next().value;if(oldest===undefined)break;authRate.delete(oldest);}}
   const current=authRate.get(key);
   if(!current || current.resetAt<=now){authRate.set(key,{count:1,resetAt:now+windowMs});return false;}
   current.count++;
