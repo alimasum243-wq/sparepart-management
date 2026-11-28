@@ -11,3 +11,5 @@ CREATE TABLE IF NOT EXISTS supplier_payment_allocations (
   KEY idx_supplier_payment_alloc_payment (supplier_payment_id),
   KEY idx_supplier_payment_alloc_purchase (purchase_id)
 );
+
+CREATE UNIQUE INDEX IF NOT EXISTS uq_supplier_payment_purchase ON supplier_payment_allocations (supplier_payment_id,purchase_id);
