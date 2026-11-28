@@ -6,9 +6,9 @@ Fondasi aplikasi manajemen usaha sparepart: React + TypeScript + Vite, Express +
 
 **Belum siap dipakai untuk transaksi riil.** Audit dan hardening sedang berlangsung di branch `prelaunch/hardening-and-audit`; perubahan disimpan dalam draft PR, bukan di `main`.
 
-Yang sudah tersedia pada kode: master produk/supplier, pembelian dan HPP rata-rata, penjualan retail, stok konsinyasi/distributor, laporan penjualan dan verifikasi pembayaran distributor, pembayaran utang supplier, pengeluaran, retur, histori, dan laporan laba-rugi/operasional.
+Yang sudah tersedia pada kode: master produk/supplier, pembelian dan HPP rata-rata, retail, konsinyasi/distributor, approval laporan penjualan dan pembayaran, pembayaran supplier, pengeluaran, retur, stock opname/opening/adjustment, kas-modal-prive-transfer, COA/jurnal manual, penguncian periode, neraca saldo, neraca, dashboard inventory/profit, aging piutang, histori harga, kartu stok per lokasi dengan print/PDF, badge pending approval, reset password distributor, audit log, CSV aging.
 
-Yang belum lulus/selesai: build/CI terbaru belum terverifikasi, skema TiDB aktual belum dibandingkan penuh, tes acceptance belum dilakukan, serta backup/restore dan deployment belum disiapkan. Jangan posting transaksi riil.
+Yang belum lulus/selesai: CI terakhir masih berjalan; skema TiDB aktual belum dibandingkan penuh; tes acceptance/integrasi belum dilakukan; backup/restore dan deployment belum disiapkan. Jangan posting transaksi riil.
 
 ## Teknologi
 
