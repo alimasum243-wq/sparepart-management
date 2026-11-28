@@ -195,9 +195,10 @@ router.get('/admin/sales-reports/:id',authMiddleware,ownerMiddleware,async(req,r
 // Owner sends stock on consignment. No revenue or receivable is booked at dispatch.
 router.post('/admin/consignments',authMiddleware,ownerMiddleware,async(req:AuthedRequest,res)=>{
  const {distributor_id,delivery_date,notes,items}=req.body||{};
- if(!Number.isInteger(Number(distributor_id))||!isDateOnly(delivery_date||'')||!Array.isArray(items)||!items.length) return res.status(400).json({ok:false,message:'Distributor, tanggal, dan minimal satu barang wajib diisi.'});
+ if(!Number.isInteger(Number(distributor_id))||Number(distributor_id)<=0||!isDateOnly(delivery_date||'')||!Array.isArray(items)||!items.length||items.length>100||String(notes||'').length>1000) return res.status(400).json({ok:false,message:'Distributor, tanggal, catatan, dan rincian barang wajib valid (maksimal 100 barang).'});
  const conn=await pool.getConnection();
  try{await conn.beginTransaction();
+  const [activeDistributor]=await conn.execute<RowDataPacket[]>(`SELECT id FROM distributors WHERE id=? AND is_active=1 FOR UPDATE`,[distributor_id]);if(!activeDistributor.length)throw new Error('Distributor tidak aktif atau tidak ditemukan.');
   const [locs]=await conn.execute<RowDataPacket[]>(`SELECT id FROM stock_locations WHERE distributor_id=? AND location_type='DISTRIBUTOR' AND is_active=1 LIMIT 1 FOR UPDATE`,[distributor_id]);
   if(!locs.length) throw new Error('Lokasi stok distributor belum tersedia.');
   const [wh]=await conn.execute<RowDataPacket[]>(`SELECT id FROM stock_locations WHERE location_type='WAREHOUSE' AND is_active=1 ORDER BY id LIMIT 1`);
