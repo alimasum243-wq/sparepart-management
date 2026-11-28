@@ -61,6 +61,7 @@
 - [ ] Bootstrap setup is one-time, rate-limited, and disabled after owner setup. Code correction: initial owner bootstrap now writes an audit-log entry in the same transaction; controlled auth tests pending.
 - [ ] Verify validation, parameterized SQL, safe errors, and sensitive-data redaction.
 - [x] Code hardening: server-side database/internal errors are sanitized in 500 responses; operational routes retain business validation messages but suppress database error codes/details. CI and route-level verification pending.
+- [x] Code: distributor sales-note print/reprint requests now append immutable events (migration 023); rapid-print audit uses the first print event to avoid reprints overwriting the original timing. Legacy rows without event history use migration-017 last-print timestamps and are explicitly labelled. TiDB migration and acceptance tests pending.
 - [ ] Verify secrets are absent from repository; production TLS/secure cookies configured.
 - [ ] Audit logs exist for create/edit/approve/reject/post/void/adjust and are protected.
 - [ ] Walk purchase, retail, distributor delivery/report/approval/payment, supplier payment, expenses, returns, capital, draws, transfer, adjustment, journal, and period close; reconcile stock/subledger/GL/log.
