@@ -111,3 +111,11 @@ F. Merge dan deployment setelah migrasi serta hasil pengujian disetujui.
 
 ## Batasan keselamatan
 Jangan jalankan migrasi yang menebak kolom tabel produksi. Sebelum migration, cocokkan DESCRIBE untuk tabel terkait. Jangan pernah mengubah stok secara langsung tanpa stock_movements dan jurnal terkait.
+
+## Catatan implementasi tahap pertama (branch pengembangan)
+- Sudah ditambahkan endpoint OWNER/ADMIN `GET /api/admin/distributor-stock` untuk menampilkan saldo stok per sales dan per produk, termasuk qty serta nilai persediaan berdasarkan unit_cost pada stock_movements.
+- Portal sales diubah menjadi baca-saja untuk daftar stok miliknya: SKU, nama barang, qty, dan nilai stok pada harga distributor. Sales tidak memasukkan transaksi penjualan/setoran melalui portal; input transaksi dilakukan admin.
+- Halaman admin menampilkan tabel stok per sales/per produk beserta qty, HPP/unit turunan, dan nilai stok.
+- Label navigasi konsinyasi di frontend diubah menjadi Gudang Sales; warna brand navy-oranye dan identitas teks SPAREPART ENZONIC diterapkan sebagai langkah awal.
+- Belum memasang file logo grafis final yang dikirim pemilik; monogram SE sementara. Belum mengganti login username menjadi email/nomor HP. Belum ada migrasi database.
+- Perubahan berada di branch `feature/gudang-sales-admin-2026` dan PR #2; belum digabung ke main, belum diuji terhadap database TiDB, dan belum dideploy.
