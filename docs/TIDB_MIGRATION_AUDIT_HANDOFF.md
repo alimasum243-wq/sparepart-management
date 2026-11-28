@@ -16,7 +16,7 @@ This document is the handoff gate between application hardening and the user's m
 - These are historical snapshot facts, not a fresh live inspection. Re-audit current schema before migration.
 
 ## Gate before asking user to run SQL
-- [ ] All application-code blockers found in audit have either been fixed or explicitly listed as not implemented.
+- [ ] All application-code blockers found in audit have either been fixed or explicitly listed as not implemented. (Current partial distributor return/history implementation and remaining gaps are documented.)
 - [ ] Build, type-check, and CI pass on the hardening branch's latest commit.
 - [ ] Migrations are consolidated, numbered, and checked for TiDB compatibility and safe re-run/partial-run behavior.
 - [ ] Migration SQL does not drop or truncate user data.
@@ -36,11 +36,11 @@ This document is the handoff gate between application hardening and the user's m
 6. **App compatibility report**: endpoint/UI feature mapped to required schema.
 7. **Operational safety**: backup confirmation, credentials safety, transaction limitations for DDL, and how to stop if a statement fails.
 
-## Application work still tracked before the gate
-- Distributor portal: persistent consignment handover history and printable/reprint notes.
+## Additional migrations created during hardening\n- `018_distributor_consignment_returns.sql`: unsold consignment return request tables. Pending requests do not post stock; owner approval posts movement.\n- `019_consignment_delivery_print_audit.sql`: audited print/reprint requests for distributor delivery notes.\n- Both are additive; review schema dependencies against TiDB before running.\n\n## Application work still tracked before the gate
+- Distributor portal: note-level totals and status, allocation drill-down, and durable print history review (migration 019 captures request log; end-to-end reprint audit must be verified).
 - Distributor portal: report history and status/rejection reason.
 - Distributor portal: note-level receivable status and payment allocation history.
-- Distributor portal: request return of unsold consignment; owner review; approved stock movement only; good/damaged stock destination; no automatic refund.
+- Distributor portal: verify unsold return request, approval/rejection, reservations, mixed-condition line handling, movement posting, and no automatic refund (migration 018).
 - Owner: pending-return review queue and traceable approval/rejection.
 - Distributor stock custody reconciliation: handed-over qty minus approved sales minus approved returns; physical count and variance proposal; no automatic charge to distributor.
 - Audit/security: ownership authorization, duplicate/idempotency protection, concurrency-safe posting, approval actors/timestamps/reasons, and audit trail.
