@@ -43,3 +43,9 @@ CREATE TABLE IF NOT EXISTS accounting_periods (
   UNIQUE KEY uq_accounting_period_start (period_start),
   KEY idx_accounting_period_status_end (status,period_end)
 );
+
+CREATE TABLE IF NOT EXISTS accounting_period_guard (
+  id TINYINT NOT NULL PRIMARY KEY
+);
+INSERT INTO accounting_period_guard (id)
+SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM accounting_period_guard WHERE id=1);
