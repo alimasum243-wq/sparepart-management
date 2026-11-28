@@ -48,6 +48,14 @@ Gunakan entitas distributor dan lokasi konsinyasi yang sudah ada sebagai identit
 - Nilai stok menggunakan snapshot HPP/method biaya persediaan yang konsisten dengan sistem; jumlah stok dan nilai harus dapat direkonsiliasi ke stock_movements.
 - Kriteria penerimaan: admin dapat melihat setiap produk dan qty di lokasi setiap sales; sales dapat melihat daftar dan qty stok miliknya sendiri; kedua tampilan menampilkan nilai sesuai hak akses; data satu sales tidak dapat dibaca sales lain.
 
+## Penyederhanaan operasional yang dikonfirmasi pemilik
+- Form penyerahan sales dibuat satu alur: pilih sales, pilih barang dan jumlah. Layar langsung menghitung total unit dan estimasi nilai rupiah memakai snapshot harga distributor; HPP/nilai persediaan tetap dipisahkan untuk kontrol internal.
+- Tidak ada input nama pelanggan akhir, toko, atau akun "Pelanggan Umum". Penjualan sales cukup dicatat per sales, tanggal, barang, dan kuantitas.
+- Aksi cepat wajib tersedia dari daftar stok/piutang admin: catat barang terjual, retur penjualan, retur stok tidak terjual ke gudang, serta catat setoran. Aksi harus membuka konfirmasi ringkas berisi item, qty/nominal, tanggal, lalu menyimpan transaksi lengkap melalui API dan jurnal/mutasi yang sesuai.
+- Sales tetap baca-saja. Semua aksi cepat transaksi dijalankan admin/pemilik; tidak ada tombol transaksi pada portal sales.
+- Setoran dapat dicatat langsung oleh admin dengan nominal fleksibel/cicilan dan akun kas/bank. Retur penjualan harus menunjuk laporan penjualan asal; retur stok tidak terjual hanya memindahkan stok kembali ke gudang.
+- Kriteria penerimaan: setelah memilih produk dan mengubah qty di form penyerahan, total unit dan nilai rupiah berubah seketika tanpa submit; transaksi penjualan/retur/setoran hanya dianggap selesai setelah backend mengonfirmasi dan stok, piutang, kas, serta jurnal konsisten.
+
 ## Nota penyerahan stok dan ekspor
 - Setiap penyimpanan transfer ke sales otomatis menghasilkan nomor dokumen unik dan tampilan nota penyerahan barang yang rapi, bukan sekadar tabel stok.
 - Nota dapat dibuka kembali dari riwayat transaksi, dicetak, atau diekspor sebagai PDF untuk dikirim kepada sales melalui WhatsApp.
