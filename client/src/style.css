@@ -81,3 +81,16 @@
 .review-detail{margin-top:10px;width:min(100%,780px);overflow-x:auto;border:1px solid #e6ebf2;border-radius:8px}.review-detail .product-table{min-width:620px}.review-detail .product-table th,.review-detail .product-table td{padding:8px 10px;font-size:11px}
 
 .page-stack{display:grid;gap:16px}.page-stack .form-actions{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin:12px 0}.page-stack .form-actions .primary-button{margin-left:auto}.page-stack .item-fields{align-items:end}.page-stack .section-head{margin-bottom:12px}
+
+@media print {
+  body * { visibility: hidden !important; }
+  .stock-card-print, .stock-card-print * { visibility: visible !important; }
+  .stock-card-print { position: absolute !important; inset: 0 auto auto 0 !important; width: 100% !important; background: white !important; color: black !important; padding: 12px !important; }
+  .stock-card-print table { width: 100% !important; border-collapse: collapse !important; }
+  .stock-card-print th, .stock-card-print td { border: 1px solid #777 !important; padding: 5px !important; color: black !important; }
+  .stock-card-print h2 { text-align: center !important; }
+  .stock-card-print .portal-stats { display: flex !important; }
+  .stock-card-print .portal-stats article { border: 1px solid #777 !important; padding: 6px !important; }
+  .stock-card-print .table-wrap { overflow: visible !important; }
+  @page { size: landscape; margin: 10mm; }
+}
