@@ -1,9 +1,57 @@
--- MIGRATION 003: Login distributor, konsinyasi, laporan penjualan, verifikasi pembayaran.
--- Jalankan SATU STATEMENT setiap kali di TiDB SQL Editor.
+-- MIGRATION 003: Foundation + login distributor, konsinyasi, laporan penjualan, verifikasi pembayaran.
+-- Jalankan statement secara berurutan di TiDB SQL Editor.
 -- Aman untuk data master yang sudah ada: tidak ada DROP/TRUNCATE/DELETE.
 
+-- Foundation yang memang dipakai oleh backend saat ini.
+CREATE TABLE IF NOT EXISTS accounts (
+  id BIGINT PRIMARY KEY AUTO_INCREMENT,
+  account_code VARCHAR(20) NOT NULL,
+  account_name VARCHAR(100) NOT NULL,
+  account_type VARCHAR(30) NOT NULL,
+  is_active TINYINT(1) NOT NULL DEFAULT 1,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE KEY uq_accounts_code (account_code),
+  KEY idx_accounts_type (account_type, is_active)
+);
+
+CREATE TABLE IF NOT EXISTS cash_accounts (
+  id BIGINT PRIMARY KEY AUTO_INCREMENT,
+  account_code VARCHAR(30) NOT NULL,
+  account_name VARCHAR(100) NOT NULL,
+  account_type VARCHAR(20) NOT NULL DEFAULT 'CASH',
+  is_active TINYINT(1) NOT NULL DEFAULT 1,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE KEY uq_cash_accounts_code (account_code)
+);
+
+CREATE TABLE IF NOT EXISTS distributors (
+  id BIGINT PRIMARY KEY AUTO_INCREMENT,
+  distributor_code VARCHAR(50) NOT NULL,
+  distributor_name VARCHAR(150) NOT NULL,
+  phone VARCHAR(50) NULL,
+  address VARCHAR(255) NULL,
+  is_active TINYINT(1) NOT NULL DEFAULT 1,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE KEY uq_distributor_code (distributor_code),
+  KEY idx_distributor_name (distributor_name, is_active)
+);
+
+CREATE TABLE IF NOT EXISTS audit_logs (
+  id BIGINT PRIMARY KEY AUTO_INCREMENT,
+  user_id BIGINT NULL,
+  action VARCHAR(50) NOT NULL,
+  entity_type VARCHAR(80) NOT NULL,
+  entity_id BIGINT NULL,
+  description TEXT NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  KEY idx_audit_entity (entity_type, entity_id),
+  KEY idx_audit_user_date (user_id, created_at)
+);
+
+ALTER TABLE users ADD COLUMN IF NOT EXISTS distributor_id BIGINT NULL;
+
 -- 1) Hubungkan akun login dengan satu distributor. Admin/pemilik: distributor_id NULL.
-ALTER TABLE users ADD COLUMN distributor_id BIGINT NULL;
+-- users.distributor_id sudah dibuat idempoten di bagian foundation.
 
 -- 2) Pengiriman konsinyasi: header.
 CREATE TABLE IF NOT EXISTS consignment_deliveries (
