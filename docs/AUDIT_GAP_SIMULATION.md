@@ -1,7 +1,7 @@
 # Audit Gap Simulation & Design — Synthetic Data Only
 
 ## Scope
-This branch adds migration 025, owner/distributor API workflows for shortage claims, bank statement import/matching, an investor contribution drill-down API, and pure domain simulations. It does **not** connect to TiDB, post claim charges or bank reconciliation journals, change stock from claims, or provide frontend forms/CSV parsing. It is not production-ready until UI, integration tests, and isolated runtime DB tests are completed.
+This branch adds migration 025, owner/distributor API workflows for shortage claims, bank statement import/matching, an investor contribution drill-down API, and pure domain simulations. It does **not** connect to TiDB, post claim charges or bank reconciliation journals, or change stock from claims. UI is implemented at a first pass; evidence uploads, notification integration, isolated runtime DB tests, and production acceptance remain.
 
 ## Migration 025
 - Formal shortage claim head and item rows, with evidence references, owner decision metadata, approved quantity, charge amount, and settlement tracking.
