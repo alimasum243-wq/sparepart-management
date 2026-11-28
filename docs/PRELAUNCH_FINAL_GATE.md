@@ -67,7 +67,7 @@
 ## 7. Migration SQL finalization
 - [ ] Validate preconditions and duplicates before unique indexes.
 - [ ] Check every migration statement for TiDB compatibility.
-- [ ] Confirm dependency sequence across migrations 001 and 003–016.
+- [ ] Confirm dependency sequence across migrations 001 and 003–017.
 - [ ] Produce final runbook: preflight, order, postflight queries, stop/recovery guidance.
 - [ ] No migration executed against the user's TiDB until backup and runbook are approved.
 
