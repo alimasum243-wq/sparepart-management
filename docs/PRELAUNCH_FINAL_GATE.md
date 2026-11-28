@@ -332,3 +332,13 @@ The application must support two separate price segments per product, with diffe
 - [x] Code currently offers browser print/Save-as-PDF for stock cards and balance sheet, and Sales portal note printing via browser print. This is browser print output, not a standardized generated PDF report engine.
 - [ ] No unified investor summary report with custom-period CSV and PDF is implemented yet; report coverage, period controls, permissions, consistent filters, generated metadata, and reconciliation checks are incomplete.
 - [ ] Retail receipt and warehouse-to-Sales handover note print/PDF remain missing per code review.
+
+
+## 17. Implementation update — receipt and investor exports (in progress)
+
+- [x] Retail checkout now presents a receipt preview after a successful sale and a print/Save-as-PDF action. The receipt includes transaction code/date, item/SKU, quantity, unit price, subtotal, cash/bank account and total.
+- [x] Warehouse-to-Sales handover now presents the latest consignment slip and print/Save-as-PDF action, with clear **NOT A SALE — CONSIGNMENT STOCK** notice, Sales, handover code/date, items, quantity, Sales-price estimate, total units, notes, and sender/receiver signature lines.
+- [x] Profit & Loss / operational report now supports period-filtered CSV and investor-style browser print/Save-as-PDF. Includes P&L, channel nominal contribution comparison, operational transaction summary, GL summary, selected period and generated timestamp.
+- [ ] These are browser-generated print/PDF dialogs, not a server-side PDF renderer. Receipt/handover reprint is currently limited to the latest record kept in the UI session; permanent history-based reprint and print/export action audit log are not yet implemented.
+- [ ] Investor report coverage is still partial: stock valuation/card, receivable/payable aging, cash-source reconciliation, physical cash session reconciliation, balance sheet/trial balance and detailed audit/approval history are not yet included in this unified investor PDF/CSV. Pending/posted separation and report-to-GL reconciliation must be completed/tested.
+- [ ] Verify CI and typecheck for the current branch tip before treating these changes as accepted. No deployment or TiDB changes.
