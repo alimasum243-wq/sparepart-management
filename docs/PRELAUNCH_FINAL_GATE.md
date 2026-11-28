@@ -101,6 +101,7 @@ The application must support two separate price segments per product, with diffe
 - [ ] Sales margin is computed separately from retail margin using HPP and the wholesale/sales price; do not add a sales commission by default.
 - [ ] Record separately: stock delivered to sales, units sold, units returned/unsold, payment remitted, outstanding receivable, and advances/unapplied payments.
 - [ ] Prevent unauthorized price edits and prevent applying retail pricing to sales channel or vice versa; record price snapshots on each transaction so later product-price changes do not rewrite history.
+- [x] Retail cashier defaults to master retail price; server rejects below-master retail pricing without a reason (minimum 10 characters), snapshots master price, and writes override audit-log entries. (Code added; migration 014 and CI verification still pending.)
 - [ ] Test partial sell-through, partial payment, returns, price changes between stock delivery and sales reporting, rejected reports, and duplicate approvals.
 
 ### Required product and transaction data
