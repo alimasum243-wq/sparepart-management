@@ -45,6 +45,17 @@ Gunakan entitas distributor dan lokasi konsinyasi yang sudah ada sebagai identit
 - PDF adalah format utama untuk cetak/kirim ke sales; CSV adalah format data untuk pengolahan internal. Keduanya berasal dari dokumen transaksi yang sama agar tidak ada input ulang.
 - Dokumen yang sudah disimpan tidak boleh berubah ketika harga/HPP master berubah. Reprint dan ekspor ulang harus memakai snapshot transaksi yang tersimpan.
 
+
+## Laporan cetak untuk pemodal
+- Sediakan menu Laporan Pemodal yang dapat difilter berdasarkan periode tanggal dan diekspor ke PDF siap cetak/kirim; CSV juga tersedia untuk olah data.
+- Laporan menampilkan ringkasan pembelian dari pabrik, nilai persediaan gudang utama, nilai persediaan yang masih dibawa sales (berdasarkan HPP), penjualan bersih, setoran terverifikasi, dan saldo penjualan yang belum disetor.
+- Sertakan rincian per sales: stok awal, penyerahan barang, retur stok ke gudang, stok akhir, penjualan, retur penjualan, setoran, dan saldo belum disetor.
+- Tampilkan rekonsiliasi total: stok awal + pembelian + retur dari sales - penyerahan ke sales - barang keluar lainnya = stok akhir, dengan penyesuaian yang dijelaskan; serta penjualan bersih - setoran terverifikasi = saldo belum disetor.
+- Pisahkan dengan tegas nilai persediaan (aset/barang perusahaan) dari saldo penjualan belum disetor (tagihan/kewajiban setoran sales). Jangan menjumlahkan keduanya sebagai satu jenis piutang.
+- Cantumkan periode laporan, waktu cetak, nomor halaman, identitas usaha, dan catatan sumber data. Sediakan kolom tanda tangan pengelola dan pemodal.
+- Laporan hanya berisi transaksi berstatus disetujui/terverifikasi; transaksi draft atau dibatalkan tidak ikut dihitung. Koreksi setelah tutup periode harus terlihat sebagai penyesuaian, bukan mengubah laporan historis diam-diam.
+- Data laporan diambil dari transaksi dan mutasi stok yang sama dengan operasional; jangan membuat angka laporan yang diinput ulang secara manual.
+
 ## Rumus kontrol
 - Stok sales (qty) = seluruh mutasi masuk lokasi sales - seluruh mutasi keluar lokasi sales.
 - Nilai stok sales = SUM(stok qty per SKU x HPP tersimpan/biaya rata-rata yang konsisten).
