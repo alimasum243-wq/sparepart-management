@@ -63,7 +63,7 @@ WHERE TABLE_SCHEMA=DATABASE()
  'accounts','cash_accounts','cash_transactions','expenses','channel_cost_allocations',
  'product_price_history','accounting_periods','accounting_period_guard',
  'inventory_adjustments','inventory_adjustment_items','consignment_delivery_print_logs',
- 'distributor_consignment_return_requests','distributor_consignment_return_request_items'
+ 'distributor_consignment_return_requests','distributor_consignment_return_request_items','cash_reconciliation_sessions'
  )
 ORDER BY TABLE_NAME, INDEX_NAME, SEQ_IN_INDEX;
 
