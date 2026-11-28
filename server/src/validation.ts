@@ -40,3 +40,4 @@ export const channelNetContribution = (retailGross:number,salesGross:number,reta
   const retailNet=money2(retailGross-retailCosts),salesNet=money2(salesGross-salesCosts),total=money2(retailNet+salesNet);
   return {retail_net_contribution:retailNet,sales_net_contribution:salesNet,total_net_contribution:total,retail_net_share:total>0?money2(retailNet/total*100):null,sales_net_share:total>0?money2(salesNet/total*100):null};
 };
+export const channelCostAllocationWithinSource = (sourceAmount:number,otherChannelAllocation:number,proposedAllocation:number):boolean => Number.isFinite(sourceAmount)&&Number.isFinite(otherChannelAllocation)&&Number.isFinite(proposedAllocation)&&sourceAmount>=0&&otherChannelAllocation>=0&&proposedAllocation>=0&&hasAtMost2Decimals(proposedAllocation)&&otherChannelAllocation+proposedAllocation<=sourceAmount+0.009;
