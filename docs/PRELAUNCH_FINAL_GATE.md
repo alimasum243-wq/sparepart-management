@@ -101,11 +101,11 @@ The application must support two separate price segments per product, with diffe
 - [ ] Sales margin is computed separately from retail margin using HPP and the wholesale/sales price; do not add a sales commission by default.
 - [ ] Record separately: stock delivered to sales, units sold, units returned/unsold, payment remitted, outstanding receivable, and advances/unapplied payments.
 - [ ] Prevent unauthorized price edits and prevent applying retail pricing to sales channel or vice versa; record price snapshots on each transaction so later product-price changes do not rewrite history.
-- [x] Retail cashier defaults to master retail price; server rejects below-master retail pricing without a reason (minimum 10 characters), snapshots master price, and writes override audit-log entries. (Code added; migration 014 and CI verification still pending.)
+- [x] Code implemented: retail cashier auto-fills master retail price; server requires a positive master retail price, rejects below-master prices without a 10-character reason, snapshots master price, and writes override audit-log entries. Migration 014 and CI/acceptance still pending.
 - [ ] Test partial sell-through, partial payment, returns, price changes between stock delivery and sales reporting, rejected reports, and duplicate approvals.
-- [ ] Retail checkout auto-fills the master retail price; server rejects below-master price without an override reason and snapshots/audits approved owner exceptions. Migration 014 applied and verified on isolated TiDB.
+- [ ] Acceptance: apply migration 014 on isolated TiDB and test normal retail, zero master price, below-price no reason, below-price with reason, audit-log snapshot, and changed master price.
 - [ ] Nominal operating-cost allocation by channel (migration 015) reconciles to each source expense, does not exceed source amount, and net contribution = gross profit less assigned costs; unallocated expenses remain visible. Confirm no journal entries are created by analytic allocation.
-- [ ] Owner can set per-SKU Sales MOQ; Sales report below MOQ is server-blocked; historical MOQ snapshot is stored; multiple same-day reports for same Sales/SKU are surfaced as review signal. Migration 016 and acceptance tests required.
+- [x] Code implemented: owner can set per-SKU Sales MOQ; Sales reports below MOQ are server-blocked; historical MOQ snapshot is stored; multiple same-day reports for same Sales/SKU are surfaced as review signal. Migration 016 and CI/acceptance still pending.
 
 ### Required product and transaction data
 - [ ] Product has separate retail and sales/distributor prices (and HPP/cost basis); transactions snapshot channel, unit price, discount, HPP, and quantity.
@@ -121,16 +121,16 @@ The application must support two separate price segments per product, with diffe
 
 ### Channel and identity checks
 - [ ] Retail transactions at store/warehouse checkout default to retail price/channel; sales price cannot be selected by an ordinary cashier for walk-in retail.
-- [ ] Sales channel requires a verified active Sales/Distributor account ID and an authorized transaction context. Do not accept a client-supplied role/channel alone as proof.
-- [ ] Wholesale eligibility is validated server-side against account status, location, quantity threshold, applicable price list, and role/permissions.
+- [x] Code: Sales channel report requires authenticated distributor identity from active session/account; client cannot select distributor identity. Acceptance tests for inactive account/IDOR still pending.
+- [ ] Wholesale eligibility is server-validated for active distributor, per-SKU MOQ, price list, and role; area is a manual transparent label, not verified location. Effective-date MOQ and full location validation remain gaps.
 - [ ] A low-quantity transaction using sales price (example: 1–2 pcs) without a valid sales/distributor account is blocked. With verified account but below MOQ, block or route to explicit owner approval based on configurable policy; never silently allow.
-- [ ] Quantity threshold (MOQ) is configurable per SKU or product group, with an owner-managed rule and effective date. Support mixed-item orders by evaluating each SKU or an explicitly defined order-level MOQ policy.
-- [ ] Split orders or repeated purchases near threshold within a configurable period are flagged for possible threshold circumvention; don't treat these signals alone as proof.
+- [x] Code: MOQ configurable per product/SKU and enforced per report item. Effective date, product-group MOQ, and order-level mixed-item policy are not implemented; migration 016 and tests pending.
+- [x] Code: multiple reports for the same distributor/date/SKU are flagged for review. Configurable lookback window, repeated orders across days, and false-positive acceptance tests remain pending.
 - [ ] Override requires owner/authorized approver, recorded reason, transaction evidence, and immutable audit trail; cashier cannot approve their own override.
 
 ### Margin controls and monitoring
 - [ ] Do not require or display margin target percentages for now.
-- [ ] Owner sets retail and sales prices directly per product; system preserves these separate price fields and transaction snapshots.
+- [x] Code: owner sets separate retail and Sales prices per product; server rejects Sales price above retail when retail master is positive. Historical transaction snapshots are implemented; CI/acceptance pending.
 - [ ] Optional minimum permitted selling price per channel may be set as a nominal Rupiah amount (not percentage), if owner chooses to use this safeguard.
 - [ ] Profit reporting may show actual Rupiah gross profit (selling price minus HPP) per unit and transaction, without percentage targets.
 - [ ] Check transaction price against configured channel price and any nominal price floor. Unauthorized lower price blocks posting or requires owner approval; record reason and approver.
