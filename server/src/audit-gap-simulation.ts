@@ -18,7 +18,7 @@ export const shortageChargeCap = (approvedQty:number, unitCost:number) =>
   Math.round((approvedQty*unitCost+Number.EPSILON)*100)/100;
 
 export const validBankBalanceSequence = (rows:Array<{debit:number;credit:number;balance:number|null}>) => {
- if(!rows.length)return false;const has=rows.some(r=>r.balance!==null);if(!has)return true;if(rows.some(r=>r.running_balance===null||!Number.isFinite(r.debit)||!Number.isFinite(r.credit)||r.debit<0||r.credit<0||r.debit>0&&r.credit>0))return false;for(let i=1;i<rows.length;i++){const expected=Math.round((Number(rows[i-1].balance)+rows[i].credit-rows[i].debit)*100)/100;if(Math.abs(expected-Number(rows[i].balance))>0.01)return false;}return true;
+ if(!rows.length)return false;const has=rows.some(r=>r.balance!==null);if(!has)return true;if(rows.some(r=>r.balance===null||!Number.isFinite(r.debit)||!Number.isFinite(r.credit)||r.debit<0||r.credit<0||r.debit>0&&r.credit>0))return false;for(let i=1;i<rows.length;i++){const expected=Math.round((Number(rows[i-1].balance)+rows[i].credit-rows[i].debit)*100)/100;if(Math.abs(expected-Number(rows[i].balance))>0.01)return false;}return true;
 };
 
 export const bankRowNet = (row:BankRow) => {
