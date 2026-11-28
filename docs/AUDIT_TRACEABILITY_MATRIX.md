@@ -22,7 +22,9 @@
 | AI audit transparency | Current signals are deterministic server rules, not AI-generated forensic conclusions | Not AI yet | Add AI explanation only after grounded structured evidence; never invent or automatically accuse |
 | Security and audit trail | Authenticated owner routes, session controls, transactional posting and audit logs | Code review only | Full role/IDOR/security and acceptance testing required |
 
-| Nominal operating-cost allocation | `channel_cost_allocations` table; owner assigns expense amount to RETAIL or SALES; API validates total allocations do not exceed source expense; audit log | Implemented in branch | Apply migration 015; test update, zero allocation, source-limit, audit log, and no GL journal side effects |\n\n## Required acceptance evidence
+| Nominal operating-cost allocation | `channel_cost_allocations` table; owner assigns expense amount to RETAIL or SALES; API validates total allocations do not exceed source expense; audit log | Implemented in branch | Apply migration 015; test update, zero allocation, source-limit, audit log, and no GL journal side effects |
+
+## Required acceptance evidence
 
 For every requirement marked partial or code-present, attach:
 - exact commit SHA and environment/TiDB version;
