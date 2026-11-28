@@ -243,11 +243,13 @@ router.post('/distributor/sales-reports',authMiddleware,distributor,async(req:Au
    const [pRows]=await conn.execute<RowDataPacket[]>(`SELECT id,product_name,average_cost,purchase_cost,sales_moq FROM products WHERE id=? AND is_active=1 FOR UPDATE`,[pid]);if(!pRows.length)throw new Error('Produk tidak ditemukan.');const minimumQty=Number(pRows[0].sales_moq||1);if(!salesQuantityMeetsMoq(qty,minimumQty))throw new Error(`Jumlah laporan ${pRows[0].product_name} ${qty} kurang dari MOQ Sales ${minimumQty}. Laporan di bawah MOQ ditolak.`);
    const [available]=await conn.execute<RowDataPacket[]>(`SELECT
     (COALESCE(SUM(CASE WHEN to_location_id=? THEN quantity ELSE 0 END),0)-COALESCE(SUM(CASE WHEN from_location_id=? THEN quantity ELSE 0 END),0))-
-      COALESCE((SELECT SUM(i.quantity_sold) FROM distributor_sales_report_items i JOIN distributor_sales_reports r ON r.id=i.report_id WHERE r.distributor_id=? AND r.status='SUBMITTED' AND i.product_id=?),0) qty,
+      COALESCE((SELECT SUM(i.quantity_sold) FROM distributor_sales_report_items i JOIN distributor_sales_reports r ON r.id=i.report_id WHERE r.distributor_id=? AND r.status='SUBMITTED' AND i.product_id=?),0)-
+      COALESCE((SELECT SUM(ri.quantity) FROM distributor_consignment_return_request_items ri JOIN distributor_consignment_return_requests rr ON rr.id=ri.request_id WHERE rr.distributor_id=? AND rr.status='PENDING' AND ri.product_id=?),0) qty,
     (COALESCE(SUM(CASE WHEN to_location_id=? THEN quantity*unit_cost ELSE 0 END),0)-COALESCE(SUM(CASE WHEN from_location_id=? THEN quantity*unit_cost ELSE 0 END),0))-
-      COALESCE((SELECT SUM(i.cost_total) FROM distributor_sales_report_items i JOIN distributor_sales_reports r ON r.id=i.report_id WHERE r.distributor_id=? AND r.status='SUBMITTED' AND i.product_id=?),0) stock_value
+      COALESCE((SELECT SUM(i.cost_total) FROM distributor_sales_report_items i JOIN distributor_sales_reports r ON r.id=i.report_id WHERE r.distributor_id=? AND r.status='SUBMITTED' AND i.product_id=?),0)-
+      COALESCE((SELECT SUM(ri.quantity*ri.unit_cost_snapshot) FROM distributor_consignment_return_request_items ri JOIN distributor_consignment_return_requests rr ON rr.id=ri.request_id WHERE rr.distributor_id=? AND rr.status='PENDING' AND ri.product_id=?),0) stock_value
     FROM stock_movements WHERE product_id=? AND (to_location_id=? OR from_location_id=?)`,
-    [Number(loc[0].id),Number(loc[0].id),distId,pid,Number(loc[0].id),Number(loc[0].id),distId,pid,pid,Number(loc[0].id),Number(loc[0].id)]);
+    [Number(loc[0].id),Number(loc[0].id),distId,pid,distId,pid,Number(loc[0].id),Number(loc[0].id),distId,pid,distId,pid,pid,Number(loc[0].id),Number(loc[0].id)]);
    if(Number(available[0].qty)<qty)throw new Error(`Jumlah terjual melebihi stok titipan ${pRows[0].product_name}.`);
    const [priceInventoryRows]=await conn.execute<RowDataPacket[]>(`SELECT
     COALESCE((SELECT SUM(cdi.quantity*cdi.distributor_price_snapshot) FROM consignment_delivery_items cdi JOIN consignment_deliveries cd ON cd.id=cdi.delivery_id WHERE cd.distributor_id=? AND cd.status='POSTED' AND cdi.product_id=?),0) delivery_price_value,
