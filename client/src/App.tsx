@@ -13,7 +13,7 @@ type Location = { id:number; location_code:string; location_name:string; locatio
 type Item = { product_id:string; quantity:string; unit_cost:string }
 type Options = { suppliers:Supplier[]; products:Product[]; locations:Location[]; cash_accounts:any[] }
 const nav = [
-  {label:'Dashboard',icon:LayoutDashboard},{label:'Produk & Persediaan',icon:Package},{label:'Pembelian',icon:ShoppingCart},
+  {label:'Dashboard',icon:LayoutDashboard},{label:'Produk & Persediaan',icon:Package},{label:'Histori Harga',icon:History},{label:'Pembelian',icon:ShoppingCart},
   {label:'Gudang Sales',icon:Truck},{label:'Kasir Retail',icon:ReceiptText},{label:'Penjualan',icon:ReceiptText},{label:'Aging Piutang',icon:BarChart3},{label:'Utang & Piutang',icon:Users},
   {label:'Kas & Pengeluaran',icon:Wallet},{label:'Kas, Modal & Transfer',icon:Wallet},{label:'Stock Opname & Adjustment',icon:ClipboardList},{label:'Retur Barang',icon:RotateCcw},{label:'Histori Transaksi',icon:History},{label:'Laporan',icon:BarChart3}
 ]
@@ -50,6 +50,7 @@ export default function App() {
     <main className="main"><header className="topbar"><button className="menu-toggle" onClick={()=>setMenuOpen(true)} aria-label="Buka menu"><Menu/></button><div><span className="eyebrow">SISTEM MANAJEMEN USAHA</span><h1>{active==='Dashboard'?'Panel Operasional':active}</h1></div><div className="connection"><span className={`dot ${apiStatus==='ok'?'ok':apiStatus==='error'?'error':''}`}/><span>{apiStatus==='ok'?'API terhubung':apiStatus==='error'?'API belum terhubung':'Memeriksa API'}</span></div><button className="secondary-button" onClick={logout}><LogOut size={15}/> Keluar</button></header>
       {active==='Dashboard'?<Dashboard apiStatus={apiStatus} user={user} token={token}/>:
        active==='Produk & Persediaan'?<Products token={token}/>:
+       active==='Histori Harga'?<PriceHistory token={token}/>:
        active==='Pembelian'?<Purchases token={token}/>:
        active==='Gudang Sales'?<AdminConsignments token={token}/>:
         active==='Kasir Retail'?<RetailSales token={token}/>:
@@ -69,6 +70,12 @@ export default function App() {
 function Login({onLogin,error,apiStatus}:{onLogin:(identifier:string,p:string)=>void;error:string;apiStatus:string}){
  const [identifier,setIdentifier]=useState('');const [password,setPassword]=useState('')
  return <div className="login-screen"><form className="panel login-card" onSubmit={e=>{e.preventDefault();onLogin(identifier.trim(),password)}}><div className="login-brand"><img className="login-brand-logo" src="/brand/sparepart-enzonic.svg" alt="Sparepart Enzonic — Solusi Suku Cadang Kompor Terpercaya" /></div><span className="eyebrow">SISTEM MANAJEMEN USAHA</span><h1>Masuk ke Sparepart Enzonic</h1><p>Gunakan username, email, atau nomor telepon yang terdaftar.</p>{error&&<div className="form-alert error-alert"><AlertCircle size={17}/>{error}</div>}<label className="field">Username / Email / Nomor telepon<input autoComplete="username" inputMode="text" value={identifier} onChange={e=>setIdentifier(e.target.value)} required/></label><label className="field">Password<input type="password" autoComplete="current-password" value={password} onChange={e=>setPassword(e.target.value)} required/></label><button className="primary-button" type="submit">Masuk</button><small>Status server: {apiStatus==='ok'?'terhubung':apiStatus==='error'?'belum terhubung':'memeriksa'}</small></form></div>
+}
+function PriceHistory({token}:{token:string}){
+ const [products,setProducts]=useState<Product[]>([]),[productId,setProductId]=useState(''),[rows,setRows]=useState<any[]>([]),[product,setProduct]=useState<any|null>(null),[loading,setLoading]=useState(false),[error,setError]=useState('');
+ useEffect(()=>{request('/api/products',token).then(d=>{const p=d.products||[];setProducts(p);if(p.length)setProductId(String(p[0].id));}).catch(e=>setError(e instanceof Error?e.message:'Gagal memuat produk'))},[]);
+ useEffect(()=>{if(!productId)return;setLoading(true);setError('');request(`/api/products/${productId}/price-history`,token).then(d=>{setProduct(d.product);setRows(d.history||[])}).catch(e=>{setError(e instanceof Error?e.message:'Gagal memuat histori harga');setRows([])}).finally(()=>setLoading(false))},[productId]);
+ return <section className="panel purchase-panel"><div className="section-head"><div><span className="eyebrow">AUDIT PERUBAHAN HARGA & HPP</span><h2>Histori harga produk</h2><p>Perubahan harga beli, HPP, harga distributor, dan harga retail—termasuk snapshot awal database.</p></div></div><label className="field">Pilih produk<select value={productId} onChange={e=>setProductId(e.target.value)}><option value="">Pilih produk</option>{products.map(p=><option key={p.id} value={p.id}>{p.sku||'-'} — {p.product_name}</option>)}</select></label>{product&&<div className="notice"><strong>{product.sku||'-'} · {product.product_name}</strong><span>{rows.length} catatan histori</span></div>}{error&&<div className="form-alert error-alert">{error}</div>}{loading?<p>Memuat histori…</p>:!productId?<p>Pilih produk untuk melihat histori.</p>:!rows.length?<p>Belum ada histori untuk produk ini. Pastikan migration 010 sudah dijalankan.</p>:<div className="table-wrap"><table className="product-table"><thead><tr><th>Tanggal</th><th>Sumber</th><th>Harga beli</th><th>Harga beli terakhir</th><th>HPP rata-rata</th><th>Harga distributor</th><th>Harga retail</th></tr></thead><tbody>{rows.map(r=><tr key={r.id}><td>{String(r.effective_date).slice(0,10)}</td><td>{r.source}</td><td>{money(Number(r.purchase_cost))}</td><td>{money(Number(r.last_purchase_cost))}</td><td>{money(Number(r.average_cost))}</td><td>{money(Number(r.distributor_price))}</td><td>{money(Number(r.retail_price))}</td></tr>)}</tbody></table></div>}</section>
 }
 function Dashboard({apiStatus,user,token}:{apiStatus:string;user:User;token:string}){
  const [summary,setSummary]=useState<any|null>(null);const [error,setError]=useState('');
