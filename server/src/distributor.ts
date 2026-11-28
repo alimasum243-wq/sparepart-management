@@ -107,12 +107,18 @@ router.post('/auth/owner-setup', async (req,res) => {\n  if(rateLimit('setup:'+r
   const {setup_key,username,email,phone,full_name,password} = req.body || {};
   if (!process.env.OWNER_SETUP_KEY || setup_key !== process.env.OWNER_SETUP_KEY) return res.status(403).json({ok:false,message:'Kunci setup tidak cocok.'});
   if (!/^[a-zA-Z0-9._-]{4,50}$/.test(username||'') || !String(full_name||'').trim() || String(password||'').length < 10 || (email && !/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(String(email)))) return res.status(400).json({ok:false,message:'Username minimal 4 karakter, email harus valid, dan password minimal 10 karakter.'});
+  const conn=await pool.getConnection();
   try {
-    const [existing] = await pool.query<RowDataPacket[]>(`SELECT id FROM users WHERE password_hash IS NOT NULL LIMIT 1`);
-    if (existing.length) return res.status(409).json({ok:false,message:'Akun login sudah pernah dibuat. Hubungi pemilik sistem.'});
-    const [result] = await pool.execute<ResultSetHeader>(`INSERT INTO users (username,email,phone,full_name,role,password_hash,is_active) VALUES (?,?,?,?, 'OWNER', ?,1)`,[username,email?String(email).trim().toLowerCase():null,phone?String(phone).trim():null,String(full_name).trim(),hashPassword(password)]);
+    await conn.beginTransaction();
+    const [guard]=await conn.execute<RowDataPacket[]>(`SELECT id FROM owner_setup_guard WHERE id=1 FOR UPDATE`);
+    if(!guard.length) throw new Error('Tabel pengaman setup pemilik belum siap. Jalankan migration 007.');
+    const [existing] = await conn.execute<RowDataPacket[]>(`SELECT id FROM users WHERE password_hash IS NOT NULL LIMIT 1`);
+    if (existing.length) { await conn.rollback(); return res.status(409).json({ok:false,message:'Akun login sudah pernah dibuat. Hubungi pemilik sistem.'}); }
+    const [result] = await conn.execute<ResultSetHeader>(`INSERT INTO users (username,email,phone,full_name,role,password_hash,is_active) VALUES (?,?,?,?, 'OWNER', ?,1)`,[username,email?String(email).trim().toLowerCase():null,phone?String(phone).trim():null,String(full_name).trim(),hashPassword(password)]);
+    await conn.commit();
     return res.status(201).json({ok:true,message:'Akun pemilik berhasil dibuat. Silakan login.',user_id:result.insertId});
-  } catch (e) { return res.status(500).json({ok:false,message:e instanceof Error?e.message:'Gagal membuat akun.'}); }
+  } catch (e) { await conn.rollback(); return res.status(500).json({ok:false,message:e instanceof Error?e.message:'Gagal membuat akun.'}); }
+  finally { conn.release(); }
 });
 
 router.post('/auth/login', async (req,res) => {\n  const loginKey='login:'+rateKey(req);\n  if(rateLimit(loginKey,8,15*60*1000)) return res.status(429).json({ok:false,message:'Terlalu banyak percobaan login. Tunggu 15 menit sebelum mencoba kembali.'});
