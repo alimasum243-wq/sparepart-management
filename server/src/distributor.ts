@@ -158,7 +158,7 @@ router.get('/auth/me',authMiddleware,(req:AuthedRequest,res)=>res.json({ok:true,
 // Owner creates distributor master, dedicated stock location and its login account.
 router.post('/admin/distributors',authMiddleware,ownerMiddleware,async(req:AuthedRequest,res)=>{
   const {distributor_name,phone,email,address,username,password} = req.body || {};
-  if (!String(distributor_name||'').trim() || !/^[a-zA-Z0-9._-]{4,50}$/.test(username||'') || String(password||'').length<10) return res.status(400).json({ok:false,message:'Nama distributor, username valid, dan password minimal 10 karakter wajib diisi.'});
+  if (!String(distributor_name||'').trim() || String(distributor_name||'').length>150 || String(phone||'').length>50 || String(address||'').length>255 || (email && (String(email).length>190 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(email)))) || !/^[a-zA-Z0-9._-]{4,50}$/.test(username||'') || String(password||'').length<10 || String(password||'').length>128) return res.status(400).json({ok:false,message:'Nama, kontak, username, email, atau password distributor tidak valid.'});
   const conn = await pool.getConnection();
   try {
     await conn.beginTransaction();
@@ -167,6 +167,7 @@ router.post('/admin/distributors',authMiddleware,ownerMiddleware,async(req:Authe
     const distributorId = Number(d.insertId);
     const [l] = await conn.execute<ResultSetHeader>(`INSERT INTO stock_locations (location_code,location_name,location_type,distributor_id,is_active) VALUES (?,?, 'DISTRIBUTOR', ?,1)`,[`LOC-${distributorCode}`,`Titipan - ${String(distributor_name).trim()}`,distributorId]);
     await conn.execute(`INSERT INTO users (username,email,phone,full_name,role,distributor_id,password_hash,is_active) VALUES (?,?,?, ?, 'DISTRIBUTOR', ?, ?,1)`,[username,email?String(email).trim().toLowerCase():null,phone?String(phone).trim():null,String(distributor_name).trim(),distributorId,hashPassword(password)]);
+    await conn.execute(`INSERT INTO audit_logs (user_id,action,entity_type,entity_id,description) VALUES (?,'CREATE','DISTRIBUTOR',?,?)`,[req.identity!.id,distributorId,`Distributor dibuat: ${distributorCode} - ${String(distributor_name).trim()}; username ${username}`]);
     await conn.commit();
     return res.status(201).json({ok:true,distributor:{id:distributorId,distributor_code:distributorCode,distributor_name,stock_location_id:l.insertId,username}});
   } catch(e){await conn.rollback();return res.status(500).json({ok:false,message:e instanceof Error?e.message:'Gagal membuat distributor.'});} finally{conn.release();}
