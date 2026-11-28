@@ -728,6 +728,7 @@ app.get("/api/supplier-payments/outstanding", async (_req,res) => {
         SELECT spa.purchase_id,SUM(spa.allocated_amount) AS allocated_total
         FROM supplier_payment_allocations spa
         JOIN supplier_payments sp ON sp.id=spa.supplier_payment_id
+        WHERE sp.posted_at IS NOT NULL
         GROUP BY spa.purchase_id
       ) a ON a.purchase_id=p.id
       LEFT JOIN (SELECT p2.id purchase_id,SUM(pr.total) returned_total FROM purchase_returns pr JOIN purchases p2 ON p2.id=pr.purchase_id WHERE pr.status='POSTED' GROUP BY p2.id) pr ON pr.purchase_id=p.id
@@ -787,7 +788,7 @@ app.post("/api/supplier-payments", async (req,res) => {
       const [purchase]=await conn.execute<RowDataPacket[]>(
         `SELECT p.id,p.supplier_id,p.grand_total,p.purchase_code,
           COALESCE((SELECT SUM(a.allocated_amount) FROM supplier_payment_allocations a
-            JOIN supplier_payments sp ON sp.id=a.supplier_payment_id WHERE a.purchase_id=p.id),0) AS paid_total,
+            JOIN supplier_payments sp ON sp.id=a.supplier_payment_id WHERE a.purchase_id=p.id AND sp.posted_at IS NOT NULL),0) AS paid_total,
           COALESCE((SELECT SUM(pr.total) FROM purchase_returns pr WHERE pr.purchase_id=p.id AND pr.status='POSTED'),0) AS returned_total
          FROM purchases p WHERE p.id=? AND p.status='POSTED' FOR UPDATE`,[item.purchaseId]
       );
@@ -839,7 +840,7 @@ app.get("/api/dashboard/summary", async (_req,res) => {
     const [supplierDebt]=await pool.query<RowDataPacket[]>(`
       SELECT COALESCE(SUM(GREATEST(p.grand_total-COALESCE(a.paid,0)-COALESCE(r.returned,0),0)),0) total
       FROM purchases p LEFT JOIN (
-        SELECT purchase_id,SUM(allocated_amount) paid FROM supplier_payment_allocations GROUP BY purchase_id
+        SELECT spa.purchase_id,SUM(spa.allocated_amount) paid FROM supplier_payment_allocations spa JOIN supplier_payments sp ON sp.id=spa.supplier_payment_id WHERE sp.posted_at IS NOT NULL GROUP BY spa.purchase_id
       ) a ON a.purchase_id=p.id LEFT JOIN (
         SELECT purchase_id,SUM(total) returned FROM purchase_returns WHERE status='POSTED' GROUP BY purchase_id
       ) r ON r.purchase_id=p.id WHERE p.status='POSTED'`);
@@ -931,7 +932,7 @@ app.post("/api/returns/purchase",async(req,res)=>{
   const [payableBalance]=await conn.execute<RowDataPacket[]>(`
    SELECT p.grand_total-COALESCE(a.paid_total,0)-COALESCE(r.returned_total,0) outstanding
    FROM purchases p
-   LEFT JOIN (SELECT purchase_id,SUM(allocated_amount) paid_total FROM supplier_payment_allocations GROUP BY purchase_id) a ON a.purchase_id=p.id
+   LEFT JOIN (SELECT spa.purchase_id,SUM(spa.allocated_amount) paid_total FROM supplier_payment_allocations spa JOIN supplier_payments sp ON sp.id=spa.supplier_payment_id WHERE sp.posted_at IS NOT NULL GROUP BY spa.purchase_id) a ON a.purchase_id=p.id
    LEFT JOIN (SELECT purchase_id,SUM(total) returned_total FROM purchase_returns WHERE status='POSTED' GROUP BY purchase_id) r ON r.purchase_id=p.id
    WHERE p.id=? FOR UPDATE`,[purchaseId]);
   const openPayable=Math.round(Number(payableBalance[0]?.outstanding||0)*100)/100;
