@@ -326,3 +326,9 @@ The application must support two separate price segments per product, with diffe
 - [ ] Acceptance tests: range boundaries/timezone; empty period; one-day and cross-month ranges; returns/refunds; pending vs posted; void/reversal; CSV encoding/headers and row totals; PDF pagination; large report; unauthorized export; repeated/reprint audit; export totals tie to ledger.
 
 **Acceptance rule:** missing receipt, handover note, date-range CSV/PDF report, or investor summary is a prelaunch blocker. Do not approve real transactions until implemented and tested against actual data and GL.
+
+### Current code-review baseline for print/export (checked on branch)
+- [x] Code currently has CSV export for transaction history, a combined profit/loss + operational report (CSV), and distributor receivables aging (CSV). These existing exports are limited implementations and do not satisfy the full investor-report standard above.
+- [x] Code currently offers browser print/Save-as-PDF for stock cards and balance sheet, and Sales portal note printing via browser print. This is browser print output, not a standardized generated PDF report engine.
+- [ ] No unified investor summary report with custom-period CSV and PDF is implemented yet; report coverage, period controls, permissions, consistent filters, generated metadata, and reconciliation checks are incomplete.
+- [ ] Retail receipt and warehouse-to-Sales handover note print/PDF remain missing per code review.
