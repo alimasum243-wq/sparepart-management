@@ -1,6 +1,6 @@
 # Distributor Portal — Required Workflow & Audit Controls
 
-Status: **Requirement accepted; implementation is not yet complete.** This document is added to the prelaunch hardening branch and is a blocker before declaring the app ready.
+Status: **Requirement accepted; partial implementation is now on the hardening branch. This remains a blocker pending CI and end-to-end review.** This document is added to the prelaunch hardening branch and is a blocker before declaring the app ready.
 
 ## Distributor portal requirements
 
@@ -33,7 +33,22 @@ Every delivery, sales report, approval/rejection, payment submission/verificatio
 - Dashboard calculations reconcile to ledger and GL with drilldown and export.
 - Print/PDF and CSV totals match source records and period filters.
 
-## Current branch gap
-The current Distributor portal UI has a stock table, sales report submission form, payment submission form, and print action for the latest sales report only. It does **not yet provide** persistent handover-note history, persistent sales-report history/status list, note-level payment allocation/status, or a distributor return-request menu/workflow. These are implementation gaps, not completed features.
+## Current branch implementation status (latest code additions)
 
-No TiDB migration, deployment, merge, or real transaction is performed by adding this requirement document.
+### Implemented in the branch; pending CI/end-to-end review
+- Distributor-visible persistent delivery-note line history (date, delivery code, product, qty, price snapshot, line value).
+- Distributor-visible sell-through report history with pending/approved/rejected status and rejection reason.
+- Distributor-visible payment history with submission amount/method/status, allocated amount and unapplied amount.
+- Unsold consignment return request schema (migration 018), distributor request UI/API, history, Owner queue/detail, reject reason and approval posting.
+- Return approval moves good items to the warehouse and damaged items to the damaged location; approval is single-transition and does not create automatic refunds.
+- Server-side return input validation and unit test for malformed item/quantity/condition.
+
+### Still incomplete / not yet certified
+- Handover history currently lists line items; note-level grouping, note total, persistent print/reprint and print audit history remain to be completed/reviewed.
+- Payment history shows aggregate allocation/unapplied amount per payment; per-note balances/status (Unpaid/Partial/Paid) and full allocation drill-down remain incomplete.
+- Distributor dashboard must reconcile handed-over, approved sold, pending reports, approved returned, expected stock, and physical variance.
+- Return request evidence/photo, inspection note, source delivery-note linkage and stronger per-batch traceability are not yet present.
+- Investor/reporting drilldown and return movement-to-stock-card reconciliation must be tested.
+- Integration/concurrency tests for return approval, overselling, duplicate posting, IDOR, and migration schema are still required.
+
+Do not mark the distributor portal complete until all remaining items are addressed or explicitly accepted as a prelaunch limitation and latest CI is green.
