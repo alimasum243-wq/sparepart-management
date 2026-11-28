@@ -156,8 +156,8 @@ The application must support two separate price segments per product, with diffe
 
 - [x] Code: retail receipts/refunds and verified Sales remittances are separate source categories and compared with GL. Other receipts and physical drawer tagging need acceptance.
 - [x] Code: retail and Sales receipt paths are separate and source audit cannot silently net one against the other. Acceptance pending.
-- [ ] Support cash drawer/session reconciliation by drawer, cashier, date/shift, and source category; optionally configure separate physical drawers/accounts where operationally used.
-- [ ] Opening cash, receipts, refunds, cash expenses, cash transfers, and closing counted cash must reconcile for each drawer/session and source category; prevent double-counting transfers between cash drawers/accounts.
+- [x] Support cash/bank opening and closing count sessions per account, with expected closing from posted GL movement during session, and variance recorded without auto-journal (migration 020).\n- [ ] Extend cashier/source-category attribution and validate multiple physical drawers and transfer edge cases.
+- [ ] Acceptance test session expected movement includes receipts/refunds, cash expenses, purchases, supplier payments, transfers, verified distributor remittances, and opening journals; transfers must not double-count, and cashier/source categories must be traced separately.
 - [ ] Any variance (even small) is surfaced as a non-zero discrepancy with the specific source category, cashier/session, expected amount, counted amount, timestamp, and explanation/approval workflow. Do not silently net discrepancies between retail and sales categories.
 - [ ] Distributor remittances reconcile against approved sales reports, allocations to receivables, and unapplied advances; retail receipts reconcile against posted retail transactions, refunds, and cash/GL.
 - [ ] Use server-enforced transaction source tags and immutable audit entries; cashier cannot change receipt source after posting without authorized correction/void workflow.
@@ -291,7 +291,7 @@ The application must support two separate price segments per product, with diffe
 
 ### Cash-source audit implementation progress
 - [x] Added owner-only cash-source reconciliation API and screen: retail receipts/refunds and verified sales remittances are compared to their posted cash/bank journal source per account and date.
-- [ ] This does not yet reconcile physical cash drawer/shift opening, expected, counted closing, or variance; cash expenses, purchases, supplier payments, transfers, and opening cash are not included. Physical laci/shift reconciliation remains a blocker.
+- [x] Physical cash/bank sessions added (migration 020): opening count, posted GL movement during session, expected closing, counted closing, variance; no automatic journal. Pending latest CI and acceptance review.\n- [ ] Cashier/source-category-specific drawer attribution and edge-case validation for transfers, expense/purchase/supplier payment, refunds, and verified remittances remain outstanding.
 
 ### Retail price floor audit implementation progress
 - [x] Retail checkout now initializes unit price from the product master retail price (not blank/manual-only); API requires a configured positive master retail price.
