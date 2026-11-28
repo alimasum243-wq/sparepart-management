@@ -107,7 +107,8 @@ Semua endpoint operasional lama (termasuk pembelian) kini memerlukan token pemil
 13. Retur pembelian/distributor yang melebihi saldo terbuka harus ditolak (refund transaksi lunas belum tersedia). Retur retail mengembalikan kas, stok, dan HPP.
 14. Kirim request transaksi bersamaan untuk produk/supplier/distributor yang sama; tidak boleh saldo/stock oversold, double payment, atau negative balance.
 15. Laba-rugi periode menampilkan transaksi jurnal. Bandingkan dengan jurnal detail dan rekonsiliasi kas/bank. Balance sheet, manual journal, dan rekonsiliasi otomatis belum tersedia.
-16. Migration 001/003/004/005/006/007 diuji pada salinan DB; ulangi migration idempotent yang memang dirancang repeatable, verifikasi tanpa kehilangan data.
+16. Stock opname, loss, damage, write-off dibuat draft; posting owner, stok tidak minus, movement dan jurnal loss/gain seimbang; cancel draft tidak mengubah saldo.
+17. Migration 001/003/004/005/006/007/008 diuji pada salinan DB; ulangi migration idempotent yang memang dirancang repeatable, verifikasi tanpa kehilangan data.
 
 Catatan: Laporan laba-rugi hanya mencerminkan transaksi yang sudah dibukukan ke jurnal. Pastikan seluruh beban operasional dicatat dan pembelian yang belum dibayar tetap dianggap utang pemasok. Jangan mengartikan pembayaran distributor yang baru dilaporkan sebagai kas masuk sebelum diverifikasi.
 
