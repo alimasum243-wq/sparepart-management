@@ -8,7 +8,7 @@ Fondasi aplikasi manajemen usaha sparepart: React + TypeScript + Vite, Express +
 
 ### Status kesiapan
 - Database dan migrasi 019–024: **user melaporkan 100% selesai**. Assistant tidak terkoneksi langsung ke database dan belum memverifikasi hasil secara independen.
-- Audit kode kritis dan hardening: ditinjau/diimplementasikan di branch.
+- Audit kode kritis dan hardening: ditinjau/diimplementasikan di branch; respons error database/internal disanitasi pada route transaksi yang diaudit, dan indikator koneksi UI memeriksa API serta database.
 - CI/build/typecheck: ada bukti lulus pada commit sebelumnya; status commit terbaru harus dikonfirmasi kembali.
 - Integration/concurrency/security E2E, rekonsiliasi transaksi/GL, backup-restore, dan UAT: belum dibuktikan.
 - Cashier/drawer/shift attribution, investor report drill-down terpadu, beberapa slip PDF/print, dan fitur rekonsiliasi bank eksternal masih memiliki gap.
