@@ -237,7 +237,7 @@ router.get('/distributor/stock',authMiddleware,distributor,async(req:AuthedReque
 
 router.post('/distributor/sales-reports',authMiddleware,distributor,async(req:AuthedRequest,res)=>{
  const {report_date,notes,items}=req.body||{};const salesAreaLabel=String(req.body?.sales_area_label||'').trim();if(!isDateOnly(report_date||'')||!Array.isArray(items)||!items.length||items.length>100||String(notes||'').length>1000||salesAreaLabel.length>120)return res.status(400).json({ok:false,message:'Tanggal, area (maks. 120 karakter), catatan, dan rincian penjualan wajib valid (maksimal 100 barang).'});
- const conn=await pool.getConnection();try{await conn.beginTransaction();const distId=req.identity!.distributorId!;
+ const conn=await pool.getConnection();try{await conn.beginTransaction();await assertAccountingPeriodOpen(conn,dateOnly(report_date));const distId=req.identity!.distributorId!;
   const [loc]=await conn.execute<RowDataPacket[]>(`SELECT id FROM stock_locations WHERE distributor_id=? AND location_type='DISTRIBUTOR' AND is_active=1 LIMIT 1 FOR UPDATE`,[distId]);if(!loc.length)throw new Error('Lokasi distributor tidak ditemukan.');
   const reportCode=code('LAP');const [h]=await conn.execute<ResultSetHeader>(`INSERT INTO distributor_sales_reports (report_code,distributor_id,report_date,status,notes,sales_area_label,submitted_by_user_id) VALUES (?,?,?,'SUBMITTED',?,?,?)`,[reportCode,distId,report_date,notes||null,salesAreaLabel||null,req.identity!.id]);const reportId=Number(h.insertId);const seen=new Set<number>();const receiptItems:any[]=[];let reportTotal=0,reportCostTotal=0;
   for(const raw of items){const pid=Number(raw.product_id),qty=Number(raw.quantity_sold);if(!Number.isInteger(pid)||!Number.isFinite(qty)||qty<=0||qty>1000000||Math.round(qty*1000)!==qty*1000||seen.has(pid))throw new Error('Rincian barang tidak valid atau produk ganda.');seen.add(pid);
@@ -431,6 +431,7 @@ router.post('/distributor/payments',authMiddleware,distributor,async(req:AuthedR
  const conn=await pool.getConnection();
  try{
   await conn.beginTransaction();
+  await assertAccountingPeriodOpen(conn,dateOnly(payment_date));
   const distributorId=req.identity!.distributorId!;
   // Serialize balance checks for this distributor to prevent concurrent submissions exceeding receivables.
   const [locked]=await conn.execute<RowDataPacket[]>(`SELECT id FROM distributors WHERE id=? AND is_active=1 FOR UPDATE`,[distributorId]);
@@ -443,7 +444,7 @@ router.post('/distributor/payments',authMiddleware,distributor,async(req:AuthedR
   return res.status(201).json({ok:true,message:'Bukti pembayaran terkirim dan menunggu verifikasi pemilik.',submission:{id:r.insertId,submission_code:paymentCode,status:'PENDING'}});
  }catch(e){
   await conn.rollback();
-  return res.status(500).json({ok:false,message:'Gagal mengirim pembayaran.'});
+  return res.status(400).json({ok:false,message:safeOperationalMessage(e,'Gagal mengirim pembayaran.')});
  }finally{conn.release();}
 });
 router.get('/admin/payments',authMiddleware,ownerMiddleware,async(_req,res)=>{const [rows]=await pool.query<RowDataPacket[]>(`SELECT p.*,d.distributor_name FROM distributor_payment_submissions p JOIN distributors d ON d.id=p.distributor_id ORDER BY p.created_at DESC`);res.json({ok:true,payments:rows});});
