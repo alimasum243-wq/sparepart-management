@@ -14,8 +14,13 @@ import distributorRouter, { authMiddleware, ownerMiddleware } from "./distributo
 const app = express();
 const port = Number(process.env.PORT || 4000);
 const allowedOrigins = (process.env.CLIENT_ORIGIN || "http://localhost:5173").split(",").map(value => value.trim()).filter(Boolean);
-const WAREHOUSE_ID = 1;
 
+
+const getWarehouseLocationId = async (conn:any):Promise<number> => {
+  const [rows]=await conn.execute<RowDataPacket[]>(`SELECT id FROM stock_locations WHERE location_type='WAREHOUSE' AND is_active=1 ORDER BY id LIMIT 1 FOR UPDATE`);
+  if(!rows.length) throw new Error('Gudang aktif tidak ditemukan.');
+  return Number(rows[0].id);
+};
 const isDateOnly = (value:unknown):boolean => {
   if(typeof value!=='string'||!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
   const [year,month,day]=value.split('-').map(Number);
@@ -361,24 +366,7 @@ app.post("/api/purchases", async (req, res) => {
       });
     }
 
-    // Pastikan gudang penerimaan tersedia.
-    const [warehouseRows] = await connection.execute<RowDataPacket[]>(
-      `SELECT id
-       FROM stock_locations
-       WHERE id = ?
-         AND location_type = 'WAREHOUSE'
-         AND is_active = 1
-       FOR UPDATE`,
-      [WAREHOUSE_ID]
-    );
-
-    if (warehouseRows.length === 0) {
-      await connection.rollback();
-      return res.status(400).json({
-        ok: false,
-        message: "Gudang Sukoanyar tidak ditemukan atau tidak aktif."
-      });
-    }
+    const warehouseId=await getWarehouseLocationId(connection);
 
     const purchaseCode =
       "PB-" +
@@ -485,7 +473,7 @@ app.post("/api/purchases", async (req, res) => {
         [
           `${purchaseCode}-${i + 1}`,
           item.product_id,
-          WAREHOUSE_ID,
+          warehouseId,
           item.quantity,
           item.unit_cost,
           purchaseId,
@@ -593,7 +581,7 @@ app.get("/api/retail/options", async (_req, res) => {
          GROUP BY product_id
        ) st ON st.product_id=p.id
        WHERE p.is_active=1 ORDER BY p.product_name`,
-      [WAREHOUSE_ID,WAREHOUSE_ID,WAREHOUSE_ID,WAREHOUSE_ID]
+      [warehouseId,warehouseId,warehouseId,warehouseId]
     );
     const [accounts] = await pool.query<RowDataPacket[]>(
       `SELECT id,account_name,account_type FROM cash_accounts WHERE is_active=1 ORDER BY account_name`
@@ -644,7 +632,7 @@ app.post("/api/retail/sales", async (req,res) => {
         `SELECT COALESCE(SUM(CASE WHEN to_location_id=? THEN quantity ELSE 0 END),0)-
           COALESCE(SUM(CASE WHEN from_location_id=? THEN quantity ELSE 0 END),0) AS stock_qty
          FROM stock_movements WHERE product_id=? AND (to_location_id=? OR from_location_id=?)`,
-        [WAREHOUSE_ID,WAREHOUSE_ID,item.productId,WAREHOUSE_ID,WAREHOUSE_ID]
+        [warehouseId,warehouseId,item.productId,warehouseId,warehouseId]
       );
       const available=Number(stocks[0]?.stock_qty||0);
       if((totalQty.get(item.productId)||0)>available) throw new Error(`Stok gudang ${products[0].product_name} tidak cukup. Tersedia ${available} ${products[0].unit||"pcs"}.`);
@@ -672,7 +660,7 @@ app.post("/api/retail/sales", async (req,res) => {
       await conn.execute(
         `INSERT INTO stock_movements (movement_code,product_id,from_location_id,to_location_id,movement_type,quantity,unit_cost,reference_type,reference_id,note,created_by_user_id)
          VALUES (?, ?, ?, NULL, 'RETAIL_SALE_OUT', ?, ?, 'RETAIL_SALE', ?, ?, ?)`,
-        [`${saleCode}-${n+1}`,item.productId,WAREHOUSE_ID,item.quantity,item.unitCost,sale.insertId,`Penjualan retail ${saleCode}`,(req as any).identity?.id || null]
+        [`${saleCode}-${n+1}`,item.productId,warehouseId,item.quantity,item.unitCost,sale.insertId,`Penjualan retail ${saleCode}`,(req as any).identity?.id || null]
       );
     }
     const journalCode=`JRN-${Date.now()}-${randomUUID().slice(0,6).toUpperCase()}`;
@@ -923,7 +911,7 @@ app.post("/api/returns/purchase",async(req,res)=>{
    if(item.quantity>remaining+0.000001)throw new Error(`Jumlah retur ${line.product_name_snapshot} melebihi sisa yang dapat diretur (${remaining}).`);
    const [stock]=await conn.execute<RowDataPacket[]>(`
     SELECT COALESCE(SUM(CASE WHEN to_location_id=? THEN quantity ELSE 0 END),0)-COALESCE(SUM(CASE WHEN from_location_id=? THEN quantity ELSE 0 END),0) stock_qty
-    FROM stock_movements WHERE product_id=? AND (to_location_id=? OR from_location_id=?)`,[WAREHOUSE_ID,WAREHOUSE_ID,line.product_id,WAREHOUSE_ID,WAREHOUSE_ID]);
+    FROM stock_movements WHERE product_id=? AND (to_location_id=? OR from_location_id=?)`,[warehouseId,warehouseId,line.product_id,warehouseId,warehouseId]);
    if(item.quantity>Number(stock[0]?.stock_qty||0)+0.000001)throw new Error(`Stok gudang ${line.product_name_snapshot} tidak cukup untuk retur ke pemasok.`);
    const amount=Math.round(item.quantity*Number(line.unit_cost)*100)/100;
    total=Math.round((total+amount)*100)/100;prepared.push({...item,line,amount});
@@ -942,7 +930,7 @@ app.post("/api/returns/purchase",async(req,res)=>{
   for(let i=0;i<prepared.length;i++){
    const x=prepared[i];
    await conn.execute(`INSERT INTO purchase_return_items (purchase_return_id,purchase_item_id,product_id,product_name_snapshot,quantity,unit_cost,line_total) VALUES (?,?,?,?,?,?,?)`,[ret.insertId,x.purchaseItemId,x.line.product_id,x.line.product_name_snapshot,x.quantity,x.line.unit_cost,x.amount]);
-   await conn.execute(`INSERT INTO stock_movements (movement_code,product_id,from_location_id,to_location_id,movement_type,quantity,unit_cost,reference_type,reference_id,note,created_by_user_id) VALUES (?,?,?,NULL,'PURCHASE_RETURN_OUT',?,?,'PURCHASE_RETURN',?,?,?)`,[`${code}-${i+1}`,x.line.product_id,WAREHOUSE_ID,x.quantity,x.line.unit_cost,ret.insertId,`Retur pembelian ${code}`,(req as any).identity?.id || null]);
+   await conn.execute(`INSERT INTO stock_movements (movement_code,product_id,from_location_id,to_location_id,movement_type,quantity,unit_cost,reference_type,reference_id,note,created_by_user_id) VALUES (?,?,?,NULL,'PURCHASE_RETURN_OUT',?,?,'PURCHASE_RETURN',?,?,?)`,[`${code}-${i+1}`,x.line.product_id,warehouseId,x.quantity,x.line.unit_cost,ret.insertId,`Retur pembelian ${code}`,(req as any).identity?.id || null]);
   }
   for(const productId of new Set(prepared.map((x:any)=>Number(x.line.product_id)))){
    const [balance]=await conn.execute<RowDataPacket[]>(`SELECT COALESCE(SUM(CASE WHEN to_location_id IS NOT NULL THEN quantity ELSE 0 END),0)-COALESCE(SUM(CASE WHEN from_location_id IS NOT NULL THEN quantity ELSE 0 END),0) qty,COALESCE(SUM(CASE WHEN to_location_id IS NOT NULL THEN quantity*unit_cost ELSE 0 END),0)-COALESCE(SUM(CASE WHEN from_location_id IS NOT NULL THEN quantity*unit_cost ELSE 0 END),0) value FROM stock_movements WHERE product_id=?`,[productId]);
@@ -969,7 +957,7 @@ app.post("/api/returns/retail-sale",async(req,res)=>{
   await conn.beginTransaction();
   const [sales]=await conn.execute<RowDataPacket[]>(`SELECT id,sale_code,cash_account_id FROM retail_sales WHERE id=? AND status='POSTED' FOR UPDATE`,[saleId]);
   if(!sales.length)throw new Error("Transaksi penjualan retail tidak ditemukan.");
-  const [cash]=await conn.execute<RowDataPacket[]>(`SELECT ca.id,ca.account_type,a.id ledger_id FROM cash_accounts ca JOIN accounts a ON a.account_code=IF(UPPER(ca.account_type)='BANK','1110','1100') AND a.is_active=1 WHERE ca.id=? AND ca.is_active=1 FOR UPDATE`,[sales[0].cash_account_id]);
+  const warehouseId=await getWarehouseLocationId(conn);\n  const [cash]=await conn.execute<RowDataPacket[]>(`SELECT ca.id,ca.account_type,a.id ledger_id FROM cash_accounts ca JOIN accounts a ON a.account_code=IF(UPPER(ca.account_type)='BANK','1110','1100') AND a.is_active=1 WHERE ca.id=? AND ca.is_active=1 FOR UPDATE`,[sales[0].cash_account_id]);
   const [accounts]=await conn.query<RowDataPacket[]>(`SELECT id,account_code FROM accounts WHERE account_code IN ('4200','1300','5100') AND is_active=1`);
   const accountId=(code:string)=>Number(accounts.find((a:any)=>a.account_code===code)?.id||0);
   const returnsAccount=accountId("4200"),inventory=accountId("1300"),cogs=accountId("5100");
@@ -994,7 +982,7 @@ app.post("/api/returns/retail-sale",async(req,res)=>{
   for(let i=0;i<prepared.length;i++){
    const x=prepared[i];
    await conn.execute(`INSERT INTO retail_sale_return_items (retail_sale_return_id,retail_sale_item_id,product_id,product_name_snapshot,quantity,unit_price,unit_cost,refund_total,cost_total) VALUES (?,?,?,?,?,?,?,?,?)`,[ret.insertId,x.saleItemId,x.line.product_id,x.line.product_name_snapshot,x.quantity,x.line.unit_price,x.line.unit_cost,x.refundLine,x.costLine]);
-   await conn.execute(`INSERT INTO stock_movements (movement_code,product_id,from_location_id,to_location_id,movement_type,quantity,unit_cost,reference_type,reference_id,note,created_by_user_id) VALUES (?,?,NULL,?,'RETAIL_SALE_RETURN_IN',?,?,'RETAIL_SALE_RETURN',?,?,?)`,[`${code}-${i+1}`,x.line.product_id,WAREHOUSE_ID,x.quantity,x.line.unit_cost,ret.insertId,`Retur penjualan retail ${code}`,(req as any).identity?.id || null]);
+   await conn.execute(`INSERT INTO stock_movements (movement_code,product_id,from_location_id,to_location_id,movement_type,quantity,unit_cost,reference_type,reference_id,note,created_by_user_id) VALUES (?,?,NULL,?,'RETAIL_SALE_RETURN_IN',?,?,'RETAIL_SALE_RETURN',?,?,?)`,[`${code}-${i+1}`,x.line.product_id,warehouseId,x.quantity,x.line.unit_cost,ret.insertId,`Retur penjualan retail ${code}`,(req as any).identity?.id || null]);
   }
   for(const productId of new Set(prepared.map((x:any)=>Number(x.line.product_id)))){
    const [balance]=await conn.execute<RowDataPacket[]>(`SELECT COALESCE(SUM(CASE WHEN to_location_id IS NOT NULL THEN quantity ELSE 0 END),0)-COALESCE(SUM(CASE WHEN from_location_id IS NOT NULL THEN quantity ELSE 0 END),0) qty,COALESCE(SUM(CASE WHEN to_location_id IS NOT NULL THEN quantity*unit_cost ELSE 0 END),0)-COALESCE(SUM(CASE WHEN from_location_id IS NOT NULL THEN quantity*unit_cost ELSE 0 END),0) value FROM stock_movements WHERE product_id=?`,[productId]);
