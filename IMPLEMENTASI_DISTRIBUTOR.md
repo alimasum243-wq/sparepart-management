@@ -26,12 +26,13 @@ Bukti pembayaran saat ini disimpan sebagai nomor referensi atau tautan, belum un
 1. Backup database TiDB terlebih dahulu.
 2. Pastikan tabel fondasi yang sudah ada sesuai kebutuhan aplikasi: `users`, `products`, `suppliers`, `stock_locations`, `stock_movements`, `purchases`, `purchase_items`, `supplier_payments`, `supplier_payment_allocations`, `accounts`, `cash_accounts`, `journal_entries`, `journal_lines`, dan `expenses`. Periksa dengan `SHOW CREATE TABLE`; jangan menebak.
 3. Jalankan `server/migrations/003_distributor_accounting.sql` satu statement setiap kali. Periksa skema sebelum menjalankan ALTER yang mungkin sudah ada.
-4. Jalankan `server/migrations/004_cost_columns.sql`; sekarang memakai `ADD COLUMN IF NOT EXISTS`.
-5. Jalankan `server/migrations/005_supplier_payment_allocations.sql`; menambahkan `supplier_payments.posted_at` dan memastikan tabel alokasi tersedia.
-6. Jalankan `server/migrations/006_returns_history_reports.sql` satu statement setiap kali.
-7. Jalankan `server/migrations/007_auth_sessions.sql` satu statement (sesi login dapat dicabut).
-8. Verifikasi tabel `auth_sessions`, `consignment_deliveries`, `consignment_delivery_items`, `distributor_sales_reports`, `distributor_sales_report_items`, `distributor_payment_submissions`, `distributor_payment_allocations`, `purchase_returns`, `purchase_return_items`, `retail_sale_returns`, `retail_sale_return_items`, `distributor_sales_returns`, dan `distributor_sales_return_items`; serta kolom `users.distributor_id`, `products.last_purchase_cost`, dan `products.average_cost`.
-9. Pastikan akun 1100, 1110, 1200, 1300, 2100, 3100, 3200, 4100, 5100, 6100 tersedia. Migration hanya menambahkan kode yang belum ada.
+4. Jalankan `server/migrations/004_user_login_identifiers.sql`; sebelum membuat unique index, periksa email/phone duplikat yang sudah terisi. Kolom nullable memungkinkan akun lama tetap tanpa email/phone.
+5. Jalankan `server/migrations/004_cost_columns.sql`; sekarang memakai `ADD COLUMN IF NOT EXISTS`.
+6. Jalankan `server/migrations/005_supplier_payment_allocations.sql`; menambahkan `supplier_payments.posted_at` dan memastikan tabel alokasi tersedia.
+7. Jalankan `server/migrations/006_returns_history_reports.sql` satu statement setiap kali.
+8. Jalankan `server/migrations/007_auth_sessions.sql` satu statement (sesi login dapat dicabut dan guard setup owner dibuat).
+9. Verifikasi tabel `auth_sessions`, `owner_setup_guard`, `consignment_deliveries`, `consignment_delivery_items`, `distributor_sales_reports`, `distributor_sales_report_items`, `distributor_payment_submissions`, `distributor_payment_allocations`, `purchase_returns`, `purchase_return_items`, `retail_sale_returns`, `retail_sale_return_items`, `distributor_sales_returns`, dan `distributor_sales_return_items`; serta kolom `users.distributor_id`, `users.email`, `users.phone`, `products.last_purchase_cost`, dan `products.average_cost`.
+10. Pastikan akun 1100, 1110, 1200, 1300, 2100, 3100, 3200, 4100, 5100, 6100 tersedia. Migration hanya menambahkan kode yang belum ada.
 
 Tidak ada perintah DROP, TRUNCATE, atau penghapusan master data. Jangan menjalankan migrasi sebelum struktur DB aktual diperiksa dan backup tersedia.
 
