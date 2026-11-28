@@ -149,12 +149,13 @@ router.post('/auth/login', async (req,res) => {
     if (!secret) return res.status(503).json({ok:false,message:'Server belum mengatur AUTH_TOKEN_SECRET.'});
     const identity:Identity = {id:Number(user.id),username:String(user.username),role:String(user.role),distributorId:user.distributor_id==null?null:Number(user.distributor_id)};
     const sessionId=randomBytes(16).toString('hex');
-    await pool.execute(`INSERT INTO auth_sessions (session_id,user_id,expires_at) VALUES (?,?,DATE_ADD(CURRENT_TIMESTAMP,INTERVAL 12 HOUR))`,[sessionId,identity.id]);
+    const sessionConn=await pool.getConnection();
+    try{await sessionConn.beginTransaction();await sessionConn.execute(`INSERT INTO auth_sessions (session_id,user_id,expires_at) VALUES (?,?,DATE_ADD(CURRENT_TIMESTAMP,INTERVAL 12 HOUR))`,[sessionId,identity.id]);await sessionConn.execute(`INSERT INTO audit_logs (user_id,action,entity_type,entity_id,description) VALUES (?,'LOGIN','USER',?,?)`,[identity.id,identity.id,`Login berhasil: ${identity.username}`]);await sessionConn.commit();}catch(e){await sessionConn.rollback();throw e;}finally{sessionConn.release();}
     const token = sign(identity,sessionId); setAuthCookie(res, token); authRate.delete(loginKey);
     return res.json({ok:true,user:{id:identity.id,username:identity.username,full_name:user.full_name,role:identity.role,distributor_id:identity.distributorId}});
   } catch (e) { return res.status(500).json({ok:false,message:e instanceof Error?e.message:'Login gagal.'}); }
 });
-router.post('/auth/logout',authMiddleware,async(req:AuthedRequest,res)=>{ try{if(req.sessionId)await pool.execute(`UPDATE auth_sessions SET revoked_at=CURRENT_TIMESTAMP WHERE session_id=? AND revoked_at IS NULL`,[req.sessionId]);}catch{clearAuthCookie(res);return res.status(503).json({ok:false,message:'Cookie sesi dihapus, tetapi pencabutan sesi database gagal. Token yang sudah disalin tetap perlu dianggap aktif.'});} clearAuthCookie(res); return res.json({ok:true,message:'Sesi diakhiri.'}); });
+router.post('/auth/logout',authMiddleware,async(req:AuthedRequest,res)=>{ const conn=await pool.getConnection();try{await conn.beginTransaction();if(req.sessionId)await conn.execute(`UPDATE auth_sessions SET revoked_at=CURRENT_TIMESTAMP WHERE session_id=? AND revoked_at IS NULL`,[req.sessionId]);await conn.execute(`INSERT INTO audit_logs (user_id,action,entity_type,entity_id,description) VALUES (?,'LOGOUT','USER',?,?)`,[req.identity!.id,req.identity!.id,`Logout: ${req.identity!.username}`]);await conn.commit();}catch{await conn.rollback();clearAuthCookie(res);return res.status(503).json({ok:false,message:'Cookie sesi dihapus, tetapi pencabutan sesi database gagal. Token yang sudah disalin tetap perlu dianggap aktif.'});}finally{conn.release();}clearAuthCookie(res); return res.json({ok:true,message:'Sesi diakhiri.'}); });
 router.get('/auth/me',authMiddleware,(req:AuthedRequest,res)=>res.json({ok:true,user:req.identity}));
 
 // Owner creates distributor master, dedicated stock location and its login account.
