@@ -1,21 +1,20 @@
 -- RESET TEST DATA - SPAREPART MANAGEMENT
--- PURPOSE: remove all known TEST/transaction data while retaining master/configuration data.
--- RUN ONLY AFTER CONFIRMING THE DATABASE IS IN TEST-ONLY STATE.
--- BACKUP FIRST. Execute as one script in TiDB SQL Editor.
+-- Gunakan hanya setelah memastikan database memang akan dikosongkan.
+-- BACKUP database terlebih dahulu. Jalankan sebagai satu script di TiDB SQL Editor.
 --
--- Retained:
---   products, suppliers, distributors, stock_locations, accounts, cash_accounts,
---   users (except explicit test user id=2 below), audit_logs, schema_migrations.
+-- Dipertahankan:
+--   akun OWNER/ADMIN, accounts, cash_accounts, dan lokasi gudang utama.
+--   Struktur tabel, indeks, serta konfigurasi aplikasi tidak diubah.
 --
--- Cleared:
---   all operational transactions, stock movements, journals, payments, returns,
---   expenses and opening balances.
+-- Dihapus:
+--   seluruh transaksi, jurnal, stok, produk, pemasok, distributor,
+--   akun login distributor, lokasi distributor, dan audit log operasional.
 --
--- Do NOT run this against a live/production database containing real transactions.
+-- Jangan jalankan pada database produksi yang sudah berisi transaksi riil.
 
 START TRANSACTION;
 
--- Children/detail rows first.
+-- Detail transaksi terlebih dahulu.
 DELETE FROM journal_lines;
 DELETE FROM purchase_return_items;
 DELETE FROM supplier_payment_allocations;
@@ -27,7 +26,7 @@ DELETE FROM distributor_payment_allocations;
 DELETE FROM retail_sale_return_items;
 DELETE FROM retail_sale_items;
 
--- Transaction headers.
+-- Header transaksi.
 DELETE FROM journal_entries;
 DELETE FROM purchase_returns;
 DELETE FROM supplier_payments;
@@ -39,19 +38,26 @@ DELETE FROM distributor_payment_submissions;
 DELETE FROM retail_sale_returns;
 DELETE FROM retail_sales;
 
--- Stock ledger and other transaction tables.
+-- Buku stok dan transaksi operasional lain.
 DELETE FROM stock_movements;
 DELETE FROM expenses;
 DELETE FROM opening_balances;
+DELETE FROM audit_logs;
 
--- Derived product costing must not retain values from deleted transactions.
-UPDATE products
-SET average_cost = 0,
-    last_purchase_cost = 0;
+-- Hapus akun distributor, tetapi pertahankan seluruh akun OWNER dan ADMIN.
+DELETE FROM users WHERE role = 'DISTRIBUTOR';
+
+-- Hapus lokasi distributor; lokasi gudang utama tetap dipertahankan.
+DELETE FROM stock_locations WHERE location_type = 'DISTRIBUTOR';
+
+-- Master data akan diinput ulang oleh pemilik.
+DELETE FROM distributors;
+DELETE FROM suppliers;
+DELETE FROM products;
 
 COMMIT;
 
--- Verification after reset. All should be 0 except master/audit tables.
+-- Verifikasi: seluruh hitungan berikut harus 0.
 SELECT 'consignment_deliveries' table_name, COUNT(*) row_count FROM consignment_deliveries
 UNION ALL SELECT 'consignment_delivery_items', COUNT(*) FROM consignment_delivery_items
 UNION ALL SELECT 'distributor_sales_reports', COUNT(*) FROM distributor_sales_reports
@@ -75,7 +81,18 @@ UNION ALL SELECT 'expenses', COUNT(*) FROM expenses
 UNION ALL SELECT 'journal_entries', COUNT(*) FROM journal_entries
 UNION ALL SELECT 'journal_lines', COUNT(*) FROM journal_lines
 UNION ALL SELECT 'opening_balances', COUNT(*) FROM opening_balances
+UNION ALL SELECT 'products', COUNT(*) FROM products
+UNION ALL SELECT 'suppliers', COUNT(*) FROM suppliers
+UNION ALL SELECT 'distributors', COUNT(*) FROM distributors
+UNION ALL SELECT 'distributor_users', COUNT(*) FROM users WHERE role = 'DISTRIBUTOR';
 
-SELECT id, username, role, distributor_id, is_active
+-- Pastikan akun OWNER/ADMIN tetap ada dan lokasi gudang utama tetap tersedia.
+SELECT id, username, role, is_active
 FROM users
+WHERE role IN ('OWNER','ADMIN')
+ORDER BY id;
+
+SELECT id, location_code, location_name, location_type, is_active
+FROM stock_locations
+WHERE location_type = 'WAREHOUSE'
 ORDER BY id;
