@@ -1354,8 +1354,8 @@ app.post('/api/cash-reconciliation/sessions/:id/close',authMiddleware,ownerMiddl
 app.get("/api/cash-management",async(_req,res)=>{try{const [accounts]=await pool.execute<RowDataPacket[]>(`SELECT ca.id,ca.account_code,ca.account_name,ca.account_type,COALESCE(mapped.id,fallback.id) ledger_account_id,COALESCE(mapped.account_code,fallback.account_code) ledger_code,COALESCE(mapped.account_name,fallback.account_name) ledger_name,COALESCE(b.balance,0) balance FROM cash_accounts ca LEFT JOIN accounts mapped ON mapped.id=ca.ledger_account_id AND mapped.is_active=1 LEFT JOIN accounts fallback ON fallback.account_code=IF(UPPER(ca.account_type)='BANK','1110','1100') AND fallback.is_active=1 LEFT JOIN (SELECT jl.account_id,SUM(jl.debit-jl.credit) balance FROM journal_lines jl JOIN journal_entries je ON je.id=jl.journal_entry_id AND je.status='POSTED' GROUP BY jl.account_id) b ON b.account_id=COALESCE(mapped.id,fallback.id) WHERE ca.is_active=1 ORDER BY ca.account_type,ca.account_name`);const [history]=await pool.execute<RowDataPacket[]>(`SELECT t.*,f.account_name from_account_name,ta.account_name to_account_name FROM cash_transactions t LEFT JOIN cash_accounts f ON f.id=t.from_cash_account_id LEFT JOIN cash_accounts ta ON ta.id=t.to_cash_account_id ORDER BY t.transaction_date DESC,t.id DESC LIMIT 200`);return res.json({ok:true,accounts,history});}catch{return res.status(500).json({ok:false,message:'Gagal memuat kas/bank dan histori.'});}});
 
 app.post("/api/cash-accounts",async(req,res)=>{
-  const name=String(req.body?.account_name||'').trim(),type=String(req.body?.account_type||'').toUpperCase();
-  if(!name||name.length>100||!['CASH','BANK'].includes(type))return res.status(400).json({ok:false,message:'Nama akun dan jenis kas/bank valid wajib diisi.'});
+  const name=String(req.body?.account_name||'').trim(),type=String(req.body?.account_type||'').toUpperCase(),source=String(req.body?.source_type||'GENERAL').toUpperCase();
+  if(!name||name.length>100||!['CASH','BANK'].includes(type)||!['RETAIL','SALES','GENERAL'].includes(source))return res.status(400).json({ok:false,message:'Nama akun dan jenis kas/bank valid wajib diisi.'});
   const conn=await pool.getConnection();
   try{
     await conn.beginTransaction();
@@ -1366,7 +1366,7 @@ app.post("/api/cash-accounts",async(req,res)=>{
     const accountName=`${type==='BANK'?'Bank':'Kas'} - ${name}`;
     await conn.execute(`INSERT INTO accounts (account_code,account_name,account_type,is_active) VALUES (?,?, 'ASSET',1)`,[String(code),accountName]);
     const [a]=await conn.execute<RowDataPacket[]>(`SELECT id FROM accounts WHERE account_code=?`,[String(code)]);
-    const [ca]=await conn.execute<ResultSetHeader>(`INSERT INTO cash_accounts (account_code,account_name,account_type,is_active,ledger_account_id) VALUES (?,?,?,1,?)`,[String(code),name,type,a[0].id]);
+    const [ca]=await conn.execute<ResultSetHeader>(`INSERT INTO cash_accounts (account_code,account_name,account_type,is_active,ledger_account_id,source_type) VALUES (?,?,?,1,?,?)`,[String(code),name,type,a[0].id,source]);
     await conn.execute(`INSERT INTO audit_logs (user_id,action,entity_type,entity_id,description) VALUES (?,'CREATE','CASH_ACCOUNT',?,?)`,[(req as any).identity?.id||null,ca.insertId,`Akun ${type} ${name} dibuat; ledger ${code}`]);
     await conn.commit();return res.status(201).json({ok:true,message:'Akun kas/bank dibuat.',id:ca.insertId,account_code:String(code)});
   }catch(e){await conn.rollback();return res.status(400).json({ok:false,message:e instanceof Error?e.message:'Gagal membuat akun kas/bank.'});}finally{conn.release();}
