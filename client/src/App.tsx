@@ -8,7 +8,7 @@ import {
 const API = import.meta.env.VITE_API_URL || (import.meta.env.DEV ? `${window.location.protocol}//${window.location.hostname}:4000` : "")
 type User = { id:number; username:string; full_name?:string; role:string; distributor_id?:number|null }
 type Supplier = { id:number; supplier_code?:string; supplier_name:string }
-type Product = { id:number; sku:string; product_name:string; purchase_cost:string|number; distributor_price?:string|number; retail_price?:string|number; unit?:string; stock_qty?:string|number; is_active?:number }
+type Product = { id:number; sku:string; product_name:string; purchase_cost:string|number; distributor_price?:string|number; retail_price?:string|number; unit?:string; stock_qty?:string|number; is_active?:number; min_stock?:string|number }
 type Location = { id:number; location_code:string; location_name:string; location_type:string }
 type Item = { product_id:string; quantity:string; unit_cost:string }
 type Options = { suppliers:Supplier[]; products:Product[]; locations:Location[]; cash_accounts:any[] }
@@ -324,7 +324,7 @@ function Products({token}:{token:string}) {
   function reset(){setForm(empty);setEditing(null)}
   async function save(e:FormEvent){e.preventDefault();setSaving(true);setError('');setMessage('');try{const body={...form,purchase_cost:Number(form.purchase_cost),distributor_price:Number(form.distributor_price),retail_price:Number(form.retail_price),min_stock:Number(form.min_stock)};const d=await request(editing?`/api/products/${editing}`:'/api/products',token,{method:editing?'PUT':'POST',body:JSON.stringify(body)});setMessage(d.message);reset();await load()}catch(e){setError(e instanceof Error?e.message:'Gagal menyimpan produk')}finally{setSaving(false)}}
   async function toggle(p:Product){const active=Number(p.is_active)===1; if(!window.confirm(`${active?'Nonaktifkan':'Aktifkan'} produk ${p.product_name}?`))return;try{const d=await request(`/api/products/${p.id}/status`,token,{method:'PATCH',body:JSON.stringify({is_active:!active})});setMessage(d.message);await load()}catch(e){setError(e instanceof Error?e.message:'Gagal mengubah status produk')}}
-  async function showPriceHistory(p:Product){try{const d=await request(`/api/products/${p.id}/price-history`,token);setPriceHistory(d.items||[]);setHistoryProduct(p)}catch(e){setError(e instanceof Error?e.message:'Gagal memuat histori harga')}}
+  async function showPriceHistory(p:Product){try{const d=await request(`/api/products/${p.id}/price-history`,token);setPriceHistory(d.history||[]);setHistoryProduct(p)}catch(e){setError(e instanceof Error?e.message:'Gagal memuat histori harga')}}
   function edit(p:Product){setEditing(p.id);setForm({sku:p.sku,product_name:p.product_name,unit:p.unit||'pcs',purchase_cost:String(p.purchase_cost||0),distributor_price:String(p.distributor_price||0),retail_price:String(p.retail_price||0),min_stock:String(p.min_stock||0)});window.scrollTo({top:0,behavior:'smooth'})}
   return <section className="purchase-page">
     <div className="purchase-intro"><div><span className="eyebrow">MASTER BARANG</span><h2>Produk & Persediaan</h2><p>Tambah produk, perbarui harga, dan pantau jumlah stok gudang.</p></div><button className="secondary-button" onClick={load} disabled={loading}><RefreshCw size={15}/> Muat ulang</button></div>
