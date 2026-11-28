@@ -281,3 +281,7 @@ The application must support two separate price segments per product, with diffe
 - [ ] On an isolated TiDB test database, review and apply server/migrations/012_sales_audit_data_capture.sql after existing migrations 001 and 003–011 (verify actual prior migration history first; do not assume it is complete).
 - [ ] Apply server/migrations/013_audit_rule_settings.sql after 012. These migrations are manual and are not automatically executed by app startup.
 - [ ] Verify SHOW CREATE TABLE distributor_sales_reports includes sales_area_label and audit_rule_settings has row id=1; test GET/PUT settings and channel/remittance audit endpoints.
+
+### Cash-source audit implementation progress
+- [x] Added owner-only cash-source reconciliation API and screen: retail receipts/refunds and verified sales remittances are compared to their posted cash/bank journal source per account and date.
+- [ ] This does not yet reconcile physical cash drawer/shift opening, expected, counted closing, or variance; cash expenses, purchases, supplier payments, transfers, and opening cash are not included. Physical laci/shift reconciliation remains a blocker.
