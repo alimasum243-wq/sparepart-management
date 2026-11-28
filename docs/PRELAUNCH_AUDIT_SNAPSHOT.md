@@ -2,33 +2,37 @@
 
 Branch: `prelaunch/hardening-and-audit`
 Base: `main` at commit `685d1460d7d162ee38ea68c7f6249b7f7d50e091`
-Scope: read-only first pass over server routes, distributor workflows, schema migrations, client entry points, and CI. This is not yet a full audit.
+Scope: continuing code/migration review. This remains a pre-launch audit; no TiDB migration, deployment, or real transaction has been executed.
 
-## Critical/high-priority findings observed
+## Findings fixed in the current branch (still awaiting build/CI verification)
 
-1. **Distributor payment submission race (critical).** `POST /distributor/payments` computes approved sales less returns and sums `VERIFIED/PENDING` payments, then inserts a new `PENDING` row without a transaction or lock on the distributor/balance source. Parallel requests can each pass the same balance check and collectively exceed outstanding receivables.
-2. **Payment verification and allocation concurrency (high).** Verification locks the individual pending submission and approved reports, but allocation/backfill logic and outstanding checks need a complete concurrency review against simultaneous submissions, verifications, returns, and approvals. Add deterministic distributor-level locking and recompute after lock.
-3. **Login brute-force protection missing (high).** The login route has no visible rate limit, delay, lockout, or throttling. Add carefully bounded protection with generic responses and test reset behavior; avoid a memory-only control if deployment can run multiple instances.
-4. **Logout is not token revocation (high).** The cookie is cleared, but signed bearer/cookie tokens remain valid until their 12-hour expiry. A session revocation mechanism is needed (database-backed or versioned, with TiDB SQL supplied separately).
-5. **Login identity uniqueness needs DB validation.** Login queries username/email/phone and rejects if more than one row matches, but identity normalization, uniqueness constraints, phone normalization, and duplicate existing values must be verified.
-6. **Account migration defect (high).** `server/migrations/006_returns_history_reports.sql` inserts account `4200` with `account_code, account_name, is_active`, while the foundation migration defines `accounts.account_type NOT NULL` without a default. This migration may fail on a fresh DB. Fix migration and verify actual TiDB schema before execution.
-7. **Stock and costing concurrency (high).** Purchase/consignment/report paths use some product/location locks, but the audit must verify consistent lock ordering, stock checks and movement updates across all stock-changing endpoints, returns, and report approval/rejection. Aggregated movement queries alone do not protect concurrent writes unless an appropriate stable row is locked.
-8. **Accounting mapping and reconciliation (high).** Account codes are embedded in transaction logic. Verify account existence, type, active status, mapping and journal balance for all sources, including purchases, retail sales/returns, distributor reports/returns, supplier payments, expenses and distributor payments.
-9. **No automated business-logic tests visible in package scripts.** Existing scripts run lint/typecheck/build. Add tests for concurrency, state transitions, duplicate/retry, rollback, inventory/HPP, journals and role access.
+1. Distributor payment submissions now run in a transaction and lock the distributor row before checking verified/pending payments against sales less returns.
+2. Distributor payment verification serializes balance processing with the same distributor lock.
+3. Auth endpoints have basic per-process login/setup throttling. Multi-instance production deployments still need edge/WAF rate limiting.
+4. Auth tokens now require DB-backed sessions; logout revokes the session. Middleware revalidates account active status, role, username, distributor association and active distributor status.
+5. First-owner bootstrap uses a singleton guard row, transaction, and row lock to prevent concurrent first-owner creation.
+6. Account 4200 migration includes required `account_type='REVENUE'`.
+7. HPP columns migration uses `ADD COLUMN IF NOT EXISTS`.
+8. Supplier-payment migration adds missing `posted_at` and ensures allocation table exists.
+9. Purchase/distributor returns are blocked from posting refunds/credits beyond open payable/receivable because refund workflows for already-settled transactions are not yet implemented.
+10. Return flows lock product rows during stock/HPP recalculation.
+11. Core posted purchase, retail, expense, supplier-payment and return flows now write audit-log records in their transaction.
 
-## Medium/feature audit areas to complete
+## Open verification and audit work
 
-- Endpoint authentication/authorization coverage and least-privilege role behavior.
-- Distributor approval/rejection state transitions, stock reservation release, audit trail and idempotency.
-- Consignment and warehouse stock double-counting, stock valuation using cost (not sales price), movement-history reconciliation.
-- Manual journal controls, COA and General Journal views, pending approval badges and inventory valuation cards.
-- Frontend responsive/accessibility/usability review; feedback states, validation, filters, navigation and confirmation of sensitive actions.
-- Production deployment settings, backup/recovery and rollback procedure.
+- **Build/CI:** GitHub Actions checks for the newest commits are not currently surfaced by the connected GitHub status/run interface. Do not claim green checks until verified.
+- **Database compatibility:** compare every migration with the actual TiDB schema (`SHOW CREATE TABLE`, column/index checks and duplicate email/phone preflight). No database access was used in this audit.
+- **Accounting:** validate opening balances, COA mappings, account types, trial balance, balance sheet, P&L, transaction journals and cash/bank reconciliation using controlled test data.
+- **Stock/HPP:** complete concurrency review for all stock flows and verify warehouse/distributor/retail location balances against movement history and physical counts.
+- **Authentication:** test session revocation, role separation, owner setup one-time behavior, login throttling, cookies/CORS and production secrets.
+- **Automated tests:** repository currently has no business-logic test script visible; lint/typecheck/build workflows are static checks/build only. Add or execute tests for concurrency, duplicate/retry, rollback, state transitions, return restrictions and authorization.
+- **Front-end review:** verify responsive layout, validation, error states, retry safety and sensitive-action confirmations.
+- **Operations:** backup/restore, migration rollback/forward recovery, production deployment environment, monitoring and access controls.
 
 ## Constraints
 
-- No TiDB access from this audit. Do not invent schema/columns or execute SQL.
-- No production deployment.
-- Do not reset, delete or rewrite historical transactions.
-- Changes will be staged on this branch and reviewed through PR; merge/deploy only after tests and DB steps are verified.
-- Network access from the local test environment was unavailable during the first pass, so local build/test execution is not yet confirmed.
+- Main branch remains unchanged; changes stay in draft PR.
+- No database migration has been executed.
+- No real transactions or production deployment.
+- Do not reset/delete/rewrite historical transactions.
+- The user should only be asked to take action after the code, migration sequence, tests and acceptance checklist are ready.
