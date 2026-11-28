@@ -46,6 +46,20 @@ Gunakan entitas distributor dan lokasi konsinyasi yang sudah ada sebagai identit
 - Dokumen yang sudah disimpan tidak boleh berubah ketika harga/HPP master berubah. Reprint dan ekspor ulang harus memakai snapshot transaksi yang tersimpan.
 
 
+
+## Login, akun, dan keamanan akses (wajib sebelum rilis)
+- Login memakai email atau nomor telepon terdaftar, bukan username. Minimal satu kontak harus terdaftar dan terverifikasi; satu email/nomor telepon hanya boleh terikat ke satu akun.
+- Peran akun: OWNER/ADMIN untuk pengelolaan sistem dan DISTRIBUTOR untuk akses terbatas sesuai haknya. OWNER membuat dan mengelola akun distributor.
+- Password disimpan sebagai hash scrypt; jangan pernah menyimpan atau menampilkan password asli.
+- Sesi menggunakan token bertanda tangan HMAC dengan masa berlaku 12 jam. Sediakan endpoint untuk login, membaca identitas/sesi aktif (/api/auth/me), dan logout/pengakhiran sesi bila arsitektur mendukung.
+- Seluruh endpoint operasional/admin wajib memeriksa autentikasi dan otorisasi. Token DISTRIBUTOR tidak boleh mengakses endpoint admin (balas 403) dan hanya boleh melihat data distributor_id miliknya sendiri; distributor_id harus diambil dari token/sesi, bukan dipercaya dari input klien.
+- Data HPP/harga modal dan informasi keuangan internal hanya boleh diakses OWNER/ADMIN yang berwenang; jangan bocorkan melalui endpoint distributor, termasuk dalam respons detail, ekspor, atau laporan.
+- Sediakan fitur ganti password untuk pengguna yang sudah login.
+- Sediakan lupa password melalui OTP ke email atau nomor telepon yang terdaftar. OTP harus memiliki masa kedaluwarsa, hanya dapat dipakai sekali, memiliki pembatasan percobaan/pengiriman, disimpan dengan aman, dan tidak pernah ditulis ke log.
+- Audit implementasi autentikasi backend, proteksi seluruh endpoint lama, pembatasan data per distributor, dan penyembunyian HPP. Jangan menganggap login selesai hanya karena halaman login tampil.
+- Uji minimal: login benar/salah, akun nonaktif, sesi kedaluwarsa, akses tanpa token (401), DISTRIBUTOR ke endpoint admin (403), distributor mencoba membaca data distributor lain (ditolak), OWNER/ADMIN mengakses sesuai izin, ganti password, dan OTP kedaluwarsa/terpakai ulang/rate limit.
+- Modul Gudang Sales tetap dioperasikan admin/pemilik; tidak perlu membuat akun sales terpisah untuk input transaksi penyerahan, penjualan, retur, atau setoran.
+
 ## Laporan cetak untuk pemodal
 - Sediakan menu Laporan Pemodal yang dapat difilter berdasarkan periode tanggal dan diekspor ke PDF siap cetak/kirim; CSV juga tersedia untuk olah data.
 - Laporan menampilkan ringkasan pembelian dari pabrik, nilai persediaan gudang utama, nilai persediaan yang masih dibawa sales (berdasarkan HPP), penjualan bersih, setoran terverifikasi, dan saldo penjualan yang belum disetor.
