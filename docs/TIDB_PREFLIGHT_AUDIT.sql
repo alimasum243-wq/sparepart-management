@@ -20,7 +20,7 @@ FROM (
  UNION ALL SELECT 'distributor_consignment_return_requests'
  UNION ALL SELECT 'distributor_consignment_return_request_items' UNION ALL SELECT 'cash_reconciliation_sessions'
  UNION ALL SELECT 'distributor_payment_allocations' UNION ALL SELECT 'distributor_payment_submissions'
- UNION ALL SELECT 'distributor_sales_report_items' UNION ALL SELECT 'distributor_sales_reports'
+ UNION ALL SELECT 'distributor_sales_report_items' UNION ALL SELECT 'distributor_sales_reports' UNION ALL SELECT 'distributor_sales_report_print_logs'
  UNION ALL SELECT 'distributor_sales_return_items' UNION ALL SELECT 'distributor_sales_returns'
  UNION ALL SELECT 'distributors' UNION ALL SELECT 'expenses' UNION ALL SELECT 'inventory_adjustments'
  UNION ALL SELECT 'inventory_adjustment_items' UNION ALL SELECT 'journal_entries' UNION ALL SELECT 'journal_lines'
@@ -47,7 +47,7 @@ WHERE TABLE_SCHEMA=DATABASE()
  'accounts','cash_accounts','cash_transactions','expenses','channel_cost_allocations',
  'product_price_history','accounting_periods','accounting_period_guard',
  'inventory_adjustments','inventory_adjustment_items','consignment_delivery_print_logs',
- 'distributor_consignment_return_requests','distributor_consignment_return_request_items','cash_reconciliation_sessions','retail_sales','retail_sale_items','retail_sale_print_logs','retail_sale_returns','retail_sale_return_items'
+ 'distributor_consignment_return_requests','distributor_consignment_return_request_items','cash_reconciliation_sessions','distributor_sales_report_print_logs','retail_sales','retail_sale_items','retail_sale_print_logs','retail_sale_returns','retail_sale_return_items'
  )
 ORDER BY TABLE_NAME, ORDINAL_POSITION;
 
@@ -58,10 +58,30 @@ SELECT 'products.sku' check_name,sku duplicate_value,COUNT(*) duplicate_count FR
 UNION ALL SELECT 'products.product_name',product_name,COUNT(*) FROM products WHERE product_name IS NOT NULL AND TRIM(product_name)<>'' GROUP BY product_name HAVING COUNT(*)>1
 UNION ALL SELECT 'suppliers.supplier_code',supplier_code,COUNT(*) FROM suppliers WHERE supplier_code IS NOT NULL AND TRIM(supplier_code)<>'' GROUP BY supplier_code HAVING COUNT(*)>1
 UNION ALL SELECT 'suppliers.supplier_name',supplier_name,COUNT(*) FROM suppliers WHERE supplier_name IS NOT NULL AND TRIM(supplier_name)<>'' GROUP BY supplier_name HAVING COUNT(*)>1
-UNION ALL SELECT 'users.username',username,COUNT(*) FROM users WHERE username IS NOT NULL AND TRIM(username)<>'' GROUP BY username HAVING COUNT(*)>1
 ORDER BY check_name,duplicate_value;
 
--- Required additive columns introduced by migrations 017-022; reports missing column names.
+-- OPTIONAL DUPLICATE CHECKS: execute only when information_schema confirms each column exists.
+-- Run username check after migration 001 if that column is not yet present.
+SELECT username,COUNT(*) duplicate_count
+FROM users WHERE username IS NOT NULL AND TRIM(username)<>''
+GROUP BY username HAVING COUNT(*)>1;
+
+-- Run distributor_id check after migration 001/003 and before migration 024.
+SELECT distributor_id,COUNT(*) duplicate_count
+FROM users WHERE distributor_id IS NOT NULL
+GROUP BY distributor_id HAVING COUNT(*)>1;
+
+-- Run email/phone duplicate checks after migration 004 adds these columns.
+SELECT 'users.email' check_name,email duplicate_value,COUNT(*) duplicate_count
+FROM users WHERE email IS NOT NULL AND TRIM(email)<>''
+GROUP BY email HAVING COUNT(*)>1
+UNION ALL
+SELECT 'users.phone',phone,COUNT(*)
+FROM users WHERE phone IS NOT NULL AND TRIM(phone)<>''
+GROUP BY phone HAVING COUNT(*)>1
+ORDER BY check_name,duplicate_value;
+
+-- Required additive columns introduced by migrations 017-023; reports missing column names.
 SELECT expected.table_name,expected.column_name,
        CASE WHEN actual.COLUMN_NAME IS NULL THEN 'MISSING' ELSE 'PRESENT' END AS status
 FROM (
@@ -119,17 +139,14 @@ WHERE TABLE_SCHEMA=DATABASE()
  )
 ORDER BY TABLE_NAME, INDEX_NAME, SEQ_IN_INDEX;
 
--- Read-only data counts for high-risk transaction/master tables.
+-- Read-only counts for core tables reported as existing in the initial DB snapshot.
+-- If any of these are absent, skip the corresponding count statement.
 SELECT 'users' table_name, COUNT(*) row_count FROM users
 UNION ALL SELECT 'products',COUNT(*) FROM products
-UNION ALL SELECT 'distributors',COUNT(*) FROM distributors
 UNION ALL SELECT 'stock_locations',COUNT(*) FROM stock_locations
 UNION ALL SELECT 'stock_movements',COUNT(*) FROM stock_movements
-UNION ALL SELECT 'consignment_deliveries',COUNT(*) FROM consignment_deliveries
-UNION ALL SELECT 'distributor_sales_reports',COUNT(*) FROM distributor_sales_reports
-UNION ALL SELECT 'distributor_payment_submissions',COUNT(*) FROM distributor_payment_submissions
-UNION ALL SELECT 'journal_entries',COUNT(*) FROM journal_entries
-UNION ALL SELECT 'audit_logs',COUNT(*) FROM audit_logs
+UNION ALL SELECT 'suppliers',COUNT(*) FROM suppliers
+UNION ALL SELECT 'distributors',COUNT(*) FROM distributors
 ORDER BY table_name;
 
 -- Read-only check of expected single active warehouse and damaged-stock location.
