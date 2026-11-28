@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { money2, isDateOnly, hasAtMost2Decimals, hasAtMost3Decimals, outstandingAmount, netChannelAuditMetrics, auditPercentageChange, possibleCannibalizationSignal, detectLappingRiskFlags } from '../src/validation.js';
+import { money2, isDateOnly, hasAtMost2Decimals, hasAtMost3Decimals, outstandingAmount, netChannelAuditMetrics, auditPercentageChange, possibleCannibalizationSignal, detectLappingRiskFlags, needsRetailPriceOverride, validRetailOverrideReason } from '../src/validation.js';
 
 test('date validation accepts real ISO dates and rejects malformed dates',()=>{
   assert.equal(isDateOnly('2026-11-28'),true);
@@ -74,4 +74,15 @@ test('lapping audit finds older unpaid note against newer allocated note within 
 test('lapping audit does not flag if no newer report allocation in selected range',()=>{
   const flags=detectLappingRiskFlags([{id:1,report_code:'OLD',distributor_id:1,distributor_name:'Sales',report_date:'2026-01-01',outstanding:300,allocated_total:0},{id:2,report_code:'NEW',distributor_id:1,distributor_name:'Sales',report_date:'2026-02-01',outstanding:100,allocated_total:0}], '2026-02-01','2026-02-28');
   assert.equal(flags.length,0);
+});
+
+
+test('retail price floor requires auditable reason only below master price',()=>{
+  assert.equal(needsRetailPriceOverride(100,100),false);
+  assert.equal(needsRetailPriceOverride(100,125),false);
+  assert.equal(needsRetailPriceOverride(100,99),true);
+  assert.equal(needsRetailPriceOverride(0,10),false);
+  assert.equal(validRetailOverrideReason('Promo clearance'),true);
+  assert.equal(validRetailOverrideReason('short'),false);
+  assert.equal(validRetailOverrideReason('x'.repeat(501)),false);
 });
