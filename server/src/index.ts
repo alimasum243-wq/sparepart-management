@@ -11,7 +11,7 @@ import type { RowDataPacket, ResultSetHeader } from "mysql2";
 import type { PoolConnection } from "mysql2/promise";
 import { pool } from "./db.js";
 import distributorRouter, { authMiddleware, ownerMiddleware } from "./distributor.js";
-import { money2, isDateOnly, hasAtMost2Decimals, hasAtMost3Decimals } from "./validation.js";
+import { money2, isDateOnly, hasAtMost2Decimals, hasAtMost3Decimals, needsRetailPriceOverride, validRetailOverrideReason } from "./validation.js";
 
 const app = express();
 const port = Number(process.env.PORT || 4000);
@@ -675,7 +675,7 @@ app.post("/api/retail/sales", async (req,res) => {
       );
       const available=Number(stocks[0]?.stock_qty||0);
       if((totalQty.get(item.productId)||0)>available) throw new Error(`Stok gudang ${products[0].product_name} tidak cukup. Tersedia ${available} ${products[0].unit||"pcs"}.`);
-      const averageCost=Number(products[0].average_cost||0),purchaseCost=Number(products[0].purchase_cost||0);const unitCost=averageCost>0?averageCost:purchaseCost;const retailPriceSnapshot=Number(products[0].retail_price||0);const overrideReason=String((rawItems.find((raw:any)=>Number(raw.product_id)===item.productId)?.price_override_reason)||'').trim();if(retailPriceSnapshot>0&&item.unitPrice<retailPriceSnapshot&&overrideReason.length<10)throw new Error(`Harga retail ${products[0].product_name} di bawah harga master ${retailPriceSnapshot}; alasan override minimal 10 karakter wajib dicatat.`);if(overrideReason.length>500)throw new Error('Alasan override maksimal 500 karakter.');
+      const averageCost=Number(products[0].average_cost||0),purchaseCost=Number(products[0].purchase_cost||0);const unitCost=averageCost>0?averageCost:purchaseCost;const retailPriceSnapshot=Number(products[0].retail_price||0);const overrideReason=String((rawItems.find((raw:any)=>Number(raw.product_id)===item.productId)?.price_override_reason)||'').trim();if(needsRetailPriceOverride(retailPriceSnapshot,item.unitPrice)&&!validRetailOverrideReason(overrideReason))throw new Error(`Harga retail ${products[0].product_name} di bawah harga master ${retailPriceSnapshot}; alasan override minimal 10 karakter wajib dicatat.`);if(overrideReason.length>500)throw new Error('Alasan override maksimal 500 karakter.');
       if(!Number.isFinite(unitCost)||unitCost<0) throw new Error(`HPP ${products[0].product_name} tidak valid.`);
       const lineTotal=Math.round(item.quantity*item.unitPrice*100)/100;
       const lineCost=Math.round(item.quantity*unitCost*100)/100;
