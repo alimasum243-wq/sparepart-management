@@ -139,6 +139,25 @@ WHERE TABLE_SCHEMA=DATABASE()
  )
 ORDER BY TABLE_NAME, INDEX_NAME, SEQ_IN_INDEX;
 
+-- Expected indexes for migrations 007 and 024 (read-only check).
+SELECT expected.table_name,expected.index_name,
+       CASE WHEN actual.INDEX_NAME IS NULL THEN 'MISSING' ELSE 'PRESENT' END status,
+       actual.NON_UNIQUE
+FROM (
+ SELECT 'auth_sessions' table_name,'PRIMARY' index_name UNION ALL
+ SELECT 'auth_sessions','idx_auth_sessions_user' UNION ALL
+ SELECT 'auth_sessions','idx_auth_sessions_expiry' UNION ALL
+ SELECT 'auth_sessions','idx_auth_sessions_revoked' UNION ALL
+ SELECT 'owner_setup_guard','PRIMARY' UNION ALL
+ SELECT 'users','uq_users_single_distributor_login'
+) expected
+LEFT JOIN information_schema.STATISTICS actual
+ ON actual.TABLE_SCHEMA=DATABASE()
+ AND actual.TABLE_NAME=expected.table_name
+ AND actual.INDEX_NAME=expected.index_name
+GROUP BY expected.table_name,expected.index_name,actual.INDEX_NAME,actual.NON_UNIQUE
+ORDER BY expected.table_name,expected.index_name;
+
 -- Read-only counts for core tables reported as existing in the initial DB snapshot.
 -- If any of these are absent, skip the corresponding count statement.
 SELECT 'users' table_name, COUNT(*) row_count FROM users
