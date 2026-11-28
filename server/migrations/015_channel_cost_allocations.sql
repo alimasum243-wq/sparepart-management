@@ -11,7 +11,5 @@ CREATE TABLE IF NOT EXISTS channel_cost_allocations (
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   UNIQUE KEY uq_channel_cost_expense_channel (expense_id,channel),
-  KEY idx_channel_cost_channel (channel),
-  CONSTRAINT chk_channel_cost_channel CHECK (channel IN ('RETAIL','SALES')),
-  CONSTRAINT chk_channel_cost_amount CHECK (allocation_amount >= 0)
+  KEY idx_channel_cost_channel (channel)
 );
