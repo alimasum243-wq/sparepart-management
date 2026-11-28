@@ -2,7 +2,7 @@ import { Router, type Request, type Response, type NextFunction } from 'express'
 import { createHmac, randomBytes, scryptSync, timingSafeEqual } from 'node:crypto';
 import type { RowDataPacket, ResultSetHeader } from 'mysql2';
 import { pool } from './db.js';
-import { money2, isDateOnly, hasAtMost2Decimals, hasAtMost3Decimals, netChannelAuditMetrics, auditPercentageChange, possibleCannibalizationSignal, detectLappingRiskFlags } from './validation.js';
+import { money2, isDateOnly, hasAtMost2Decimals, hasAtMost3Decimals, netChannelAuditMetrics, auditPercentageChange, possibleCannibalizationSignal, detectLappingRiskFlags, channelNetContribution } from './validation.js';
 
 const router = Router();
 // Basic per-process throttling for sensitive auth endpoints. Production deployments
@@ -267,6 +267,35 @@ router.get('/admin/receivables-aging',authMiddleware,ownerMiddleware,async(_req,
 // Owner audit analytics: channel contribution and explainable sales-field timing signals.
 router.get('/admin/audit/settings',authMiddleware,ownerMiddleware,async(_req,res)=>{try{const [rows]=await pool.query<RowDataPacket[]>(`SELECT retail_drop_threshold_percent,sales_rise_threshold_percent,rapid_sales_note_minutes,updated_at FROM audit_rule_settings WHERE id=1`);if(!rows.length)return res.status(503).json({ok:false,message:'Aturan audit belum tersedia; jalankan migration 013.'});return res.json({ok:true,settings:rows[0]});}catch{return res.status(503).json({ok:false,message:'Pengaturan audit belum tersedia; jalankan migration 013.'});}});
 router.put('/admin/audit/settings',authMiddleware,ownerMiddleware,async(req:AuthedRequest,res)=>{const retailDrop=Number(req.body?.retail_drop_threshold_percent),salesRise=Number(req.body?.sales_rise_threshold_percent),rapidMinutes=Number(req.body?.rapid_sales_note_minutes);if(!Number.isFinite(retailDrop)||retailDrop<1||retailDrop>100||!Number.isFinite(salesRise)||salesRise<1||salesRise>100||!Number.isInteger(rapidMinutes)||rapidMinutes<1||rapidMinutes>1440)return res.status(400).json({ok:false,message:'Ambang harus 1–100%; waktu indikasi cepat 1–1440 menit.'});const conn=await pool.getConnection();try{await conn.beginTransaction();const [before]=await conn.execute<RowDataPacket[]>(`SELECT retail_drop_threshold_percent,sales_rise_threshold_percent,rapid_sales_note_minutes FROM audit_rule_settings WHERE id=1 FOR UPDATE`);if(!before.length)throw new Error('Aturan audit belum tersedia; jalankan migration 013.');await conn.execute(`UPDATE audit_rule_settings SET retail_drop_threshold_percent=?,sales_rise_threshold_percent=?,rapid_sales_note_minutes=?,updated_by_user_id=? WHERE id=1`,[retailDrop,salesRise,rapidMinutes,req.identity!.id]);await conn.execute(`INSERT INTO audit_logs (user_id,action,entity_type,entity_id,description) VALUES (?,'UPDATE','AUDIT_RULE_SETTINGS',1,?)`,[req.identity!.id,`Aturan audit diubah: penurunan Ecer ${Number(before[0].retail_drop_threshold_percent)}% -> ${retailDrop}%; kenaikan Sales ${Number(before[0].sales_rise_threshold_percent)}% -> ${salesRise}%; indikasi cepat ${Number(before[0].rapid_sales_note_minutes)} -> ${rapidMinutes} menit`]);await conn.commit();return res.json({ok:true,message:'Aturan audit tersimpan dan tercatat di audit log.',settings:{retail_drop_threshold_percent:retailDrop,sales_rise_threshold_percent:salesRise,rapid_sales_note_minutes:rapidMinutes}});}catch(e){await conn.rollback();return res.status(500).json({ok:false,message:e instanceof Error?e.message:'Gagal menyimpan aturan audit.'});}finally{conn.release();}});
+// Owner assigns nominal operating-expense amounts to channels for management analysis only.
+// This does not post or change general-ledger journals.
+router.get('/admin/audit/channel-costs',authMiddleware,ownerMiddleware,async(req,res)=>{
+ const from=String(req.query.from||''),to=String(req.query.to||'');
+ if(!isDateOnly(from)||!isDateOnly(to)||from>to)return res.status(400).json({ok:false,message:'Rentang tanggal tidak valid.'});
+ try{
+  const [rows]=await pool.execute<RowDataPacket[]>(`SELECT e.id,e.expense_code,e.expense_date,e.category,e.description,e.amount,
+    COALESCE(a.retail_alloc,0) retail_alloc,COALESCE(a.sales_alloc,0) sales_alloc,
+    GREATEST(0,ROUND(e.amount-COALESCE(a.retail_alloc,0)-COALESCE(a.sales_alloc,0),2)) unallocated
+    FROM expenses e LEFT JOIN (SELECT expense_id,SUM(CASE WHEN channel='RETAIL' THEN allocation_amount ELSE 0 END) retail_alloc,
+    SUM(CASE WHEN channel='SALES' THEN allocation_amount ELSE 0 END) sales_alloc FROM channel_cost_allocations GROUP BY expense_id) a ON a.expense_id=e.id
+    WHERE e.posted_at IS NOT NULL AND e.expense_date BETWEEN ? AND ? ORDER BY e.expense_date DESC,e.id DESC`,[from,to]);
+  return res.json({ok:true,period:{from,to},expenses:rows});
+ }catch(e){return res.status(503).json({ok:false,message:'Alokasi biaya kanal belum tersedia; jalankan migration 015.'});}
+});
+router.post('/admin/audit/channel-costs',authMiddleware,ownerMiddleware,async(req:AuthedRequest,res)=>{
+ const expenseId=Number(req.body?.expense_id),channel=String(req.body?.channel||'').toUpperCase(),amount=Number(req.body?.allocation_amount),note=String(req.body?.allocation_note||'').trim();
+ if(!Number.isInteger(expenseId)||expenseId<=0||!['RETAIL','SALES'].includes(channel)||!Number.isFinite(amount)||amount<0||amount>1000000000000||!hasAtMost2Decimals(amount)||note.length>500)return res.status(400).json({ok:false,message:'Biaya, kanal, nominal (maks. dua desimal), dan catatan tidak valid.'});
+ const conn=await pool.getConnection();try{await conn.beginTransaction();
+  const [expenses]=await conn.execute<RowDataPacket[]>(`SELECT id,expense_code,expense_date,category,amount FROM expenses WHERE id=? AND posted_at IS NOT NULL FOR UPDATE`,[expenseId]);
+  if(!expenses.length)throw new Error('Pengeluaran posted tidak ditemukan.');
+  const [allocs]=await conn.execute<RowDataPacket[]>(`SELECT channel,allocation_amount FROM channel_cost_allocations WHERE expense_id=? FOR UPDATE`,[expenseId]);
+  const current=Number(allocs.find(a=>String(a.channel)===channel)?.allocation_amount||0),other=allocs.filter(a=>String(a.channel)!==channel).reduce((sum,a)=>sum+Number(a.allocation_amount||0),0);
+  if(other+amount>Number(expenses[0].amount)+0.009)throw new Error('Total alokasi Ecer dan Sales tidak boleh melebihi nilai pengeluaran sumber.');
+  await conn.execute(`INSERT INTO channel_cost_allocations (expense_id,channel,allocation_amount,allocation_note,created_by_user_id,updated_by_user_id) VALUES (?,?,?,?,?,?) ON DUPLICATE KEY UPDATE allocation_amount=VALUES(allocation_amount),allocation_note=VALUES(allocation_note),updated_by_user_id=VALUES(updated_by_user_id)`,[expenseId,channel,amount,note||null,req.identity!.id,req.identity!.id]);
+  await conn.execute(`INSERT INTO audit_logs (user_id,action,entity_type,entity_id,description) VALUES (?,'ALLOCATE','CHANNEL_COST',?,?)`,[req.identity!.id,expenseId,`Alokasi biaya ${expenses[0].expense_code} ${channel}: ${current} -> ${amount}; sumber ${expenses[0].amount}; catatan: ${note||'—'}`]);
+  await conn.commit();return res.json({ok:true,message:'Alokasi biaya kanal tersimpan; tidak mengubah jurnal akuntansi.'});
+ }catch(e){await conn.rollback();return res.status(400).json({ok:false,message:e instanceof Error?e.message:'Gagal menyimpan alokasi biaya.'});}finally{conn.release();}
+});
 router.get('/admin/audit/channel-performance',authMiddleware,ownerMiddleware,async(req,res)=>{
  const from=String(req.query.from||''),to=String(req.query.to||''),zone=String(req.query.zone||'').trim();
  if(!isDateOnly(from)||!isDateOnly(to)||from>to||zone.length>120)return res.status(400).json({ok:false,message:'Rentang tanggal atau filter area tidak valid.'});
