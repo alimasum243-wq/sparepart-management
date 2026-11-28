@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { money2, isDateOnly, hasAtMost2Decimals, hasAtMost3Decimals, outstandingAmount, netChannelAuditMetrics, auditPercentageChange, possibleCannibalizationSignal, detectLappingRiskFlags, needsRetailPriceOverride, validRetailOverrideReason, channelNetContribution, channelCostAllocationWithinSource, salesQuantityMeetsMoq, retailMasterPriceConfigured, expectedPhysicalStockAfterPendingReports, stockOpnameVariance, salesPriceFromStockSnapshots, rapidPrintWithinThreshold, validConsignmentReturnLine, consignmentReturnQtyWithinAvailable, cashSessionExpectedClosing, cashSessionVariance } from '../src/validation.js';
+import { money2, isDateOnly, hasAtMost2Decimals, hasAtMost3Decimals, outstandingAmount, netChannelAuditMetrics, auditPercentageChange, possibleCannibalizationSignal, detectLappingRiskFlags, needsRetailPriceOverride, validRetailOverrideReason, channelNetContribution, channelCostAllocationWithinSource, salesQuantityMeetsMoq, retailMasterPriceConfigured, expectedPhysicalStockAfterPendingReports, stockOpnameVariance, salesPriceFromStockSnapshots, rapidPrintWithinThreshold, validConsignmentReturnLine, consignmentReturnQtyWithinAvailable, cashSessionExpectedClosing, cashSessionVariance, isSqlDateTime } from '../src/validation.js';
 
 test('date validation accepts real ISO dates and rejects malformed dates',()=>{
   assert.equal(isDateOnly('2026-11-28'),true);
@@ -146,3 +146,6 @@ test('consignment return reservation check accounts for quantities already reque
 
 
 test('cash session expected close reconciles opening ledger plus posted movement and counted variance',()=>{assert.equal(cashSessionExpectedClosing(1000,125.25),1125.25);assert.equal(cashSessionExpectedClosing(1000,-25.75),974.25);assert.equal(cashSessionVariance(1120,1125.25),-5.25);assert.equal(cashSessionVariance(1125.25,1125.25),0);});
+
+
+test('cash session SQL datetimes validate calendar and clock fields',()=>{assert.equal(isSqlDateTime('2026-11-28 12:30'),true);assert.equal(isSqlDateTime('2026-11-28 12:30:59'),true);assert.equal(isSqlDateTime('2026-02-29 12:00'),false);assert.equal(isSqlDateTime('2026-11-28 25:00'),false);assert.equal(isSqlDateTime('2026-11-28 12:60'),false);assert.equal(isSqlDateTime('2026-11-28T12:30'),false);});
