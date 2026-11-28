@@ -31,6 +31,7 @@ CREATE TABLE IF NOT EXISTS purchases (
   created_by_user_id BIGINT NULL,
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   UNIQUE KEY uq_purchase_code (purchase_code),
+  UNIQUE KEY uq_supplier_invoice (supplier_id,supplier_invoice_no),
   KEY idx_purchase_supplier_date (supplier_id,purchase_date),
   KEY idx_purchase_date_status (purchase_date,status)
 );
