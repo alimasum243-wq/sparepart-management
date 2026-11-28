@@ -53,7 +53,7 @@ const sign = (identity:Identity) => {
 export const authMiddleware = async (req:AuthedRequest,res:Response,next:NextFunction) => {
   try {
     if (!secret) return res.status(503).json({ok:false,message:'AUTH_TOKEN_SECRET belum diatur di server.'});
-    const token = (req.headers.authorization || '').replace(/^Bearer\\s+/i,'') || readCookie(req, AUTH_COOKIE);
+    const token = (req.headers.authorization || '').replace(/^Bearer\s+/i,'') || readCookie(req, AUTH_COOKIE);
     const [payload,sig] = token.split('.');
     if (!payload || !sig) return res.status(401).json({ok:false,message:'Silakan login kembali.'});
     const expected = createHmac('sha256',secret).update(payload).digest();
