@@ -39,12 +39,12 @@ This document is the handoff gate between application hardening and the user's m
 ## Additional migrations created during hardening
 - `018_distributor_consignment_returns.sql`: unsold consignment return request tables. Pending requests do not post stock; owner approval posts movement.
 - `019_consignment_delivery_print_audit.sql`: audited print/reprint requests for distributor delivery notes.
-- `020_cash_reconciliation_sessions.sql`: cash/bank physical opening and closing count sessions; expected closing calculated from posted GL movements during session.
-- Both are additive; review schema dependencies against TiDB before running.
+- `020_cash_reconciliation_sessions.sql`: cash/bank physical opening/closing count sessions; stores system opening and opening variance, then expected closing calculated from posted GL movement during the session.
+- All are additive; review schema dependencies against TiDB before running.
 
 ## Cash reconciliation sessions (migration 020)
 - Owner-only opening/closing count sessions per cash/bank account.
-- Opening physical count is recorded; closing expected is opening count plus posted GL movements created during the session window; counted close and variance are recorded.
+- Opening physical count and system GL opening are recorded separately, with opening variance. Expected close = system opening + posted GL movements created during the session window; closing count and closing variance are recorded.
 - No automatic journal or loss/charge is posted.
 - Pending code review/CI/acceptance: validate time zone conversion, accounts mapped to active ASSET ledger accounts, transfers, cash receipts/refunds, expenses, purchases, supplier payments, distributor remittances, and bank reconciliation.
 - Cashier-level attribution and physical drawer identity are not yet separate from cash-account/session attribution.
