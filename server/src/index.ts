@@ -1133,6 +1133,7 @@ app.post("/api/returns/distributor-sale",async(req,res)=>{
  const conn=await pool.getConnection();
  try{
   await conn.beginTransaction();
+  await assertAccountingPeriodOpen(conn,date);
   const [reports]=await conn.execute<RowDataPacket[]>(`SELECT id,report_code,distributor_id FROM distributor_sales_reports WHERE id=? AND status='APPROVED' FOR UPDATE`,[reportId]);
   if(!reports.length)throw new Error("Laporan distributor tidak ditemukan atau belum disetujui.");
   const [location]=await conn.execute<RowDataPacket[]>(`SELECT id FROM stock_locations WHERE distributor_id=? AND location_type='DISTRIBUTOR' AND is_active=1 LIMIT 1 FOR UPDATE`,[reports[0].distributor_id]);
