@@ -99,7 +99,7 @@ app.get("/api/products", async (_req, res) => {
   try {
     const [rows] = await pool.query<RowDataPacket[]>(
       `SELECT p.id, p.sku, p.product_name, p.unit, p.purchase_cost,
-              p.distributor_price, p.retail_price, p.is_active,
+              p.distributor_price, p.retail_price, p.min_stock, p.is_active,
               COALESCE(st.stock_qty, 0) AS stock_qty
        FROM products p
        LEFT JOIN (
