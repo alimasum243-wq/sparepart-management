@@ -7,7 +7,7 @@ export const isDateOnly = (value:unknown):boolean => {
   return date.getUTCFullYear()===year&&date.getUTCMonth()===month-1&&date.getUTCDate()===day;
 };
 
-export const hasAtMost2Decimals = (value:number):boolean =>
+export const isSqlDateTime = (value:unknown):boolean => { if(typeof value!=='string'||!/^\\d{4}-\\d{2}-\\d{2} \\d{2}:\\d{2}(:\\d{2})?$/.test(value)||!isDateOnly(value.slice(0,10)))return false;const [h,m,s='00']=value.slice(11).split(':').map(Number);return h>=0&&h<=23&&m>=0&&m<=59&&s>=0&&s<=59;};\nexport const hasAtMost2Decimals = (value:number):boolean =>
   Number.isFinite(value)&&Math.abs(Math.round(value*100)-value*100)<1e-8;
 
 export const hasAtMost3Decimals = (value:number):boolean =>
