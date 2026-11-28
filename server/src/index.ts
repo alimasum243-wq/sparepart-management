@@ -204,6 +204,7 @@ app.get("/api/purchases/options", async (_req, res) => {
        ORDER BY product_name`
     );
 
+    const [cashAccounts] = await pool.query<RowDataPacket[]>(`SELECT id,account_name,account_type FROM cash_accounts WHERE is_active=1 ORDER BY account_type,account_name`);
     const [locations] = await pool.query<RowDataPacket[]>(
       `SELECT id, location_code, location_name, location_type
        FROM stock_locations
@@ -215,7 +216,8 @@ app.get("/api/purchases/options", async (_req, res) => {
       ok: true,
       suppliers,
       products,
-      locations
+      locations,
+      cash_accounts: cashAccounts
     });
   } catch (error) {
     console.error("Gagal mengambil opsi pembelian:", error);
@@ -310,7 +312,8 @@ const purchaseSchema = z.object({
   purchase_date: z.string().refine(isDateOnly),
   supplier_invoice_no: z.string().trim().max(100).optional(),
   notes: z.string().trim().max(1000).optional(),
-  payment_method: z.enum(["CASH", "CREDIT"]).default("CREDIT"),
+  payment_method: z.enum(["CASH", "BANK", "CREDIT"]).default("CREDIT"),
+  cash_account_id: z.number().int().positive().optional(),
   items: z.array(
     z.object({
       product_id: z.number().int().positive(),
@@ -367,6 +370,7 @@ app.post("/api/purchases", async (req, res) => {
     }
 
     const warehouseId=await getWarehouseLocationId(connection);
+    let cashAccountId:number|null=null,cashLedgerId:number|null=null;if(data.payment_method==='CASH'||data.payment_method==='BANK'){const [cashRows]=await connection.execute<RowDataPacket[]>(`SELECT ca.id,ca.account_type,COALESCE(ca.ledger_account_id,a.id) ledger_id FROM cash_accounts ca LEFT JOIN accounts a ON a.account_code=IF(UPPER(ca.account_type)='BANK','1110','1100') AND a.is_active=1 WHERE ca.id=COALESCE(?,(SELECT id FROM cash_accounts WHERE account_type=? AND is_active=1 ORDER BY id LIMIT 1)) AND ca.is_active=1 FOR UPDATE`,[data.cash_account_id||null,data.payment_method]);if(!cashRows.length||String(cashRows[0].account_type).toUpperCase()!==data.payment_method)throw new Error('Akun kas/bank tidak aktif atau metode tidak sesuai.');cashAccountId=Number(cashRows[0].id);cashLedgerId=Number(cashRows[0].ledger_id);}
 
     const purchaseCode =
       "PB-" +
@@ -385,14 +389,15 @@ app.post("/api/purchases", async (req, res) => {
 
     const [purchaseResult] = await connection.execute<ResultSetHeader>(
       `INSERT INTO purchases
-       (purchase_code, supplier_invoice_no, supplier_id,
+       (purchase_code, supplier_invoice_no, supplier_id,cash_account_id,
         purchase_date, subtotal, discount,
         shipping_cost, grand_total, notes, status)
-       VALUES (?, ?, ?, ?, ?, 0, 0, ?, ?, 'POSTED')`,
+       VALUES (?, ?, ?, ?, ?, ?, 0, 0, ?, ?, 'POSTED')`,
       [
         purchaseCode,
         invoiceNo,
         data.supplier_id,
+        cashAccountId,
         data.purchase_date,
         subtotal,
         subtotal,
@@ -499,25 +504,25 @@ app.post("/api/purchases", async (req, res) => {
 
     // Pembelian tunai langsung mengurangi kas; pembelian kredit membentuk utang.
     const [inventoryAccounts] = await connection.execute<RowDataPacket[]>(`SELECT id FROM accounts WHERE account_code='1300' AND is_active=1 LIMIT 1`);
-    const contraCode = data.payment_method === "CASH" ? "1100" : "2100";
-    const [contraAccounts] = await connection.execute<RowDataPacket[]>(`SELECT id FROM accounts WHERE account_code=? AND is_active=1 LIMIT 1`, [contraCode]);
+    const contraCode = data.payment_method === "CREDIT" ? "2100" : null;
+    const [contraAccounts] = contraCode?await connection.execute<RowDataPacket[]>(`SELECT id FROM accounts WHERE account_code=? AND is_active=1 LIMIT 1`, [contraCode]):[{id:cashLedgerId}];
     if (!inventoryAccounts.length || !contraAccounts.length) throw new Error("Akun persediaan atau akun kas/utang belum tersedia.");
     const journalCode = `JU-${new Date().toISOString().replace(/[-:.TZ]/g, '').slice(0,14)}-${randomUUID().slice(0,6).toUpperCase()}`;
-    const description = data.payment_method === "CASH" ? `Pembelian ${purchaseCode} - dibayar tunai` : `Pembelian ${purchaseCode} - utang pemasok`;
+    const description = data.payment_method === "CREDIT" ? `Pembelian ${purchaseCode} - utang pemasok` : `Pembelian ${purchaseCode} - dibayar ${data.payment_method.toLowerCase()}`;
     const [journalResult] = await connection.execute<ResultSetHeader>(
       `INSERT INTO journal_entries (journal_code,journal_date,source_type,source_id,description,status,created_by_user_id) VALUES (?,?, 'PURCHASE', ?, ?, 'POSTED', ?)`,
       [journalCode,data.purchase_date,purchaseId,description,(req as any).identity?.id || null]
     );
     await connection.execute(
       `INSERT INTO journal_lines (journal_entry_id,account_id,debit,credit,description) VALUES (?,?,?,0,?), (?,?,0,?,?)`,
-      [journalResult.insertId,inventoryAccounts[0].id,subtotal,'Penambahan persediaan',journalResult.insertId,contraAccounts[0].id,subtotal,data.payment_method === "CASH" ? "Pembayaran tunai dari kas" : "Utang pemasok"]
+      [journalResult.insertId,inventoryAccounts[0].id,subtotal,'Penambahan persediaan',journalResult.insertId,contraAccounts[0].id,subtotal,data.payment_method === "CREDIT" ? "Utang pemasok" : `Pembayaran dari ${data.payment_method.toLowerCase()}`]
     );
 
-    if (data.payment_method === "CASH") {
+    if (data.payment_method === "CASH" || data.payment_method === "BANK") {
       const paymentCode = `BAY-${new Date().toISOString().replace(/[-:.TZ]/g, '').slice(0,14)}-${randomUUID().slice(0,6).toUpperCase()}`;
       const [paymentResult] = await connection.execute<ResultSetHeader>(
-        `INSERT INTO supplier_payments (payment_code,supplier_id,payment_date,payment_method,amount,notes,posted_at) VALUES (?,?,?,'CASH',?,?,CURRENT_TIMESTAMP)`,
-        [paymentCode,data.supplier_id,data.purchase_date,subtotal,`Pelunasan pembelian ${purchaseCode}`]
+        `INSERT INTO supplier_payments (payment_code,supplier_id,payment_date,payment_method,cash_account_id,amount,notes,posted_at) VALUES (?,?,?,?,?,?,?,CURRENT_TIMESTAMP)`,
+        [paymentCode,data.supplier_id,data.purchase_date,data.payment_method,cashAccountId,subtotal,`Pelunasan pembelian ${purchaseCode}`]
       );
       await connection.execute(
         `INSERT INTO supplier_payment_allocations (supplier_payment_id,purchase_id,allocated_amount) VALUES (?,?,?)`,
@@ -530,7 +535,7 @@ app.post("/api/purchases", async (req, res) => {
 
     return res.status(201).json({
       ok: true,
-      message: data.payment_method === "CASH" ? "Pembelian lunas tunai berhasil dicatat; stok bertambah dan kas berkurang." : "Pembelian kredit berhasil dicatat; stok bertambah dan utang pemasok terbentuk.",
+      message: data.payment_method !== "CREDIT" ? `Pembelian lunas ${data.payment_method.toLowerCase()} berhasil dicatat; stok bertambah dan kas/bank berkurang.` : "Pembelian kredit berhasil dicatat; stok bertambah dan utang pemasok terbentuk.",
       purchase: {
         id: purchaseId,
         purchase_code: purchaseCode,
