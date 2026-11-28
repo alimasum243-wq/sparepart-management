@@ -917,6 +917,27 @@ app.post("/api/accounting-periods/close",async(req,res)=>{
     await conn.commit();return res.status(201).json({ok:true,message:'Periode dikunci dari posting transaksi baru.',period_id:result.insertId});
   }catch(e){await conn.rollback();return res.status(400).json({ok:false,message:e instanceof Error?e.message:'Gagal menutup periode.'});}finally{conn.release();}
 });
+app.get("/api/stock-card/options",async(_req,res)=>{
+  try{
+    const [products]=await pool.execute<RowDataPacket[]>(`SELECT id,sku,product_name,unit FROM products WHERE is_active=1 ORDER BY product_name`);
+    const [locations]=await pool.execute<RowDataPacket[]>(`SELECT id,location_code,location_name,location_type,distributor_id FROM stock_locations WHERE is_active=1 ORDER BY location_type,location_name`);
+    return res.json({ok:true,products,locations});
+  }catch{return res.status(500).json({ok:false,message:'Opsi kartu stok gagal dimuat.'});}
+});
+app.get("/api/stock-card",async(req,res)=>{
+  const productId=Number(req.query.product_id),locationId=Number(req.query.location_id),from=String(req.query.from||'2000-01-01'),to=String(req.query.to||today());
+  if(!Number.isInteger(productId)||productId<1||!Number.isInteger(locationId)||locationId<1||!isDateOnly(from)||!isDateOnly(to)||from>to)return res.status(400).json({ok:false,message:'Produk, lokasi, atau rentang tanggal kartu stok tidak valid.'});
+  try{
+    const [product]=await pool.execute<RowDataPacket[]>(`SELECT id,sku,product_name,unit FROM products WHERE id=?`,[productId]);
+    const [location]=await pool.execute<RowDataPacket[]>(`SELECT id,location_code,location_name,location_type,distributor_id FROM stock_locations WHERE id=? AND is_active=1`,[locationId]);
+    if(!product.length||!location.length)return res.status(404).json({ok:false,message:'Produk atau lokasi tidak ditemukan.'});
+    const [opening]=await pool.execute<RowDataPacket[]>(`SELECT COALESCE(SUM(CASE WHEN to_location_id=? THEN quantity ELSE 0 END)-SUM(CASE WHEN from_location_id=? THEN quantity ELSE 0 END),0) qty FROM stock_movements WHERE product_id=? AND (to_location_id=? OR from_location_id=?) AND created_at<?`,[locationId,locationId,productId,locationId,locationId,from]);
+    const [moves]=await pool.execute<RowDataPacket[]>(`SELECT id,movement_code,movement_type,created_at,quantity,unit_cost,from_location_id,to_location_id,reference_type,reference_id,note FROM stock_movements WHERE product_id=? AND (from_location_id=? OR to_location_id=?) AND created_at>=? AND created_at<DATE_ADD(?,INTERVAL 1 DAY) ORDER BY created_at,id`,[productId,locationId,locationId,from,to]);
+    let balance=Number(opening[0]?.qty||0);
+    const rows=moves.map((m:any)=>{const incoming=Number(m.to_location_id)===locationId?Number(m.quantity):0,outgoing=Number(m.from_location_id)===locationId?Number(m.quantity):0;balance=Math.round((balance+incoming-outgoing)*1000)/1000;return {...m,incoming,outgoing,balance};});
+    return res.json({ok:true,product:product[0],location:location[0],period:{from,to},opening_qty:Number(opening[0]?.qty||0),closing_qty:balance,rows});
+  }catch{return res.status(500).json({ok:false,message:'Kartu stok gagal dimuat. Periksa struktur stock_movements.'});}
+});
 app.get("/api/dashboard/summary", async (_req,res) => {
   try {
     const [retail]=await pool.query<RowDataPacket[]>(`SELECT COALESCE(SUM(total),0) total FROM retail_sales WHERE status='POSTED' AND sale_date=CURRENT_DATE()`);
