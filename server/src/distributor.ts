@@ -198,7 +198,7 @@ router.post('/admin/consignments',authMiddleware,ownerMiddleware,async(req:Authe
   const deliveryCode=code('KNS');
   const [h]=await conn.execute<ResultSetHeader>(`INSERT INTO consignment_deliveries (delivery_code,distributor_id,delivery_date,status,notes,created_by_user_id) VALUES (?,?,?,'POSTED',?,?)`,[deliveryCode,distributor_id,delivery_date,notes||null,req.identity!.id]);
   const deliveryId=Number(h.insertId); const seen=new Set<number>();
-  for(const raw of items){const pid=Number(raw.product_id),qty=Number(raw.quantity); if(!Number.isInteger(pid)||qty<=0||seen.has(pid))throw new Error('Daftar barang tidak valid atau produk ganda.');seen.add(pid);
+  for(const raw of items){const pid=Number(raw.product_id),qty=Number(raw.quantity); if(!Number.isInteger(pid)||!Number.isFinite(qty)||qty<=0||qty>1000000||Math.round(qty*1000)!==qty*1000||seen.has(pid))throw new Error('Daftar barang tidak valid atau produk ganda.');seen.add(pid);
    const [ps]=await conn.execute<RowDataPacket[]>(`SELECT id,product_name,distributor_price,purchase_cost,average_cost FROM products WHERE id=? AND is_active=1 FOR UPDATE`,[pid]);if(!ps.length)throw new Error(`Produk ${pid} tidak ditemukan.`);const p=ps[0];
    const [ss]=await conn.execute<RowDataPacket[]>(`SELECT COALESCE(SUM(CASE WHEN to_location_id=? THEN quantity ELSE 0 END),0)-COALESCE(SUM(CASE WHEN from_location_id=? THEN quantity ELSE 0 END),0) qty FROM stock_movements WHERE product_id=?`,[Number(wh[0].id),Number(wh[0].id),pid]);
    if(Number(ss[0].qty)<qty)throw new Error(`Stok gudang ${p.product_name} tidak cukup. Tersedia ${ss[0].qty}.`);
@@ -278,7 +278,8 @@ router.post('/admin/sales-reports/:id/reject',authMiddleware,ownerMiddleware,asy
 router.post('/distributor/payments',authMiddleware,distributor,async(req:AuthedRequest,res)=>{
  const {payment_date,amount,payment_method,proof_reference,notes}=req.body||{};
  const paymentAmount=Number(amount);
- if(!/^\d{4}-\d{2}-\d{2}$/.test(payment_date||'')||!Number.isFinite(paymentAmount)||paymentAmount<=0||Math.round(paymentAmount*100)!==paymentAmount*100)
+ const paymentMethod=String(payment_method||'TRANSFER').toUpperCase();
+ if(!/^\d{4}-\d{2}-\d{2}$/.test(payment_date||'')||!Number.isFinite(paymentAmount)||paymentAmount<=0||paymentAmount>1000000000000||Math.round(paymentAmount*100)!==paymentAmount*100||!['TRANSFER','CASH','BANK'].includes(paymentMethod)||String(proof_reference||'').length>500||String(notes||'').length>1000)
   return res.status(400).json({ok:false,message:'Tanggal dan nominal pembayaran wajib benar (nominal maksimal 2 angka desimal).'});
  const conn=await pool.getConnection();
  try{
@@ -297,7 +298,7 @@ router.post('/distributor/payments',authMiddleware,distributor,async(req:AuthedR
    return res.status(400).json({ok:false,message:`Nominal melebihi sisa tagihan. Sisa yang dapat dilaporkan: Rp${Math.max(0,outstanding).toLocaleString('id-ID')}.`});
   }
   const paymentCode=code('BYR');
-  const [r]=await conn.execute<ResultSetHeader>(`INSERT INTO distributor_payment_submissions (submission_code,distributor_id,payment_date,amount,payment_method,proof_reference,notes,status,submitted_by_user_id) VALUES (?,?,?,?,?,?,?,'PENDING',?)`,[paymentCode,distributorId,payment_date,money2(paymentAmount),payment_method||'TRANSFER',proof_reference||null,notes||null,req.identity!.id]);
+  const [r]=await conn.execute<ResultSetHeader>(`INSERT INTO distributor_payment_submissions (submission_code,distributor_id,payment_date,amount,payment_method,proof_reference,notes,status,submitted_by_user_id) VALUES (?,?,?,?,?,?,?,'PENDING',?)`,[paymentCode,distributorId,payment_date,money2(paymentAmount),paymentMethod,proof_reference||null,notes||null,req.identity!.id]);
   await conn.commit();
   return res.status(201).json({ok:true,message:'Bukti pembayaran terkirim dan menunggu verifikasi pemilik.',submission:{id:r.insertId,submission_code:paymentCode,status:'PENDING'}});
  }catch(e){
