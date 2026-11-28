@@ -51,7 +51,8 @@ export default function App() {
       <div className="sidebar-bottom"><ShieldCheck size={16}/><span>Masuk sebagai pemilik</span></div></aside>
     {menuOpen&&<button className="scrim" onClick={()=>setMenuOpen(false)} aria-label="Tutup navigasi"/>}
     <main className="main"><header className="topbar"><button className="menu-toggle" onClick={()=>setMenuOpen(true)} aria-label="Buka menu"><Menu/></button><div><span className="eyebrow">SISTEM MANAJEMEN USAHA</span><h1>{active==='Dashboard'?'Panel Operasional':active}</h1></div><div className="connection"><span className={`dot ${apiStatus==='ok'?'ok':apiStatus==='error'?'error':''}`}/><span>{apiStatus==='ok'?'API terhubung':apiStatus==='error'?'API belum terhubung':'Memeriksa API'}</span></div><button className="secondary-button" onClick={logout}><LogOut size={15}/> Keluar</button></header>
-      {active==='Dashboard'?<Dashboard apiStatus={apiStatus} user={user} token={token}/>:\n       active==='Audit Kanal Penjualan'?<ChannelAudit token={token}/>:
+      {active==='Dashboard'?<Dashboard apiStatus={apiStatus} user={user} token={token}/>:
+       active==='Audit Kanal Penjualan'?<ChannelAudit token={token}/>:
        active==='Produk & Persediaan'?<Products token={token}/>:
        active==='Kartu Stok'?<StockCard token={token}/>:
        active==='Histori Harga'?<PriceHistory token={token}/>:
