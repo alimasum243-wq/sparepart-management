@@ -42,7 +42,8 @@ This document is the handoff gate between application hardening and the user's m
 - `020_cash_reconciliation_sessions.sql`: cash/bank physical opening/closing count sessions; stores system opening and opening variance, then expected closing calculated from posted GL movement during the session.
 - `021_retail_receipt_print_audit.sql`: retail sale item SKU snapshot and persistent receipt print/reprint audit log.
 - `022_cash_account_source_type.sql`: cash/bank source classification (`RETAIL`, `SALES`, `GENERAL`); existing accounts default `GENERAL`, and owner can reclassify only before any journal/cash transaction history.
-- `023_sales_report_print_event_audit.sql`: append-only print/reprint event log for distributor sales notes; rapid-print audit uses the first logged print timestamp. Legacy reports without event logs fall back to the migration-017 last-print timestamp and are labelled as legacy. Migration 023 is now included in the migration-order review.
+- `023_sales_report_print_event_audit.sql`: append-only print/reprint event log for distributor sales notes; rapid-print audit uses the first logged print timestamp. Legacy reports without event logs fall back to the migration-017 last-print timestamp and are labelled as legacy. Migration 023 is included in the migration-order review.
+- `024_users_single_distributor_login.sql`: unique index enforcing one distributor login per distributor, matching current reset-password and distributor-creation logic; preflight duplicate check required.
 - All are additive; review schema dependencies against TiDB before running.
 
 ## Cash reconciliation sessions (migration 020)
