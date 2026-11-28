@@ -235,3 +235,21 @@ The application must support two separate price segments per product, with diffe
 - [ ] Report totals reconcile to the GL and transaction source; export matches on-screen values.
 
 **Acceptance rule:** channel profit-contribution reporting and possible-cannibalization monitoring are required audit controls. This section is a requirement until code implementation, test evidence, and environment verification prove it.
+
+## 14. Auditability and required data capture (foundation for all owner-defined audits)
+
+**Requirement:** every audit rule previously defined by the owner must be supported by application data capture, traceable records, reports, and evidence. A rule cannot be considered auditable merely because it appears in documentation or an AI prompt.
+
+- [ ] Create a requirement-to-data-to-screen/report-to-test traceability matrix for all audit sections (1–13 and subsequent additions).
+- [ ] Identify required data fields/events for each rule; implement missing fields and durable event/transaction records, not just UI text.
+- [ ] Record actor, role, timestamp, transaction/approval state, before/after values for edits, reason, approver, source/channel, related entity IDs, and evidence/reference where applicable.
+- [ ] Capture timestamps for stock handover, note creation/printing/submission/approval, customer collection (when recorded), remittance submission/verification, allocation, return, physical count, and reconciliation.
+- [ ] Capture retail and sales channel separately, including transaction location/zone only when transparent, lawful, and enabled; disclose when location or other evidence is unavailable.
+- [ ] Capture per-SKU stock movement and accountable location/holder, per-note receivable/remittance allocations, cash source, drawer/shift, and nominal retail/sales price and HPP snapshots.
+- [ ] Preserve data integrity: prevent silent edits/deletions to posted records; corrections/voids/reversals must link to original, require proper authorization, and retain audit history.
+- [ ] Build audit views/reports with drill-down from alert/aggregate to individual source records and event chronology; allow evidence export where practical.
+- [ ] AI-generated audit results must state the underlying data, rule/signal, comparison period, data completeness, confidence/limitations, and link to supporting records; AI must not fabricate missing evidence.
+- [ ] Maintain a coverage matrix: requirement, data availability, implementation location, authorization enforcement, test scenario, evidence, status, gap/risk, and remediation. Mark unsupported rules as not auditable/blocked—not passed.
+- [ ] Validate that every audit report reconciles to operational source records, inventory subledgers, receivables, cash/bank, and GL as applicable.
+
+**Acceptance rule:** auditability is a core product requirement. Before prelaunch, prove that each owner-defined audit can be run using captured data and traceable source evidence; otherwise implement the missing data capture/reporting or document the unresolved blocker for owner decision.
