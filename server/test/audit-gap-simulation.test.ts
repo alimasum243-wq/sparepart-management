@@ -40,9 +40,9 @@ test('randomized synthetic ledger identities: 5000 trials',()=>{
 });
 
 test('bank statement running balances reconcile sequential rows and reject partial/inconsistent balances',()=>{
- const valid=[{debit:0,credit:100,running_balance:100},{debit:20,credit:0,running_balance:80},{debit:0,credit:5,running_balance:85}];
+ const valid=[{debit:0,credit:100,balance:100},{debit:20,credit:0,balance:80},{debit:0,credit:5,balance:85}];
  assert.equal(validBankBalanceSequence(valid),true);
- assert.equal(validBankBalanceSequence([{debit:0,credit:10,running_balance:null},{debit:0,credit:10,running_balance:20}]),false);
- assert.equal(validBankBalanceSequence([{debit:0,credit:10,running_balance:10},{debit:0,credit:10,running_balance:25}]),false);
- assert.equal(validBankBalanceSequence([{debit:0,credit:10,running_balance:null},{debit:0,credit:10,running_balance:null}]),true);
+ assert.equal(validBankBalanceSequence([{debit:0,credit:10,balance:null},{debit:0,credit:10,balance:20}]),false);
+ assert.equal(validBankBalanceSequence([{debit:0,credit:10,balance:10},{debit:0,credit:10,balance:25}]),false);
+ assert.equal(validBankBalanceSequence([{debit:0,credit:10,balance:null},{debit:0,credit:10,balance:null}]),true);
 });
