@@ -15,6 +15,7 @@
 - Laba-rugi dihitung dari jurnal POSTED pada periode yang dipilih.
 - Modul UI mobile-first untuk login, portal distributor, pengelolaan titipan/verifikasi, dan laba-rugi.
 - Owner dashboard menampilkan nilai persediaan gudang dan titipan; navigasi menampilkan badge laporan penjualan menunggu approval serta pembayaran menunggu verifikasi.
+- Neraca per tanggal (aset, kewajiban, ekuitas, laba berjalan kumulatif) dan cetak/PDF; laba berjalan belum ditutup ke akun laba ditahan.
 - Kartu stok per produk/lokasi memiliki saldo awal, masuk/keluar, saldo berjalan, dan print-to-PDF.
 
 ## Penting sebelum digunakan
