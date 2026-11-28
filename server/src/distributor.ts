@@ -2,7 +2,7 @@ import { Router, type Request, type Response, type NextFunction } from 'express'
 import { createHmac, randomBytes, scryptSync, timingSafeEqual } from 'node:crypto';
 import type { RowDataPacket, ResultSetHeader } from 'mysql2';
 import { pool } from './db.js';
-import { money2, isDateOnly, outstandingAmount } from './validation.js';
+import { money2, isDateOnly } from './validation.js';
 
 const router = Router();
 // Basic per-process throttling for sensitive auth endpoints. Production deployments
