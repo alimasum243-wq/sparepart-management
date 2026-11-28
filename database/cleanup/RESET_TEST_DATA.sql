@@ -43,16 +43,11 @@ DELETE FROM retail_sales;
 DELETE FROM stock_movements;
 DELETE FROM expenses;
 DELETE FROM opening_balances;
-DELETE FROM transaction_corrections;
 
 -- Derived product costing must not retain values from deleted transactions.
 UPDATE products
 SET average_cost = 0,
     last_purchase_cost = 0;
-
--- Test login account. This is intentionally explicit; change/remove this line
--- if user id 2 is no longer the designated test account.
-DELETE FROM users WHERE id = 2;
 
 COMMIT;
 
@@ -80,7 +75,6 @@ UNION ALL SELECT 'expenses', COUNT(*) FROM expenses
 UNION ALL SELECT 'journal_entries', COUNT(*) FROM journal_entries
 UNION ALL SELECT 'journal_lines', COUNT(*) FROM journal_lines
 UNION ALL SELECT 'opening_balances', COUNT(*) FROM opening_balances
-UNION ALL SELECT 'transaction_corrections', COUNT(*) FROM transaction_corrections;
 
 SELECT id, username, role, distributor_id, is_active
 FROM users
