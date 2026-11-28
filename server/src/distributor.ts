@@ -2,7 +2,8 @@ import { Router, type Request, type Response, type NextFunction } from 'express'
 import { createHmac, createHash, randomBytes, scryptSync, timingSafeEqual } from 'node:crypto';
 import type { RowDataPacket, ResultSetHeader } from 'mysql2';
 import { pool } from './db.js';
-import { validBankBalanceSequence } from './audit-gap-simulation.js';\nimport { money2, isDateOnly, hasAtMost2Decimals, hasAtMost3Decimals, netChannelAuditMetrics, auditPercentageChange, possibleCannibalizationSignal, detectLappingRiskFlags, channelNetContribution, channelCostAllocationWithinSource, salesQuantityMeetsMoq, expectedPhysicalStockAfterPendingReports, stockOpnameVariance, salesPriceFromStockSnapshots, validUnitCost, rapidPrintWithinThreshold, validConsignmentReturnLine, consignmentReturnQtyWithinAvailable, safeOperationalMessage } from './validation.js';
+import { validBankBalanceSequence } from './audit-gap-simulation.js';
+import { money2, isDateOnly, hasAtMost2Decimals, hasAtMost3Decimals, netChannelAuditMetrics, auditPercentageChange, possibleCannibalizationSignal, detectLappingRiskFlags, channelNetContribution, channelCostAllocationWithinSource, salesQuantityMeetsMoq, expectedPhysicalStockAfterPendingReports, stockOpnameVariance, salesPriceFromStockSnapshots, validUnitCost, rapidPrintWithinThreshold, validConsignmentReturnLine, consignmentReturnQtyWithinAvailable, safeOperationalMessage } from './validation.js';
 
 const router = Router();
 // Basic per-process throttling for sensitive auth endpoints. Production deployments
