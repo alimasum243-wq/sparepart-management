@@ -63,6 +63,7 @@
 - [ ] Verify secrets are absent from repository; production TLS/secure cookies configured.
 - [ ] Audit logs exist for create/edit/approve/reject/post/void/adjust and are protected.
 - [ ] Walk purchase, retail, distributor delivery/report/approval/payment, supplier payment, expenses, returns, capital, draws, transfer, adjustment, journal, and period close; reconcile stock/subledger/GL/log.
+- [x] Code safeguard added: accounting period close blocks pending consignment-return approvals; return submission and owner approval validate the request date against open accounting periods. CI/TiDB acceptance pending.
 
 ## 7. Migration SQL finalization
 - [ ] Validate preconditions and duplicates before unique indexes.
