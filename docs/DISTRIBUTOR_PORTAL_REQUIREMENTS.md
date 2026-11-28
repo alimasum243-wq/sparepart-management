@@ -38,7 +38,8 @@ Every delivery, sales report, approval/rejection, payment submission/verificatio
 ### Implemented in the branch; pending CI/end-to-end review
 - Distributor-visible persistent delivery-note line history (date, delivery code, product, qty, price snapshot, line value).
 - Distributor-visible sell-through report history with pending/approved/rejected status and rejection reason; grouped note totals and audited print/reprint count/time (migration 017).
-- Distributor-visible payment history with submission amount/method/status, allocated amount and unapplied amount.\n- Per-note receivable summary with sales total, sales returns, verified allocated payments, outstanding, due date and Unpaid/Partial/Paid status; payment-allocation drill-down.
+- Distributor-visible payment history with submission amount/method/status, allocated amount and unapplied amount.
+- Per-note receivable summary with sales total, sales returns, verified allocated payments, outstanding, due date and Unpaid/Partial/Paid status; payment-allocation drill-down.
 - Unsold consignment return request schema (migration 018), distributor request UI/API, history, Owner queue/detail, reject reason and approval posting.
 - Return approval moves good items to the warehouse and damaged items to the damaged location; approval is single-transition and does not create automatic refunds. Return requests now snapshot HPP and weighted distributor-price snapshot.
 - Server-side return input validation and unit tests for malformed item/quantity/condition and stock reservations. Pending return quantities/value are now reserved against new sell-through reports and their price snapshot calculations.
