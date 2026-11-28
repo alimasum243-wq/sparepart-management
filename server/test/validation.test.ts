@@ -149,3 +149,6 @@ test('cash session expected close reconciles opening ledger plus posted movement
 
 
 test('cash session SQL datetimes validate calendar and clock fields',()=>{assert.equal(isSqlDateTime('2026-11-28 12:30'),true);assert.equal(isSqlDateTime('2026-11-28 12:30:59'),true);assert.equal(isSqlDateTime('2026-02-29 12:00'),false);assert.equal(isSqlDateTime('2026-11-28 25:00'),false);assert.equal(isSqlDateTime('2026-11-28 12:60'),false);assert.equal(isSqlDateTime('2026-11-28T12:30'),false);});
+
+
+test('sales price snapshots subtract pending consignment-return reservation value',()=>{assert.equal(salesPriceFromStockSnapshots(1000,200,-300,100,5),80);});
