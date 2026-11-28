@@ -8,7 +8,7 @@ test('shortage approval is bounded by claimed quantity and charge cap',()=>{
  assert.equal(validShortageDecision(2.333,2.333,10.55,24.61),true);
  assert.equal(shortageChargeCap(3,25000),75000);
  assert.equal(validShortageDecision(2.333,2.333,10.55,24.62),false);
- assert.equal(validShortageDecision(1.2,1.1,10,11),false);
+ assert.equal(validShortageDecision(1.2,1.3,10,13),false);
 });
 test('bank statement sign and candidate match rules',()=>{
  const stmt={date:'2026-11-10',description:'SETORAN DISTRIBUTOR ABC',debit:0,credit:150000};
