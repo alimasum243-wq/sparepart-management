@@ -48,6 +48,6 @@ This is a **provisional dependency order only**, not approval to execute. Each s
 - `CREATE TABLE IF NOT EXISTS` and `ADD COLUMN IF NOT EXISTS` do not guarantee the whole script is safe after partial execution. Review unique indexes, seed collisions, legacy table shapes, and TiDB syntax.
 - DDL rollback is generally not transactional. Backup/restore is the recovery strategy; do not run ad-hoc DROP/DELETE rollback against the user's DB.
 
-## Audit requirement
+## Companion review\n\nSee `TIDB_MIGRATION_STATEMENT_REVIEW.md` for the preliminary per-migration safety/rerun/dependency review. It is repository-only; actual TiDB preflight remains required.\n\n## Audit requirement
 
 Before preparing an execution package, produce an exact migration-by-migration table: file, SQL statements, live existing/missing objects, re-run safety, dependencies, TiDB compatibility, data impact, and postflight query. Mark statements conditional based on schema. The current order is provisional and is not approval to execute.
