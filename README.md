@@ -37,7 +37,7 @@ Periksa dan backup DB terlebih dahulu. Migration harus dijalankan satu statement
 
 - Login menggunakan password hash scrypt, token HMAC, sesi database yang dapat dicabut, dan pemeriksaan status akun pada request terautentikasi.
 - Login dan setup owner memiliki throttling dasar per-process; production multi-instance masih perlu edge/WAF rate limit.
-- Production mewajibkan `DB_SSL=true` dan `AUTH_TOKEN_SECRET`.
+- Production mewajibkan `DB_SSL=true`, `AUTH_TOKEN_SECRET` minimal 32 karakter, dan `OWNER_SETUP_KEY` minimal 32 karakter saat setup owner aktif. Setelah owner dibuat, set `OWNER_SETUP_ENABLED=false` lalu hapus `OWNER_SETUP_KEY`.
 - Batasi akses database berdasarkan IP dan gunakan backup yang dapat diuji restore.
 
 ## Gate sebelum penggunaan
