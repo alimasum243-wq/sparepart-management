@@ -78,24 +78,26 @@ async function journal(conn:any, date:string, sourceType:string, sourceId:number
 
 // First owner can only be initialized once and requires a server-side setup secret.
 router.post('/auth/owner-setup', async (req,res) => {
-  const {setup_key,username,full_name,password} = req.body || {};
+  const {setup_key,username,email,phone,full_name,password} = req.body || {};
   if (!process.env.OWNER_SETUP_KEY || setup_key !== process.env.OWNER_SETUP_KEY) return res.status(403).json({ok:false,message:'Kunci setup tidak cocok.'});
-  if (!/^[a-zA-Z0-9._-]{4,50}$/.test(username||'') || !String(full_name||'').trim() || String(password||'').length < 10) return res.status(400).json({ok:false,message:'Username minimal 4 karakter dan password minimal 10 karakter.'});
+  if (!/^[a-zA-Z0-9._-]{4,50}$/.test(username||'') || !String(full_name||'').trim() || String(password||'').length < 10 || (email && !/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(String(email)))) return res.status(400).json({ok:false,message:'Username minimal 4 karakter, email harus valid, dan password minimal 10 karakter.'});
   try {
     const [existing] = await pool.query<RowDataPacket[]>(`SELECT id FROM users WHERE password_hash IS NOT NULL LIMIT 1`);
     if (existing.length) return res.status(409).json({ok:false,message:'Akun login sudah pernah dibuat. Hubungi pemilik sistem.'});
-    const [result] = await pool.execute<ResultSetHeader>(`INSERT INTO users (username,full_name,role,password_hash,is_active) VALUES (?,?, 'OWNER', ?,1)`,[username,String(full_name).trim(),hashPassword(password)]);
+    const [result] = await pool.execute<ResultSetHeader>(`INSERT INTO users (username,email,phone,full_name,role,password_hash,is_active) VALUES (?,?,?,?, 'OWNER', ?,1)`,[username,email?String(email).trim().toLowerCase():null,phone?String(phone).trim():null,String(full_name).trim(),hashPassword(password)]);
     return res.status(201).json({ok:true,message:'Akun pemilik berhasil dibuat. Silakan login.',user_id:result.insertId});
   } catch (e) { return res.status(500).json({ok:false,message:e instanceof Error?e.message:'Gagal membuat akun.'}); }
 });
 
 router.post('/auth/login', async (req,res) => {
-  const {username,password} = req.body || {};
-  if (!username || !password) return res.status(400).json({ok:false,message:'Username dan password wajib diisi.'});
+  const identifier = String(req.body?.identifier ?? req.body?.username ?? '').trim();
+  const password = String(req.body?.password ?? '');
+  if (!identifier || !password) return res.status(400).json({ok:false,message:'Username, email, atau nomor telepon dan password wajib diisi.'});
   try {
-    const [rows] = await pool.execute<RowDataPacket[]>(`SELECT id,username,full_name,role,distributor_id,password_hash,is_active FROM users WHERE username=? LIMIT 1`,[String(username).trim()]);
-    const user = rows[0];
-    if (!user || !user.is_active || !user.password_hash || !verifyPassword(String(password),String(user.password_hash))) return res.status(401).json({ok:false,message:'Username atau password salah.'});
+    const normalizedEmail = identifier.toLowerCase();
+    const [rows] = await pool.execute<RowDataPacket[]>(`SELECT id,username,full_name,role,distributor_id,password_hash,is_active FROM users WHERE username=? OR LOWER(email)=? OR phone=? LIMIT 2`,[identifier,normalizedEmail,identifier]);
+    const user = rows.length===1 ? rows[0] : null;
+    if (!user || !user.is_active || !user.password_hash || !verifyPassword(password,String(user.password_hash))) return res.status(401).json({ok:false,message:rows.length>1?'Identitas login tidak unik. Hubungi administrator.':'Identitas atau password salah.'});
     if (!secret) return res.status(503).json({ok:false,message:'Server belum mengatur AUTH_TOKEN_SECRET.'});
     const identity:Identity = {id:Number(user.id),username:String(user.username),role:String(user.role),distributorId:user.distributor_id==null?null:Number(user.distributor_id)};
     const token = sign(identity); setAuthCookie(res, token);
@@ -107,7 +109,7 @@ router.get('/auth/me',authMiddleware,(req:AuthedRequest,res)=>res.json({ok:true,
 
 // Owner creates distributor master, dedicated stock location and its login account.
 router.post('/admin/distributors',authMiddleware,ownerMiddleware,async(req:AuthedRequest,res)=>{
-  const {distributor_name,phone,address,username,password} = req.body || {};
+  const {distributor_name,phone,email,address,username,password} = req.body || {};
   if (!String(distributor_name||'').trim() || !/^[a-zA-Z0-9._-]{4,50}$/.test(username||'') || String(password||'').length<10) return res.status(400).json({ok:false,message:'Nama distributor, username valid, dan password minimal 10 karakter wajib diisi.'});
   const conn = await pool.getConnection();
   try {
@@ -116,7 +118,7 @@ router.post('/admin/distributors',authMiddleware,ownerMiddleware,async(req:Authe
     const [d] = await conn.execute<ResultSetHeader>(`INSERT INTO distributors (distributor_code,distributor_name,phone,address,is_active) VALUES (?,?,?,?,1)`,[distributorCode,String(distributor_name).trim(),phone||null,address||null]);
     const distributorId = Number(d.insertId);
     const [l] = await conn.execute<ResultSetHeader>(`INSERT INTO stock_locations (location_code,location_name,location_type,distributor_id,is_active) VALUES (?,?, 'DISTRIBUTOR', ?,1)`,[`LOC-${distributorCode}`,`Titipan - ${String(distributor_name).trim()}`,distributorId]);
-    await conn.execute(`INSERT INTO users (username,full_name,role,distributor_id,password_hash,is_active) VALUES (?,?, 'DISTRIBUTOR', ?, ?,1)`,[username,String(distributor_name).trim(),distributorId,hashPassword(password)]);
+    await conn.execute(`INSERT INTO users (username,email,phone,full_name,role,distributor_id,password_hash,is_active) VALUES (?,?,?, ?, 'DISTRIBUTOR', ?, ?,1)`,[username,email?String(email).trim().toLowerCase():null,phone?String(phone).trim():null,String(distributor_name).trim(),distributorId,hashPassword(password)]);
     await conn.commit();
     return res.status(201).json({ok:true,distributor:{id:distributorId,distributor_code:distributorCode,distributor_name,stock_location_id:l.insertId,username}});
   } catch(e){await conn.rollback();return res.status(500).json({ok:false,message:e instanceof Error?e.message:'Gagal membuat distributor.'});} finally{conn.release();}
