@@ -36,7 +36,7 @@ Bukti pembayaran saat ini disimpan sebagai nomor referensi atau tautan, belum un
 9. Jalankan `server/migrations/007_auth_sessions.sql` (tabel sesi database dan guard bootstrap pemilik).
 10. Jalankan `server/migrations/008_inventory_adjustments.sql` (lokasi barang rusak, penyesuaian persediaan, akun 4900/6500).
 11. Jalankan `server/migrations/009_cash_management.sql` (subledger kas/bank, cash transaction, dan kolom akun kas untuk transaksi).
-12. Jalankan `server/migrations/010_receivables_price_history_periods.sql` (due date invoice, uang belum dialokasikan, histori harga, dan periode akuntansi).
+12. Jalankan `server/migrations/010_receivables_price_history_periods.sql` (due date invoice, uang belum dialokasikan, histori harga, dan periode akuntansi). Sebelum unique index invoice, periksa duplikat: `SELECT invoice_code,COUNT(*) FROM distributor_sales_reports WHERE invoice_code IS NOT NULL GROUP BY invoice_code HAVING COUNT(*)>1;`
 13. Jalankan `server/migrations/011_seed_products_min_stock.sql` (16 seed produk, supplier, minimum stok; SKU seed sementara dan retail price 0).
 14. Verifikasi 16 seed products, supplier INDORAYA/UD ADI JUWANA, minimum stock. Owner finalisasi SKU/unit/retail price/min_stock. Verifikasi tabel `product_price_history`, `accounting_periods`, kolom `invoice_code`, `due_date`, `unapplied_amount`, tabel `accounting_period_guard`, dan akun 2200 serta akun COA yang dibutuhkan. Jalankan migration hanya setelah backup dan pemeriksaan struktur/duplikat.
 
