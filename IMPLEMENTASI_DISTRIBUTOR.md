@@ -30,7 +30,7 @@ Bukti pembayaran saat ini disimpan sebagai nomor referensi atau tautan, belum un
 5. Jalankan `server/migrations/006_returns_history_reports.sql` satu statement setiap kali.
 6. Jalankan `server/migrations/007_auth_sessions.sql` satu statement (membuat tabel sesi login yang dapat dicabut).
 7. Verifikasi tabel `auth_sessions`, `consignment_deliveries`, `consignment_delivery_items`, `distributor_sales_reports`, `distributor_sales_report_items`, `distributor_payment_submissions`, `distributor_payment_allocations`, `purchase_returns`, `purchase_return_items`, `retail_sale_returns`, `retail_sale_return_items`, `distributor_sales_returns`, dan `distributor_sales_return_items`; serta kolom `users.distributor_id`, `products.last_purchase_cost`, dan `products.average_cost`.
-8. Pastikan akun 1100, 1110, 1200, 1300, 2100, 3100, 3200, 4100, 5100, 6100 tersedia. Migration memasukkan akun yang belum ada.
+9. Pastikan akun 1100, 1110, 1200, 1300, 2100, 3100, 3200, 4100, 5100, 6100 tersedia. Migration memasukkan akun yang belum ada.
 
 Tidak ada perintah DROP, TRUNCATE, atau penghapusan master data pada migration ini. Jangan jalankan migrasi sebelum struktur DB aktual diperiksa dan backup tersedia.
 
