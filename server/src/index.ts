@@ -334,6 +334,7 @@ app.post("/api/purchases", async (req, res) => {
   }
 
   const data = parsed.data;
+  const invoiceNo=data.supplier_invoice_no?.trim()||null;
 
   // Satu produk hanya boleh muncul sekali dalam satu faktur.
   const productIds = data.items.map(item => item.product_id);
@@ -390,7 +391,7 @@ app.post("/api/purchases", async (req, res) => {
        VALUES (?, ?, ?, ?, ?, 0, 0, ?, ?, 'POSTED')`,
       [
         purchaseCode,
-        data.supplier_invoice_no || null,
+        invoiceNo,
         data.supplier_id,
         data.purchase_date,
         subtotal,
