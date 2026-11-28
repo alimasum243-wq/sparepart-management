@@ -73,7 +73,7 @@ Endpoint setup hanya berhasil bila belum ada akun login dengan password. Setelah
 - `POST /api/admin/consignments` — pemilik mengirim barang titipan.
 - `GET /api/distributor/stock` — stok milik distributor yang sedang login.
 - `POST /api/distributor/sales-reports` — distributor mengirim laporan.
-- `GET /api/admin/sales-reports` dan `POST /api/admin/sales-reports/:id/approve`.
+- `GET /api/admin/sales-reports`, `POST /api/admin/sales-reports/:id/approve`, dan `POST /api/admin/sales-reports/:id/reject` (alasan penolakan wajib diisi).
 - `POST /api/distributor/payments` — kirim laporan pembayaran.
 - `GET /api/admin/payments`, `POST /api/admin/payments/:id/verify`, `POST /api/admin/payments/:id/reject`.
 - `GET /api/admin/reports/profit-loss?from=YYYY-MM-DD&to=YYYY-MM-DD`.
