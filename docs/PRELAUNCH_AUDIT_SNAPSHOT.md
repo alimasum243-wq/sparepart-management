@@ -24,10 +24,11 @@ Scope: active hardening and code review. No TiDB migration, production deploymen
 16. Distributor password reset revokes all previous sessions.
 17. Aging piutang and unapplied receipts, product price history, stock cards per location with print-to-PDF, CSV aging export.
 18. Cash/bank physical reconciliation sessions (migration 020): opening/closing physical vs system, journal movement and variance, audited cancel; paginated history (500/page), CSV/PDF exports fetch up to 10,000 and flag truncation; no automatic journal.
+19. Cash account source classification (migration 022): RETAIL/SALES/GENERAL; retail receipts restricted to RETAIL accounts, Sales remittances restricted to SALES accounts, wrong-source gross receipt/refund mismatches flagged in audit; source reclassification blocked after transactions.
 
 ## Verification and remaining blockers
 
-- **CI:** Commit `ee303873` (latest code changes before documentation refresh) passed CI and Build/Type Check: unit tests, lint/static gate, typecheck and build. Documentation refresh triggers CI again. Cash reconciliation unit tests cover calculations/input validators; DB routes remain integration-test pending.
+- **CI:** Commit `98998116` (latest code changes before documentation refresh) passed CI and Build/Type Check: unit tests, lint/static gate, typecheck and build. Documentation refresh triggers CI again. Cash reconciliation unit tests cover calculations/input validators; DB routes remain integration-test pending.
 - **TiDB compatibility:** Actual schema has not been read by this audit. User must compare every migration with SHOW CREATE TABLE; preflight duplicate username/email/phone, supplier invoice and invoice codes. No migration executed.
 - **Business integration:** Controlled acceptance testing needed for opening stock, purchase/HPP, retail, consignment, distributor approval/payment, returns, cash/bank, journal balance, balance sheet, concurrency, and rollback. No TiDB integration test.
 - **Automated coverage:** Unit tests cover validation helpers only. Business routes and DB concurrency are not covered by automated integration tests.
