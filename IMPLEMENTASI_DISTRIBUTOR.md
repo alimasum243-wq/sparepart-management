@@ -19,19 +19,20 @@
 
 Ini adalah implementasi tahap integrasi awal, **belum dinyatakan siap produksi**. Instalasi dependency dan build belum dapat diverifikasi di lingkungan penyusunan paket ini karena unduhan npm tidak berhasil. Jalankan build pada komputer proyek sebelum dipakai. Jangan memasukkan transaksi riil sebelum uji penerimaan di bawah lulus.
 
-Bukti pembayaran saat ini disimpan sebagai nomor referensi atau tautan, belum unggah file gambar langsung. Modul pengembalian barang, alokasi pembayaran ke faktur individual, pembayaran utang supplier, backup terjadwal, dan pemulihan akun masih tahap berikutnya.
+Bukti pembayaran saat ini disimpan sebagai nomor referensi atau tautan, belum unggah file gambar langsung. Alur retur sudah tersedia tetapi retur pembelian/distributor yang melebihi saldo utang/piutang yang masih terbuka diblokir; refund untuk transaksi yang telah lunas belum tersedia. Backup terjadwal dan pemulihan akun masih tahap berikutnya.
 
 ## Urutan migrasi database
 
 1. Backup database TiDB terlebih dahulu.
-2. Pastikan `accounts`, `users`, `audit_logs`, `cash_accounts`, `journal_entries`, `journal_lines`, `opening_balances` dan tabel lama yang disebut di proyek memang tersedia.
-3. Buka `server/migrations/003_distributor_accounting.sql`.
-4. Jalankan **satu statement SQL setiap kali** di TiDB SQL Editor, dari atas ke bawah. Tunggu `Query OK` setiap kali. Jangan jalankan seluruh file sekaligus. Jika `ALTER TABLE users ADD COLUMN distributor_id` memberi pesan kolom sudah ada, hentikan dan periksa skema sebelum lanjut.
-5. Jalankan `server/migrations/004_cost_columns.sql` satu statement setiap kali. CSV skema terakhir menunjukkan dua kolom biaya ini belum ada.
-6. Verifikasi tabel `consignment_deliveries`, `consignment_delivery_items`, `distributor_sales_reports`, `distributor_sales_report_items`, `distributor_payment_submissions`, `distributor_payment_allocations` sudah ada; `users.distributor_id`, `products.last_purchase_cost`, dan `products.average_cost` juga sudah ada.
-7. Pastikan akun 1100, 1110, 1200, 1300, 2100, 3100, 3200, 4100, 5100, 6100 tersedia. Migration hanya memasukkan kode yang belum ada.
+2. Pastikan tabel fondasi yang sudah ada di database sesuai kebutuhan aplikasi: `users`, `products`, `suppliers`, `stock_locations`, `stock_movements`, `purchases`, `purchase_items`, `supplier_payments`, `supplier_payment_allocations`, `accounts`, `cash_accounts`, `journal_entries`, `journal_lines`, dan `expenses`. Jangan menebak; periksa struktur dengan `SHOW CREATE TABLE`.
+3. Jalankan `server/migrations/003_distributor_accounting.sql` satu statement setiap kali. Periksa skema sebelum menjalankan ALTER yang sudah ada di DB.
+4. Jalankan `server/migrations/004_cost_columns.sql`; kini menggunakan `ADD COLUMN IF NOT EXISTS`.
+5. Jalankan `server/migrations/006_returns_history_reports.sql` satu statement setiap kali.
+6. Jalankan `server/migrations/007_auth_sessions.sql` satu statement (membuat tabel sesi login yang dapat dicabut).
+7. Verifikasi tabel `auth_sessions`, `consignment_deliveries`, `consignment_delivery_items`, `distributor_sales_reports`, `distributor_sales_report_items`, `distributor_payment_submissions`, `distributor_payment_allocations`, `purchase_returns`, `purchase_return_items`, `retail_sale_returns`, `retail_sale_return_items`, `distributor_sales_returns`, dan `distributor_sales_return_items`; serta kolom `users.distributor_id`, `products.last_purchase_cost`, dan `products.average_cost`.
+8. Pastikan akun 1100, 1110, 1200, 1300, 2100, 3100, 3200, 4100, 5100, 6100 tersedia. Migration memasukkan akun yang belum ada.
 
-Tidak ada perintah DROP, TRUNCATE, atau penghapusan master data pada migrasi ini.
+Tidak ada perintah DROP, TRUNCATE, atau penghapusan master data pada migration ini. Jangan jalankan migrasi sebelum struktur DB aktual diperiksa dan backup tersedia.
 
 ## Konfigurasi server
 
