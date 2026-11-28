@@ -7,6 +7,12 @@ for (const key of required) {
   }
 }
 
+const isProduction = process.env.NODE_ENV === "production";
+const sslEnabled = process.env.DB_SSL === "true";
+if (isProduction && !sslEnabled) {
+  throw new Error("DB_SSL=true wajib pada environment production untuk koneksi TiDB.");
+}
+
 export const pool = mysql.createPool({
   host: process.env.DB_HOST,
   port: Number(process.env.DB_PORT || 4000),
@@ -17,6 +23,6 @@ export const pool = mysql.createPool({
   connectionLimit: 5,
   queueLimit: 0,
   enableKeepAlive: true,
-  ssl: process.env.DB_SSL === "true" ? {} : undefined,
+  ssl: sslEnabled ? (process.env.DB_SSL_CA ? { ca: process.env.DB_SSL_CA } : {}) : undefined,
   decimalNumbers: false
 });
