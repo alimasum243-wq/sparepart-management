@@ -18,7 +18,7 @@ FROM (
  UNION ALL SELECT 'channel_cost_allocations' UNION ALL SELECT 'consignment_deliveries'
  UNION ALL SELECT 'consignment_delivery_items' UNION ALL SELECT 'consignment_delivery_print_logs'
  UNION ALL SELECT 'distributor_consignment_return_requests'
- UNION ALL SELECT 'distributor_consignment_return_request_items'
+ UNION ALL SELECT 'distributor_consignment_return_request_items' UNION ALL SELECT 'cash_reconciliation_sessions'
  UNION ALL SELECT 'distributor_payment_allocations' UNION ALL SELECT 'distributor_payment_submissions'
  UNION ALL SELECT 'distributor_sales_report_items' UNION ALL SELECT 'distributor_sales_reports'
  UNION ALL SELECT 'distributor_sales_return_items' UNION ALL SELECT 'distributor_sales_returns'
@@ -47,7 +47,7 @@ WHERE TABLE_SCHEMA=DATABASE()
  'accounts','cash_accounts','cash_transactions','expenses','channel_cost_allocations',
  'product_price_history','accounting_periods','accounting_period_guard',
  'inventory_adjustments','inventory_adjustment_items','consignment_delivery_print_logs',
- 'distributor_consignment_return_requests','distributor_consignment_return_request_items'
+ 'distributor_consignment_return_requests','distributor_consignment_return_request_items','cash_reconciliation_sessions'
  )
 ORDER BY TABLE_NAME, ORDINAL_POSITION;
 
