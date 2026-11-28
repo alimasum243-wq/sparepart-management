@@ -10,3 +10,11 @@ CREATE TABLE IF NOT EXISTS auth_sessions (
   KEY idx_auth_sessions_expiry (expires_at),
   KEY idx_auth_sessions_revoked (revoked_at)
 );
+
+-- Serialize first-owner initialization to prevent concurrent bootstrap accounts.
+CREATE TABLE IF NOT EXISTS owner_setup_guard (
+  id TINYINT NOT NULL PRIMARY KEY,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+INSERT INTO owner_setup_guard (id)
+SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM owner_setup_guard WHERE id=1);
