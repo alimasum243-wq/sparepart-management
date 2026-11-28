@@ -514,7 +514,7 @@ app.post("/api/purchases", async (req, res) => {
       );
     }
 
-    await conn.execute(`INSERT INTO audit_logs (user_id,action,entity_type,entity_id,description) VALUES (?,'POST','PURCHASE',?,?)`,[(req as any).identity?.id||null,purchaseId,`Pembelian ${purchaseCode}; total ${subtotal}; metode ${data.payment_method}`]);\n  await connection.commit();
+    await connection.execute(`INSERT INTO audit_logs (user_id,action,entity_type,entity_id,description) VALUES (?,'POST','PURCHASE',?,?)`,[(req as any).identity?.id||null,purchaseId,`Pembelian ${purchaseCode}; total ${subtotal}; metode ${data.payment_method}`]);\n  await connection.commit();
 
     return res.status(201).json({
       ok: true,
