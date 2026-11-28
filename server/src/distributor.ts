@@ -247,6 +247,7 @@ router.post('/distributor/sales-reports',authMiddleware,distributor,async(req:Au
    const line=money2(qty*price),costTotal=money2(qty*cost);reportTotal=money2(reportTotal+line);reportCostTotal=money2(reportCostTotal+costTotal);if(reportTotal>9000000000000000||reportCostTotal>9000000000000000)throw new Error('Total laporan penjualan melebihi batas nominal sistem.');
    await conn.execute(`INSERT INTO distributor_sales_report_items (report_id,product_id,product_name_snapshot,quantity_sold,unit_price_snapshot,unit_cost_snapshot,line_total,cost_total) VALUES (?,?,?,?,?,?,?,?)`,[reportId,pid,pRows[0].product_name,qty,price,cost,line,costTotal]);
   }
+  await conn.execute(`INSERT INTO audit_logs (user_id,action,entity_type,entity_id,description) VALUES (?,'SUBMIT','DISTRIBUTOR_SALES_REPORT',?,?)`,[req.identity!.id,reportId,`Laporan penjualan ${reportCode} diajukan; total ${reportTotal}; HPP ${reportCostTotal}`]);
   await conn.commit();return res.status(201).json({ok:true,message:'Laporan dikirim dan menunggu pemeriksaan pemilik.',report:{id:reportId,report_code:reportCode,status:'SUBMITTED'}});
  }catch(e){await conn.rollback();return res.status(400).json({ok:false,message:e instanceof Error?e.message:'Gagal mengirim laporan.'});}finally{conn.release();}
 });
@@ -307,6 +308,7 @@ router.post('/distributor/payments',authMiddleware,distributor,async(req:AuthedR
   }
   const paymentCode=code('BYR');
   const [r]=await conn.execute<ResultSetHeader>(`INSERT INTO distributor_payment_submissions (submission_code,distributor_id,payment_date,amount,payment_method,proof_reference,notes,status,submitted_by_user_id) VALUES (?,?,?,?,?,?,?,'PENDING',?)`,[paymentCode,distributorId,payment_date,money2(paymentAmount),paymentMethod,proof_reference||null,notes||null,req.identity!.id]);
+  await conn.execute(`INSERT INTO audit_logs (user_id,action,entity_type,entity_id,description) VALUES (?,'SUBMIT','DISTRIBUTOR_PAYMENT',?,?)`,[req.identity!.id,r.insertId,`Pembayaran ${paymentCode} diajukan; nominal ${money2(paymentAmount)}; metode ${paymentMethod}`]);
   await conn.commit();
   return res.status(201).json({ok:true,message:'Bukti pembayaran terkirim dan menunggu verifikasi pemilik.',submission:{id:r.insertId,submission_code:paymentCode,status:'PENDING'}});
  }catch(e){
