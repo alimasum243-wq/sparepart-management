@@ -80,7 +80,11 @@ FROM (
  SELECT 'consignment_delivery_print_logs','delivery_id' UNION ALL
  SELECT 'consignment_delivery_print_logs','distributor_id' UNION ALL
  SELECT 'consignment_delivery_print_logs','user_id' UNION ALL
- SELECT 'consignment_delivery_print_logs','printed_at'
+ SELECT 'consignment_delivery_print_logs','printed_at' UNION ALL
+ SELECT 'distributor_sales_report_print_logs','report_id' UNION ALL
+ SELECT 'distributor_sales_report_print_logs','print_number' UNION ALL
+ SELECT 'distributor_sales_report_print_logs','user_id' UNION ALL
+ SELECT 'distributor_sales_report_print_logs','printed_at'
 ) expected
 LEFT JOIN information_schema.COLUMNS actual
  ON actual.TABLE_SCHEMA=DATABASE()
