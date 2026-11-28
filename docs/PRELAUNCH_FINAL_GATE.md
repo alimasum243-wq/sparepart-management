@@ -344,3 +344,5 @@ The application must support two separate price segments per product, with diffe
 - [ ] Verify CI and typecheck for the current branch tip before treating these changes as accepted. No deployment or TiDB changes.
 
 - [x] Histori transaksi: custom range CSV and browser print/Save-as-PDF now include period, generated timestamp, and transaction rows. API is currently capped at 1,000 rows; this cap must be addressed before reliable export for high volume.
+
+- [x] Aging piutang distributor: CSV and browser print/Save-as-PDF now include bucket summary, open invoice details, due date, overdue age, and report timestamp. Aging is an as-of snapshot, not a date-range sales report.
