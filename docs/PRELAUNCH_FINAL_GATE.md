@@ -156,7 +156,8 @@ The application must support two separate price segments per product, with diffe
 
 - [x] Code: retail receipts/refunds and verified Sales remittances are separate source categories and compared with GL. Other receipts and physical drawer tagging need acceptance.
 - [x] Code: retail and Sales receipt paths are separate and source audit cannot silently net one against the other. Acceptance pending.
-- [x] Support cash/bank opening and closing count sessions per account, with expected closing from posted GL movement during session, and variance recorded without auto-journal (migration 020).\n- [ ] Extend cashier/source-category attribution and validate multiple physical drawers and transfer edge cases.
+- [x] Support cash/bank opening and closing count sessions per account, with expected closing from posted GL movement during session, and variance recorded without auto-journal (migration 020).
+- [ ] Extend cashier/source-category attribution and validate multiple physical drawers and transfer edge cases.
 - [ ] Acceptance test session expected movement includes receipts/refunds, cash expenses, purchases, supplier payments, transfers, verified distributor remittances, and opening journals; transfers must not double-count, and cashier/source categories must be traced separately.
 - [ ] Any variance (even small) is surfaced as a non-zero discrepancy with the specific source category, cashier/session, expected amount, counted amount, timestamp, and explanation/approval workflow. Do not silently net discrepancies between retail and sales categories.
 - [ ] Distributor remittances reconcile against approved sales reports, allocations to receivables, and unapplied advances; retail receipts reconcile against posted retail transactions, refunds, and cash/GL.
@@ -291,7 +292,8 @@ The application must support two separate price segments per product, with diffe
 
 ### Cash-source audit implementation progress
 - [x] Added owner-only cash-source reconciliation API and screen: retail receipts/refunds and verified sales remittances are compared to their posted cash/bank journal source per account and date.
-- [x] Physical cash/bank sessions added (migration 020): opening count, posted GL movement during session, expected closing, counted closing, variance; no automatic journal. Pending latest CI and acceptance review.\n- [ ] Cashier/source-category-specific drawer attribution and edge-case validation for transfers, expense/purchase/supplier payment, refunds, and verified remittances remain outstanding.
+- [x] Physical cash/bank sessions added (migration 020): opening count, posted GL movement during session, expected closing, counted closing, variance; no automatic journal. Pending latest CI and acceptance review.
+- [ ] Cashier/source-category-specific drawer attribution and edge-case validation for transfers, expense/purchase/supplier payment, refunds, and verified remittances remain outstanding.
 
 ### Retail price floor audit implementation progress
 - [x] Retail checkout now initializes unit price from the product master retail price (not blank/manual-only); API requires a configured positive master retail price.
@@ -357,7 +359,8 @@ Recent branch work adds distributor delivery line history, sell-through report s
 - [x] Persistent sell-through report history with status and rejection reason.
 - [x] Payment submission history with status and aggregate allocated/unapplied amounts.
 - [x] Unsold consignment return request workflow and owner queue/detail; approve/reject routes.
-- [x] Approval posts stock movements per request item; good stock returns to warehouse, damaged stock to damaged location; no automatic refund. Return lines snapshot HPP/distributor price.\n- [x] Pending unsold returns reserve quantities and nominal distributor-price value against new sell-through submissions; pending/approved return value adjusts price snapshot calculations.
+- [x] Approval posts stock movements per request item; good stock returns to warehouse, damaged stock to damaged location; no automatic refund. Return lines snapshot HPP/distributor price.
+- [x] Pending unsold returns reserve quantities and nominal distributor-price value against new sell-through submissions; pending/approved return value adjusts price snapshot calculations.
 - [x] Note-level grouping/totals, note financial status (unpaid/partial/paid), verified allocation drill-down, delivery note browser print/reprint with audit log (pending CI and reconciliation review).
 - [x] Distributor stock-custody reconciliation dashboard (handover − approved sales − approved unsold returns; pending reports/returns and ledger stock/variance shown). Validate edge cases involving customer sales returns and adjustments.
 - [ ] Return evidence, inspection note, source delivery note, and better traceability.
