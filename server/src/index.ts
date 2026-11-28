@@ -1244,7 +1244,7 @@ app.get("/api/transactions/history",async(req,res)=>{
     UNION ALL SELECT r.report_date,r.report_code,'PENJUALAN DISTRIBUTOR',d.distributor_name,SUM(i.line_total),r.status,r.notes,r.id,'DISTRIBUTOR_REPORT' FROM distributor_sales_reports r JOIN distributors d ON d.id=r.distributor_id JOIN distributor_sales_report_items i ON i.report_id=r.id GROUP BY r.id,r.report_date,r.report_code,d.distributor_name,r.status,r.notes
     UNION ALL SELECT ps.payment_date,ps.submission_code,'PEMBAYARAN DISTRIBUTOR',d.distributor_name,ps.amount,ps.status,ps.proof_reference,ps.id,'DISTRIBUTOR_PAYMENT' FROM distributor_payment_submissions ps JOIN distributors d ON d.id=ps.distributor_id
     UNION ALL SELECT dr.return_date,dr.return_code,'RETUR PENJUALAN DISTRIBUTOR',d.distributor_name,dr.total,dr.status,dr.notes,dr.id,'DISTRIBUTOR_RETURN' FROM distributor_sales_returns dr JOIN distributors d ON d.id=dr.distributor_id
-   ) history WHERE transaction_date BETWEEN ? AND ? ORDER BY transaction_date DESC,transaction_code DESC LIMIT ? OFFSET ?
+   ) history WHERE transaction_date BETWEEN ? AND ? ORDER BY transaction_date DESC,transaction_code DESC,source_type DESC,source_id DESC LIMIT ? OFFSET ?
   `,[from,to,limit+1,offset]);
   res.json({ok:true,transactions:rows.slice(0,limit),has_more:rows.length>limit,limit,offset});
  }catch(error){console.error("Gagal memuat histori transaksi:",error);res.status(500).json({ok:false,message:"Gagal memuat histori transaksi."});}
