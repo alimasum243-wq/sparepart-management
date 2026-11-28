@@ -118,7 +118,7 @@ router.post('/auth/owner-setup', async (req,res) => {
   if(rateLimit('setup:'+rateKey(req),3,60*60*1000)) return res.status(429).json({ok:false,message:'Percobaan setup terlalu banyak. Coba lagi nanti.'});
   const {setup_key,username,email,phone,full_name,password} = req.body || {};
   if (!process.env.OWNER_SETUP_KEY || setup_key !== process.env.OWNER_SETUP_KEY) return res.status(403).json({ok:false,message:'Kunci setup tidak cocok.'});
-  if (!/^[a-zA-Z0-9._-]{4,50}$/.test(username||'') || !String(full_name||'').trim() || String(password||'').length < 10 || (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(email)))) return res.status(400).json({ok:false,message:'Username minimal 4 karakter, email harus valid, dan password minimal 10 karakter.'});
+  if (!/^[a-zA-Z0-9._-]{4,50}$/.test(username||'') || !String(full_name||'').trim() || String(full_name||'').length>150 || String(password||'').length < 10 || String(password||'').length>128 || String(email||'').length>190 || String(phone||'').length>50 || (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(email)))) return res.status(400).json({ok:false,message:'Username, nama, email, nomor telepon, atau password tidak valid.'});
   const conn=await pool.getConnection();
   try {
     await conn.beginTransaction();
@@ -138,7 +138,7 @@ router.post('/auth/login', async (req,res) => {
   if(rateLimit(loginKey,8,15*60*1000)) return res.status(429).json({ok:false,message:'Terlalu banyak percobaan login. Tunggu 15 menit sebelum mencoba kembali.'});
   const identifier = String(req.body?.identifier ?? req.body?.username ?? '').trim();
   const password = String(req.body?.password ?? '');
-  if (!identifier || !password) return res.status(400).json({ok:false,message:'Username, email, atau nomor telepon dan password wajib diisi.'});
+  if (!identifier || !password || identifier.length>190 || password.length>128) return res.status(400).json({ok:false,message:'Identitas login atau password tidak valid.'});
   try {
     const normalizedEmail = identifier.toLowerCase();
     const [rows] = await pool.execute<RowDataPacket[]>(`SELECT id,username,full_name,role,distributor_id,password_hash,is_active FROM users WHERE username=? OR LOWER(email)=? OR phone=? LIMIT 2`,[identifier,normalizedEmail,identifier]);
