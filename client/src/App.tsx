@@ -25,7 +25,7 @@ const printHtml = (title:string,body:string) => { const w=window.open('','_blank
 const today = () => new Date().toLocaleDateString('en-CA')
 const datetimeLocalNow=()=>{const d=new Date();return new Date(d.getTime()-d.getTimezoneOffset()*60000).toISOString().slice(0,16)}
 const datetimeLocalToUtcSql=(value:string)=>new Date(value).toISOString().slice(0,19).replace('T',' ')
-const displayUtcSqlDateTime=(value:any)=>{if(!value)return '—';const raw=value instanceof Date?value.toISOString():String(value);const normalized=/([zZ]|[+-]\\d{2}:?\\d{2})$/.test(raw)?raw:raw.replace(' ','T')+'Z';const parsed=new Date(normalized);return Number.isNaN(parsed.getTime())?'—':parsed.toLocaleString('id-ID')};
+const displayUtcSqlDateTime=(value:any)=>{if(!value)return '—';const raw=value instanceof Date?value.toISOString():String(value);const normalized=/([zZ]|[+-]\d{2}:?\d{2})$/.test(raw)?raw:raw.replace(' ','T')+'Z';const parsed=new Date(normalized);return Number.isNaN(parsed.getTime())?'—':parsed.toLocaleString('id-ID')};
 async function request(path:string, token:string, init:RequestInit={}) {
   const response = await fetch(`${API}${path}`,{...init,credentials:'include',headers:{...(init.headers||{}),...(token&&token!=='cookie'?{Authorization:`Bearer ${token}`}:{}) ,'Content-Type':'application/json'}})
   const data = await response.json().catch(()=>({ok:false,message:'Respons server tidak valid.'}))
