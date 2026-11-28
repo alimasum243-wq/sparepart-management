@@ -271,3 +271,8 @@ The application must support two separate price segments per product, with diffe
 - [ ] Add unit/integration tests for return netting, channel contribution, thresholds, report-to-handover timing, remittance allocation/lapping signals, and TiDB query compatibility.
 
 **Implementation status rule:** this section tracks code work only. No requirement in sections 1–14 is considered fully accepted by these changes. External DB migration, integration, security, reconciliation, and business acceptance evidence remain required.
+
+### Additional audit implementation
+- [x] Added migration 013 for persisted owner-configurable thresholds: retail decline percentage, sales-channel rise percentage, and rapid-note time window.
+- [x] Added owner-only GET/PUT endpoints and UI controls to update audit thresholds; changes are written to audit_logs.
+- [ ] Verify settings migration and endpoint query behavior against isolated TiDB; settings persistence is not yet environment-tested.
