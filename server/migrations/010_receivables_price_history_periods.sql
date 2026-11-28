@@ -5,6 +5,7 @@ ALTER TABLE distributor_sales_reports ADD COLUMN IF NOT EXISTS invoice_code VARC
 ALTER TABLE distributor_sales_reports ADD COLUMN IF NOT EXISTS due_date DATE NULL;
 ALTER TABLE distributor_payment_submissions ADD COLUMN IF NOT EXISTS unapplied_amount DECIMAL(18,2) NOT NULL DEFAULT 0;
 CREATE INDEX IF NOT EXISTS idx_distributor_report_due_date ON distributor_sales_reports (due_date,status);
+CREATE UNIQUE INDEX IF NOT EXISTS uq_distributor_invoice_code ON distributor_sales_reports (invoice_code);
 
 INSERT INTO accounts (account_code,account_name,account_type,is_active)
 SELECT '2200','Uang Muka / Penerimaan Distributor Belum Dialokasikan','LIABILITY',1
