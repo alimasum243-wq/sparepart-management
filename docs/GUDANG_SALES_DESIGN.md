@@ -35,6 +35,16 @@ Gunakan entitas distributor dan lokasi konsinyasi yang sudah ada sebagai identit
 7. Rekonsiliasi: nilai barang yang dibawa, nilai penjualan, retur, setoran, dan saldo belum disetor.
 8. Laporan Pembelian Pabrik vs Setoran: pembelian pabrik, penjualan sales, retur, setoran, stok di sales, saldo belum disetor.
 
+
+## Nota penyerahan stok dan ekspor
+- Setiap penyimpanan transfer ke sales otomatis menghasilkan nomor dokumen unik dan tampilan nota penyerahan barang yang rapi, bukan sekadar tabel stok.
+- Nota dapat dibuka kembali dari riwayat transaksi, dicetak, atau diekspor sebagai PDF untuk dikirim kepada sales melalui WhatsApp.
+- Nota PDF memuat identitas usaha, nomor dokumen, tanggal/jam, nama sales, asal dan tujuan gudang, daftar SKU/nama barang/satuan/qty, total kuantitas, catatan, serta kolom tanda tangan pihak yang menyerahkan dan menerima.
+- Nota yang diberikan kepada sales berfungsi sebagai bukti jumlah barang yang diterima. Nilai HPP dan nilai persediaan tetap tersedia pada tampilan/ekspor internal admin, tetapi tidak wajib dicantumkan pada salinan sales.
+- Sediakan ekspor CSV untuk kebutuhan administrasi/Excel. CSV internal memuat nomor dokumen, tanggal, sales, kode/nama barang, satuan, qty, HPP snapshot, dan total HPP per item.
+- PDF adalah format utama untuk cetak/kirim ke sales; CSV adalah format data untuk pengolahan internal. Keduanya berasal dari dokumen transaksi yang sama agar tidak ada input ulang.
+- Dokumen yang sudah disimpan tidak boleh berubah ketika harga/HPP master berubah. Reprint dan ekspor ulang harus memakai snapshot transaksi yang tersimpan.
+
 ## Rumus kontrol
 - Stok sales (qty) = seluruh mutasi masuk lokasi sales - seluruh mutasi keluar lokasi sales.
 - Nilai stok sales = SUM(stok qty per SKU x HPP tersimpan/biaya rata-rata yang konsisten).
