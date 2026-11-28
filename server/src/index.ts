@@ -315,8 +315,8 @@ const purchaseSchema = z.object({
   items: z.array(
     z.object({
       product_id: z.number().int().positive(),
-      quantity: z.number().positive().max(1000000),
-      unit_cost: z.number().nonnegative().max(1000000000)
+      quantity: z.number().positive().max(1000000).refine(v=>Math.round(v*1000)===v*1000),
+      unit_cost: z.number().nonnegative().max(1000000000).refine(v=>Math.round(v*100)===v*100)
     })
   ).min(1)
 });
