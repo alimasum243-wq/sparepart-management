@@ -29,6 +29,7 @@ The SQL files are manual migration scripts. **Do not run them until preflight is
 23. `server/migrations/021_retail_receipt_print_audit.sql`
 24. `server/migrations/022_cash_account_source_type.sql`
 25. `server/migrations/023_sales_report_print_event_audit.sql`
+26. `server/migrations/024_users_single_distributor_login.sql` — unique constraint to enforce one distributor login per distributor; duplicate `users.distributor_id` values must be resolved during preflight before applying.
 
 This is a **provisional dependency order only**, not approval to execute. Each statement must be conditionally reconciled to the live schema before the user runs SQL.
 
@@ -42,6 +43,7 @@ This is a **provisional dependency order only**, not approval to execute. Each s
 - Migration 020 adds physical cash/bank reconciliation sessions; review timestamp, timezone, and ledger-movement semantics before applying.
 - Migration 021 adds SKU snapshots and retail receipt print audit; check existing rows safely default and table/index absence/presence.
 - Migration 023 adds immutable distributor sales-note print/reprint event logs; include it in final postflight checks.
+- Migration 024 enforces the application's current one-login-per-distributor assumption. Preflight must check duplicate non-NULL `users.distributor_id`; this unique index is conditional if duplicates exist.
 - Historical TiDB snapshot showed missing tables including `accounting_periods`, `accounting_period_guard`, `cash_transactions`, `channel_cost_allocations`, and `product_price_history`; repeat preflight because snapshot is not current.
 - `CREATE TABLE IF NOT EXISTS` and `ADD COLUMN IF NOT EXISTS` do not guarantee the whole script is safe after partial execution. Review unique indexes, seed collisions, legacy table shapes, and TiDB syntax.
 - DDL rollback is generally not transactional. Backup/restore is the recovery strategy; do not run ad-hoc DROP/DELETE rollback against the user's DB.
