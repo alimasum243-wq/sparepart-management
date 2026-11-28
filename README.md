@@ -1,64 +1,51 @@
-# Sparepart Management System — MVP
+# Sparepart Management System
 
-Fondasi awal aplikasi web untuk usaha sparepart kompor Hj. Umiyati.
+Fondasi aplikasi manajemen usaha sparepart: React + TypeScript + Vite, Express + TypeScript, dan TiDB/MySQL.
 
-## Stack
+## Status saat ini
+
+**Belum siap dipakai untuk transaksi riil.** Audit dan hardening sedang berlangsung di branch `prelaunch/hardening-and-audit`; perubahan disimpan dalam draft PR, bukan di `main`.
+
+Yang sudah tersedia pada kode: master produk/supplier, pembelian dan HPP rata-rata, penjualan retail, stok konsinyasi/distributor, laporan penjualan dan verifikasi pembayaran distributor, pembayaran utang supplier, pengeluaran, retur, histori, dan laporan laba-rugi/operasional.
+
+Yang belum lulus/selesai: build/CI terbaru belum terverifikasi, skema TiDB aktual belum dibandingkan penuh, tes acceptance belum dilakukan, serta backup/restore dan deployment belum disiapkan. Jangan posting transaksi riil.
+
+## Teknologi
+
 - Frontend: React + TypeScript + Vite
 - Backend: Node.js + Express + TypeScript
-- Database driver: mysql2 (TiDB MySQL-compatible)
-- Validasi input API: Zod
+- Database: TiDB Cloud (MySQL-compatible), driver mysql2
+- Validasi API: Zod
 
-## Status
-Ini adalah **fondasi aplikasi**, belum aplikasi transaksi siap produksi. Modul transaksi baru boleh diaktifkan setelah audit struktur database, migrasi terencana, autentikasi, backup, dan pengujian alur stok/HPP selesai.
+## Persyaratan lokal
 
-## Persyaratan
 - Node.js 20+
 - npm
-- Database TiDB Cloud yang dapat diakses dari lingkungan backend
+- TiDB Cloud dengan akses TLS pada environment production
 
-## Menjalankan lokal
+## Menjalankan development
 
-### 1. Backend
-```bash
-cd server
-cp .env.example .env
-npm install
-npm run dev
-```
+1. Backend: `cd server`, salin `.env.example` ke `.env`, isi kredensial database dan secret, lalu `npm install` dan `npm run dev`.
+2. Frontend: `cd client`, `npm install`, `npm run dev`.
+3. Jangan commit `.env`, password, connection string, atau token.
 
-Isi `.env` dengan kredensial TiDB dari TiDB Cloud. Jangan commit `.env`.
+## Migrasi database
 
-### 2. Frontend
-Terminal baru:
-```bash
-cd client
-npm install
-npm run dev
-```
-Buka URL lokal yang ditampilkan Vite.
+Periksa dan backup DB terlebih dahulu. Migration harus dijalankan satu statement per eksekusi setelah struktur aktual (`SHOW CREATE TABLE`) dipastikan. Ikuti `IMPLEMENTASI_DISTRIBUTOR.md` untuk urutan migrasi, preflight, setup owner, dan acceptance checklist. Tidak ada migration yang sudah dijalankan oleh audit ini.
 
 ## Keamanan
-- Jangan masukkan password, connection string, atau token ke source code.
-- Jangan commit `.env`.
-- Jangan membuka port database ke publik tanpa pembatasan IP/TLS.
-- Gunakan secret manager pada hosting.
-- Backup database sebelum menjalankan migrasi.
-- Endpoint `/api/health/db` hanya mengembalikan status koneksi, tidak mengembalikan kredensial atau isi database.
 
-## Tahap implementasi berikutnya
-1. Audit `SHOW CREATE TABLE` untuk seluruh tabel yang sudah ada.
-2. Buat migration SQL additive (tanpa DROP/RECREATE tabel yang ada).
-3. Implementasikan login dan sesi aman.
-4. Implementasikan master produk/supplier/distributor.
-5. Implementasikan pembelian + moving weighted average.
-6. Implementasikan perpindahan titipan dan laporan penjualan distributor.
-7. Implementasikan retail, piutang/utang, pembayaran, kas, jurnal, dan laporan.
-8. Uji seluruh alur sebelum dipakai untuk posting transaksi nyata.
+- Login menggunakan password hash scrypt, token HMAC, sesi database yang dapat dicabut, dan pemeriksaan status akun pada request terautentikasi.
+- Login dan setup owner memiliki throttling dasar per-process; production multi-instance masih perlu edge/WAF rate limit.
+- Production mewajibkan `DB_SSL=true` dan `AUTH_TOKEN_SECRET`.
+- Batasi akses database berdasarkan IP dan gunakan backup yang dapat diuji restore.
 
-## Catatan database
-Nama database yang ditargetkan: `sparepart_db`.
-Database yang ada tidak dimodifikasi oleh starter ini.
+## Gate sebelum penggunaan
 
-## Implementasi fitur distributor dan akuntansi
+1. Skema DB dan migrasi diverifikasi; backup tersedia.
+2. Build/typecheck/lint dan tes regresi lulus.
+3. Acceptance tests stok, HPP, retur, piutang/utang, kas, jurnal, role, dan sesi lulus.
+4. Backup/restore, deployment secrets, monitoring, dan rollback plan diuji.
+5. Review PR selesai; merge/deploy hanya setelah seluruh gate terpenuhi.
 
-Baca `IMPLEMENTASI_DISTRIBUTOR.md` sebelum menerapkan migrasi. File tersebut menjelaskan skema tambahan, pengaturan secret login, setup akun pemilik pertama, endpoint, dan uji penerimaan. Jalankan migrasi satu statement per eksekusi dan backup database terlebih dahulu.
+PR hardening: https://github.com/alimasum243-wq/sparepart-management/pull/3
