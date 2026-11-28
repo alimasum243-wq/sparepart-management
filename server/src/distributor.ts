@@ -2,7 +2,7 @@ import { Router, type Request, type Response, type NextFunction } from 'express'
 import { createHmac, randomBytes, scryptSync, timingSafeEqual } from 'node:crypto';
 import type { RowDataPacket, ResultSetHeader } from 'mysql2';
 import { pool } from './db.js';
-import { money2, isDateOnly } from './validation.js';
+import { money2, isDateOnly, hasAtMost2Decimals, hasAtMost3Decimals } from './validation.js';
 
 const router = Router();
 // Basic per-process throttling for sensitive auth endpoints. Production deployments
@@ -209,7 +209,7 @@ router.post('/admin/consignments',authMiddleware,ownerMiddleware,async(req:Authe
   const deliveryCode=code('KNS');
   const [h]=await conn.execute<ResultSetHeader>(`INSERT INTO consignment_deliveries (delivery_code,distributor_id,delivery_date,status,notes,created_by_user_id) VALUES (?,?,?,'POSTED',?,?)`,[deliveryCode,distributor_id,delivery_date,notes||null,req.identity!.id]);
   const deliveryId=Number(h.insertId); const seen=new Set<number>();
-  for(const raw of items){const pid=Number(raw.product_id),qty=Number(raw.quantity); if(!Number.isInteger(pid)||!Number.isFinite(qty)||qty<=0||qty>1000000||Math.round(qty*1000)!==qty*1000||seen.has(pid))throw new Error('Daftar barang tidak valid atau produk ganda.');seen.add(pid);
+  for(const raw of items){const pid=Number(raw.product_id),qty=Number(raw.quantity); if(!Number.isInteger(pid)||!Number.isFinite(qty)||qty<=0||qty>1000000||!hasAtMost3Decimals(qty)||seen.has(pid))throw new Error('Daftar barang tidak valid atau produk ganda.');seen.add(pid);
    const [ps]=await conn.execute<RowDataPacket[]>(`SELECT id,product_name,distributor_price,purchase_cost,average_cost FROM products WHERE id=? AND is_active=1 FOR UPDATE`,[pid]);if(!ps.length)throw new Error(`Produk ${pid} tidak ditemukan.`);const p=ps[0];
    const [ss]=await conn.execute<RowDataPacket[]>(`SELECT COALESCE(SUM(CASE WHEN to_location_id=? THEN quantity ELSE 0 END),0)-COALESCE(SUM(CASE WHEN from_location_id=? THEN quantity ELSE 0 END),0) qty FROM stock_movements WHERE product_id=?`,[Number(wh[0].id),Number(wh[0].id),pid]);
    if(Number(ss[0].qty)<qty)throw new Error(`Stok gudang ${p.product_name} tidak cukup. Tersedia ${ss[0].qty}.`);
@@ -295,7 +295,7 @@ router.post('/distributor/payments',authMiddleware,distributor,async(req:AuthedR
  const {payment_date,amount,payment_method,proof_reference,notes}=req.body||{};
  const paymentAmount=Number(amount);
  const paymentMethod=String(payment_method||'TRANSFER').toUpperCase();
- if(!isDateOnly(payment_date||'')||!Number.isFinite(paymentAmount)||paymentAmount<=0||paymentAmount>1000000000000||Math.round(paymentAmount*100)!==paymentAmount*100||!['TRANSFER','CASH','BANK'].includes(paymentMethod)||String(proof_reference||'').length>500||String(notes||'').length>1000)
+ if(!isDateOnly(payment_date||'')||!Number.isFinite(paymentAmount)||paymentAmount<=0||paymentAmount>1000000000000||!hasAtMost2Decimals(paymentAmount)||!['TRANSFER','CASH','BANK'].includes(paymentMethod)||String(proof_reference||'').length>500||String(notes||'').length>1000)
   return res.status(400).json({ok:false,message:'Tanggal dan nominal pembayaran wajib benar (nominal maksimal 2 angka desimal).'});
  const conn=await pool.getConnection();
  try{
