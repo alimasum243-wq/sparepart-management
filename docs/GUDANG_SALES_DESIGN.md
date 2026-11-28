@@ -2,7 +2,7 @@
 
 ## Keputusan operasional
 - Setoran sales fleksibel: satu sales boleh menyetor berkali-kali dan kapan saja.
-- Semua transaksi sales diinput admin/pemilik. Sales tidak diberi akun login pada tahap ini.
+- Semua transaksi sales diinput admin/pemilik. Sales boleh memiliki akun baca-saja untuk melihat stok dan nilai barang miliknya sendiri; akun tersebut tidak dapat membuat penjualan, retur, atau setoran.
 - Tidak menggunakan pelanggan umum maupun data pelanggan per sales. Penjualan dicatat langsung atas sales, tanggal, dan item/qty; pelanggan bukan dimensi wajib transaksi.
 - Setiap sales mempunyai lokasi stok sendiri (menggunakan pola lokasi DISTRIBUTOR yang sudah ada).
 - Barang yang dititipkan ke lokasi sales tetap menjadi persediaan perusahaan; transfer gudang utama ke sales bukan penjualan dan tidak membentuk piutang.
@@ -80,7 +80,7 @@ Gunakan entitas distributor dan lokasi konsinyasi yang sudah ada sebagai identit
 - Sediakan lupa password melalui OTP ke email atau nomor telepon yang terdaftar. OTP harus memiliki masa kedaluwarsa, hanya dapat dipakai sekali, memiliki pembatasan percobaan/pengiriman, disimpan dengan aman, dan tidak pernah ditulis ke log.
 - Audit implementasi autentikasi backend, proteksi seluruh endpoint lama, pembatasan data per distributor, dan penyembunyian HPP. Jangan menganggap login selesai hanya karena halaman login tampil.
 - Uji minimal: login benar/salah, akun nonaktif, sesi kedaluwarsa, akses tanpa token (401), DISTRIBUTOR ke endpoint admin (403), distributor mencoba membaca data distributor lain (ditolak), OWNER/ADMIN mengakses sesuai izin, ganti password, dan OTP kedaluwarsa/terpakai ulang/rate limit.
-- Modul Gudang Sales tetap dioperasikan admin/pemilik; tidak perlu membuat akun sales terpisah untuk input transaksi penyerahan, penjualan, retur, atau setoran.
+- Modul Gudang Sales tetap dioperasikan admin/pemilik; akun sales hanya untuk melihat stok miliknya sendiri, bukan untuk input transaksi penyerahan, penjualan, retur, atau setoran.
 
 ## Laporan cetak untuk pemodal
 - Sediakan menu Laporan Pemodal yang dapat difilter berdasarkan periode tanggal dan diekspor ke PDF siap cetak/kirim; CSV juga tersedia untuk olah data.
