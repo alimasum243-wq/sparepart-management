@@ -808,9 +808,9 @@ app.post("/api/supplier-payments", async (req,res) => {
     if(Math.abs(Math.round(lockedTotal*100)/100-total)>0.009) throw new Error("Total alokasi tidak cocok.");
     const paymentCode=`BAY-${new Date().toISOString().replace(/[-:.TZ]/g,'').slice(0,14)}-${randomUUID().slice(0,6).toUpperCase()}`;
     const [payment]=await conn.execute<ResultSetHeader>(
-      `INSERT INTO supplier_payments (payment_code,supplier_id,payment_date,payment_method,amount,notes,posted_at)
-       VALUES (?,?,?,?,?,?,CURRENT_TIMESTAMP)`,
-      [paymentCode,supplierId,date,method,total,String(req.body?.notes||"").slice(0,1000)||null]
+      `INSERT INTO supplier_payments (payment_code,supplier_id,payment_date,payment_method,cash_account_id,amount,notes,posted_at)
+       VALUES (?,?,?,?,?,?,?,CURRENT_TIMESTAMP)`,
+      [paymentCode,supplierId,date,method,cashAccountId,total,String(req.body?.notes||"").slice(0,1000)||null]
     );
     for(const item of normalized) {
       await conn.execute(
