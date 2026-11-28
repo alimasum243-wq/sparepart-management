@@ -22,7 +22,7 @@ Scope: active hardening and code review. No TiDB migration, production deploymen
 
 ## Verification still required
 
-- **CI:** Current commit checks are running; wait for both `CI` and `Build and Type Check` to finish. No green checks claimed yet.
+- **CI:** Build and Type Check passed on the latest verified commit before the current queued run; CI/static gate is in progress. Wait for both latest checks to complete before claiming final green.
 - **TiDB compatibility:** compare every migration with actual schema using `SHOW CREATE TABLE`; preflight duplicate username/email/phone and supplier invoice numbers. DB schema has not been read by this audit.
 - **Stock/HPP/accounting:** test opening stock, purchase, retail sale, consignment, distributor sales, payments, returns, rollback, concurrent requests, journal balancing, cash/bank, P&L, and reconciliation with controlled test data.
 - **Automated tests:** repository workflows currently lint/typecheck/build; no verified business-logic/integration test suite is present. Add or run acceptance tests.
