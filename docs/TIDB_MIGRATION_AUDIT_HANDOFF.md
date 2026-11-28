@@ -36,7 +36,7 @@ This document is the handoff gate between application hardening and the user's m
 6. **App compatibility report**: endpoint/UI feature mapped to required schema.
 7. **Operational safety**: backup confirmation, credentials safety, transaction limitations for DDL, and how to stop if a statement fails.
 
-## Additional migrations created during hardening\n- `018_distributor_consignment_returns.sql`: unsold consignment return request tables. Pending requests do not post stock; owner approval posts movement.\n- `019_consignment_delivery_print_audit.sql`: audited print/reprint requests for distributor delivery notes.\n- Both are additive; review schema dependencies against TiDB before running.\n\n## Application work still tracked before the gate
+## Additional migrations created during hardening\n- `018_distributor_consignment_returns.sql`: unsold consignment return request tables. Pending requests do not post stock; owner approval posts movement.\n- `019_consignment_delivery_print_audit.sql`: audited print/reprint requests for distributor delivery notes.\n- `020_cash_reconciliation_sessions.sql`: cash/bank physical opening and closing count sessions; expected closing calculated from posted GL movements during session.\n- Both are additive; review schema dependencies against TiDB before running.\n\n## Application work still tracked before the gate
 - Distributor portal: note-level totals and status, allocation drill-down, and durable print history review (migration 019 captures request log; end-to-end reprint audit must be verified).
 - Distributor portal: report history and status/rejection reason.
 - Distributor portal: note-level receivable status and payment allocation history.
