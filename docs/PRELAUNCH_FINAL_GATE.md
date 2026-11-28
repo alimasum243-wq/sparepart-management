@@ -304,3 +304,25 @@ The application must support two separate price segments per product, with diffe
 - [x] Previous implementation commit checks succeeded (build-and-check and build).
 - [ ] Documentation update commit checks are currently queued; re-check before reporting latest commit CI as passed.
 - [ ] CI success does not replace TiDB migration/integration tests, restore test, security/IDOR review, reconciliation, or acceptance.
+
+
+## 16. Mandatory printing and investor reporting/export (NEW REQUIREMENT — PRELAUNCH BLOCKER)
+
+### Transaction and stock documents
+- [ ] Retail direct-sale receipt: printable/PDF with transaction ID, date/time, item/SKU, quantity, unit price, subtotal, discounts/override reason where appropriate, total, payment method, and cashier; accessible from transaction history for reprint.
+- [ ] Warehouse-to-Sales consignment handover receipt: printable/PDF with handover ID, date/time, Sales/distributor, item/SKU, quantity, unit Sales-price snapshot, line/total units and value, notes, sender/receiver sign-off fields; clearly marked **NOT A SALE — CONSIGNMENT STOCK**; reprint from history.
+- [ ] Sales sell-through report note: print/PDF for each report, report ID/status, Sales identity, date/time, area label (if entered), item/qty/price snapshot, total and owner approval state; print request count/time remains audit evidence but must not be represented as physical print proof.
+- [ ] Returns, stock opname/adjustments, supplier purchases/payments, distributor payments/remittances, and expense/owner capital/draw/transfer documents should have print/PDF detail slips where relevant, with unique reference and audit status.
+- [ ] All print views must be usable on mobile and desktop; paper/PDF layout must exclude navigation and unrelated controls; reprints are recorded and preserve original transaction data.
+
+### Date-range reports for investor/owner
+- [ ] Every applicable owner report supports a custom date range (start/end), plus useful presets (today, this week, this month, previous month, custom), and clearly states the selected period, generated timestamp, and filter scope.
+- [ ] CSV export and PDF print/export for reports, including at minimum: summary/dashboard; channel comparison (Retail vs Sales: units, revenue, HPP, gross profit, direct/allocated expenses, nominal net contribution and contribution share); inventory/stock movement and stock valuation by warehouse and Sales consignment; purchases and supplier payables/payments; retail transactions/returns/refunds; Sales reports, consignment balances, Sales receivables, remittance/payment allocations, aging and overdue; expenses; cash/bank/source reconciliation and variances; journal entries/ledger, trial balance, profit & loss, balance sheet, and audit log/approvals.
+- [ ] CSV must be machine-readable (UTF-8, consistent column headers, stable IDs, currency/quantity as numeric values, explicit date/time and status); no totals or pending/voided rows silently omitted. Include filters/period and source identifiers; distinguish posted, pending, rejected, voided, and returned/corrected states.
+- [ ] PDF investor reports must be readable, have title, period, generated timestamp, filters, summary totals, page numbers, and detail/drill-down references; show opening/closing figures and reconciliations when relevant. No fabricated/AI-estimated figures in financial totals.
+- [ ] Exported totals must reconcile with on-screen report, underlying posted transaction/subledger and GL; pending items must be visibly separated from posted totals. CSV/PDF export generation and download/print are owner-authorized; distributor access only to their own permitted documents/reports.
+- [ ] Export actions and report parameters (who, when, type, period, filters, format) are audit logged where they expose financial/accountability information; sensitive data must be minimized.
+- [ ] Investor summary should be a transparent factual report, not marketing: capital/opening balance, period revenue by channel, HPP, gross profit, operating/direct costs, net contribution/profit as supported by reconciled accounting, inventory and consignment value, receivables/payables, cash/bank, overdue amounts, stock discrepancies, pending approvals, and reconciliation differences. Explain any unallocated costs, excluded/unposted transactions, and data limitations; AI may summarize but calculations come from deterministic records.
+- [ ] Acceptance tests: range boundaries/timezone; empty period; one-day and cross-month ranges; returns/refunds; pending vs posted; void/reversal; CSV encoding/headers and row totals; PDF pagination; large report; unauthorized export; repeated/reprint audit; export totals tie to ledger.
+
+**Acceptance rule:** missing receipt, handover note, date-range CSV/PDF report, or investor summary is a prelaunch blocker. Do not approve real transactions until implemented and tested against actual data and GL.
