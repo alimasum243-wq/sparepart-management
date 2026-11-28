@@ -249,7 +249,8 @@ The application must support two separate price segments per product, with diffe
 - [ ] Record actor, role, timestamp, transaction/approval state, before/after values for edits, reason, approver, source/channel, related entity IDs, and evidence/reference where applicable.
 - [ ] Capture timestamps for stock handover, note creation/printing/submission/approval, customer collection (when recorded), remittance submission/verification, allocation, return, physical count, and reconciliation.
 - [ ] Capture retail and sales channel separately, including transaction location/zone only when transparent, lawful, and enabled; disclose when location or other evidence is unavailable.
-- [ ] Capture per-SKU stock movement and accountable location/holder, per-note receivable/remittance allocations, cash source, drawer/shift, and nominal retail/sales price and HPP snapshots.
+- [x] Code: owner stock audit shows per-distributor/SKU delivered, approved sales, customer returns, pending reports, ledger balance, expected physical (ledger minus pending), and latest stock-opname snapshot variance.
+- [ ] Capture per-SKU stock movement and accountable location/holder, per-note receivable/remittance allocations, cash source, drawer/shift, and nominal retail/sales price and HPP snapshots. Dedicated missing-stock charge proposal by Sales price, dispute/evidence, and approval workflow remains not implemented.
 - [ ] Preserve data integrity: prevent silent edits/deletions to posted records; corrections/voids/reversals must link to original, require proper authorization, and retain audit history.
 - [ ] Build audit views/reports with drill-down from alert/aggregate to individual source records and event chronology; allow evidence export where practical.
 - [ ] AI-generated audit results must state the underlying data, rule/signal, comparison period, data completeness, confidence/limitations, and link to supporting records; AI must not fabricate missing evidence.
