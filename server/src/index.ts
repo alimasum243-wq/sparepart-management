@@ -23,6 +23,12 @@ const getWarehouseLocationId = async (conn:PoolConnection):Promise<number> => {
   if(rows.length!==1) throw new Error('Harus ada tepat satu gudang aktif; dukungan multi-gudang belum tersedia.');
   return Number(rows[0].id);
 };
+const assertAccountingPeriodOpen = async (conn:PoolConnection,date:string):Promise<void> => {
+  const [guard]=await conn.execute<RowDataPacket[]>("SELECT id FROM accounting_period_guard WHERE id=1 FOR UPDATE");
+  if(!guard.length)throw new Error('Pengaman periode akuntansi belum tersedia; jalankan migration 010.');
+  const [periods]=await conn.execute<RowDataPacket[]>("SELECT id,status FROM accounting_periods WHERE period_start<=? AND period_end>=? FOR UPDATE",[date,date]);
+  if(periods.some(p=>p.status==='CLOSED'))throw new Error('Periode akuntansi tanggal ini sudah ditutup. Posting transaksi tidak diperbolehkan.');
+};
 const assertCashBalance = async (conn:PoolConnection, ledgerAccountId:number, amount:number, label:string):Promise<void> => {
   const [ledger]=await conn.execute<RowDataPacket[]>(`SELECT id FROM accounts WHERE id=? AND is_active=1 FOR UPDATE`,[ledgerAccountId]);
   if(!ledger.length)throw new Error(`Akun ledger kas/bank untuk ${label} tidak tersedia.`);
@@ -862,7 +868,7 @@ app.get("/api/accounting/overview",async(req,res)=>{
   if(!isDateOnly(from)||!isDateOnly(to)||from>to)return res.status(400).json({ok:false,message:'Periode tanggal tidak valid.'});
   try{
     const [accounts]=await pool.execute<RowDataPacket[]>(`SELECT id,account_code,account_name,account_type,is_active FROM accounts ORDER BY account_code`);
-    const [balances]=await pool.execute<RowDataPacket[]>(`SELECT a.id,a.account_code,a.account_name,a.account_type,COALESCE(SUM(jl.debit),0) debit_total,COALESCE(SUM(jl.credit),0) credit_total,COALESCE(SUM(jl.debit-jl.credit),0) net_debit FROM accounts a LEFT JOIN journal_lines jl ON jl.account_id=a.id LEFT JOIN journal_entries je ON je.id=jl.journal_entry_id AND je.status='POSTED' AND je.journal_date<=? WHERE a.is_active=1 GROUP BY a.id,a.account_code,a.account_name,a.account_type ORDER BY a.account_code`,[to]);
+    const [balances]=await pool.execute<RowDataPacket[]>(`SELECT a.id,a.account_code,a.account_name,a.account_type,COALESCE(SUM(CASE WHEN je.id IS NOT NULL THEN jl.debit ELSE 0 END),0) debit_total,COALESCE(SUM(CASE WHEN je.id IS NOT NULL THEN jl.credit ELSE 0 END),0) credit_total,COALESCE(SUM(CASE WHEN je.id IS NOT NULL THEN jl.debit-jl.credit ELSE 0 END),0) net_debit FROM accounts a LEFT JOIN journal_lines jl ON jl.account_id=a.id LEFT JOIN journal_entries je ON je.id=jl.journal_entry_id AND je.status='POSTED' AND je.journal_date<=? WHERE a.is_active=1 GROUP BY a.id,a.account_code,a.account_name,a.account_type ORDER BY a.account_code`,[to]);
     const [headers]=await pool.execute<RowDataPacket[]>(`SELECT id,journal_code,journal_date,source_type,source_id,description,status,created_by_user_id FROM journal_entries WHERE status='POSTED' AND journal_date BETWEEN ? AND ? ORDER BY journal_date DESC,id DESC LIMIT 100`,[from,to]);
     const journalIds=headers.map(x=>Number(x.id));let lines:RowDataPacket[]=[];
     if(journalIds.length){const placeholders=journalIds.map(()=>'?').join(',');const [rows]=await pool.execute<RowDataPacket[]>(`SELECT jl.journal_entry_id,jl.account_id,a.account_code,a.account_name,jl.debit,jl.credit,jl.description FROM journal_lines jl JOIN accounts a ON a.id=jl.account_id WHERE jl.journal_entry_id IN (${placeholders}) ORDER BY jl.journal_entry_id,jl.id`,journalIds);lines=rows;}
@@ -881,8 +887,7 @@ app.post("/api/manual-journals",async(req,res)=>{
   const conn=await pool.getConnection();
   try{
     await conn.beginTransaction();
-    const [period]=await conn.execute<RowDataPacket[]>(`SELECT status FROM accounting_periods WHERE period_start<=? AND period_end>=? FOR UPDATE`,[date,date]);
-    if(period.some(x=>x.status==='CLOSED'))throw new Error('Periode akuntansi tanggal tersebut sudah ditutup.');
+    await assertAccountingPeriodOpen(conn,date);
     const ids=[...new Set(lines.map(x=>x.accountId))].sort((a,b)=>a-b),ph=ids.map(()=>'?').join(',');
     const [accounts]=await conn.execute<RowDataPacket[]>(`SELECT id FROM accounts WHERE id IN (${ph}) AND is_active=1 ORDER BY id FOR UPDATE`,ids);
     if(accounts.length!==ids.length)throw new Error('Akun jurnal tidak aktif atau tidak ditemukan.');
@@ -899,6 +904,7 @@ app.post("/api/accounting-periods/close",async(req,res)=>{
   const conn=await pool.getConnection();
   try{
     await conn.beginTransaction();
+    const [guard]=await conn.execute<RowDataPacket[]>("SELECT id FROM accounting_period_guard WHERE id=1 FOR UPDATE");if(!guard.length)throw new Error('Pengaman periode belum tersedia; jalankan migration 010.');
     const [overlap]=await conn.execute<RowDataPacket[]>(`SELECT id,period_start,period_end,status FROM accounting_periods WHERE period_start<=? AND period_end>=? FOR UPDATE`,[end,start]);
     if(overlap.length)throw new Error('Rentang bertabrakan dengan periode yang sudah ada; periode tidak diubah.');
     const [result]=await conn.execute<ResultSetHeader>(`INSERT INTO accounting_periods (period_start,period_end,status,closed_by_user_id,closed_at,note) VALUES (?,?,'CLOSED',?,CURRENT_TIMESTAMP,?)`,[start,end,(req as any).identity?.id||null,note||null]);
