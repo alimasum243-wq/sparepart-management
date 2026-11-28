@@ -2,6 +2,15 @@
 
 **Status: BLOCKED — not approved for real transactions.** A checkbox is completed only after a test and evidence are recorded. Passing CI alone is not business acceptance.
 
+## Critical five-area code audit — reviewed
+- [x] Transaction route review: purchase, retail sale, supplier payment, sale returns, distributor report approval/payment verification, consignment dispatch/return, and stock adjustment use transaction/rollback patterns; journal helper/manual journal enforce balanced totals.
+- [x] Closed-period guard: posting checks serialize through the accounting-period guard; distributor report/payment submissions were corrected to check their transaction dates.
+- [x] Auth/session/bootstrap review: HMAC, active DB session, account/role/distributor recheck, owner-setup key/rate limit/one-time guard, and production config checks reviewed.
+- [x] Moving average review: purchase receipt recalculates average cost; purchase and retail returns recompute from stock ledger; consignment transfers/sales use snapshots and do not alter product average cost.
+- [x] HPP hardening: shared positive-unit-cost validation applied to relevant routes and tested.
+- [x] CI verified: unit tests, lint/static gate, typecheck, and build pass on code commit `82aa665e838320b0a78411480a14627a09a5f01a`; subsequent PR head commits are documentation-only.
+- [ ] Database integration, concurrency, restore, security/E2E, financial tie-outs, owner acceptance remain untested and block live use.
+
 
 ## Current code-review findings (not test results)
 - Cash/bank account balances are derived from posted GL journal lines. A static review found and corrected the reconciliation-account balance lookup to use the same active-mapping/fallback resolution as the displayed ledger account; regression acceptance still requires controlled TiDB testing. There is no external bank-statement reconciliation/matching workflow or reconciliation report yet; this remains a feature and acceptance-test blocker.
