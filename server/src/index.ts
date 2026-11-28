@@ -17,7 +17,7 @@ const allowedOrigins = (process.env.CLIENT_ORIGIN || "http://localhost:5173").sp
 const WAREHOUSE_ID = 1;
 
 const isDateOnly = (value:unknown):boolean => {
-  if(typeof value!=='string'||!/^\\d{4}-\\d{2}-\\d{2}$/.test(value)) return false;
+  if(typeof value!=='string'||!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
   const [year,month,day]=value.split('-').map(Number);
   const date=new Date(Date.UTC(year,month-1,day));
   return date.getUTCFullYear()===year&&date.getUTCMonth()===month-1&&date.getUTCDate()===day;
@@ -288,7 +288,7 @@ app.post("/api/suppliers", async (req, res) => {
 
 const purchaseSchema = z.object({
   supplier_id: z.number().int().positive(),
-  purchase_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  purchase_date: z.string().refine(isDateOnly),
   supplier_invoice_no: z.string().trim().max(100).optional(),
   notes: z.string().trim().max(1000).optional(),
   payment_method: z.enum(["CASH", "CREDIT"]).default("CREDIT"),
@@ -556,7 +556,7 @@ app.post("/api/purchases", async (req, res) => {
 
 // Pengeluaran usaha: jurnal beban terhadap kas/bank dalam transaksi atomik.
 const expenseSchema = z.object({
-  expense_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  expense_date: z.string().refine(isDateOnly),
   category: z.string().trim().min(1).max(100),
   description: z.string().trim().max(1000).optional(),
   amount: z.number().positive().max(100000000000),
@@ -1107,10 +1107,7 @@ app.get("/api/reports/operational",async(req,res)=>{
  }catch(error){console.error("Gagal membuat laporan operasional:",error);res.status(500).json({ok:false,message:"Gagal membuat laporan operasional."});}
 });
 
-const dateSchema = z.string().regex(
-  /^\d{4}-\d{2}-\d{2}$/,
-  "Tanggal harus YYYY-MM-DD"
-);
+const dateSchema = z.string().refine(isDateOnly, "Tanggal harus tanggal kalender yang valid (YYYY-MM-DD)");
 
 app.get("/api/setup/validate-date", (req, res) => {
   const parsed = dateSchema.safeParse(req.query.date);
