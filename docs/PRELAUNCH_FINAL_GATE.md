@@ -146,3 +146,18 @@ The application must support two separate price segments per product, with diffe
 - [ ] Margin reports and alerts tie to posted transactions and ledger without counting pending/rejected orders.
 
 **Acceptance rule:** these anti-margin-leakage controls are critical blockers before real sales. No AI label or client-side warning alone counts as protection; the server must enforce eligibility, pricing, approvals, and audit evidence.
+
+
+## 11. Separate cash accountability: retail vs sales remittances (critical)
+
+- [ ] Record cash receipts by source/channel: retail cash sales, distributor/sales remittances, and other receipts must have distinct ledger/accounting tags and report totals.
+- [ ] Retail cash receipts must not be allocated to sales/distributor remittance balances; sales remittances must not be recorded as retail checkout receipts.
+- [ ] Support cash drawer/session reconciliation by drawer, cashier, date/shift, and source category; optionally configure separate physical drawers/accounts where operationally used.
+- [ ] Opening cash, receipts, refunds, cash expenses, cash transfers, and closing counted cash must reconcile for each drawer/session and source category; prevent double-counting transfers between cash drawers/accounts.
+- [ ] Any variance (even small) is surfaced as a non-zero discrepancy with the specific source category, cashier/session, expected amount, counted amount, timestamp, and explanation/approval workflow. Do not silently net discrepancies between retail and sales categories.
+- [ ] Distributor remittances reconcile against approved sales reports, allocations to receivables, and unapplied advances; retail receipts reconcile against posted retail transactions, refunds, and cash/GL.
+- [ ] Use server-enforced transaction source tags and immutable audit entries; cashier cannot change receipt source after posting without authorized correction/void workflow.
+- [ ] Dashboard and reports display separate expected/count totals and discrepancies for retail cash and sales remittances, plus combined total; all totals reconcile to GL.
+- [ ] Test retail cash shortage with sales-remittance surplus and vice versa: discrepancies must remain separately visible and must not cancel each other out.
+
+**Acceptance rule:** channel/source-specific cash accountability and discrepancy detection are critical prelaunch controls. AI may help explain or flag patterns, but deterministic ledger reconciliation is the source of truth.
