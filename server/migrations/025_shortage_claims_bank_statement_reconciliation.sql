@@ -73,5 +73,6 @@ CREATE TABLE IF NOT EXISTS bank_statement_rows (
   UNIQUE KEY uq_bank_statement_row_fingerprint (import_id,row_fingerprint),
   UNIQUE KEY uq_bank_statement_row_number (import_id,row_number),
   KEY idx_bank_statement_rows_status_date (import_id,match_status,transaction_date),
-  KEY idx_bank_statement_rows_source (matched_source_type,matched_source_id)
+  KEY idx_bank_statement_rows_source (matched_source_type,matched_source_id),
+  UNIQUE KEY uq_bank_statement_journal_match (matched_journal_entry_id)
 );
