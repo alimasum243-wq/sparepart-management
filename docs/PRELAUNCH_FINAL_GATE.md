@@ -376,6 +376,12 @@ Acceptance tests include two distributors (cross-account access denied), price m
 **Current status:** partial implementation committed; CI/end-to-end verification and remaining listed blockers are still outstanding. Do not mark app production-ready. See `docs/DISTRIBUTOR_PORTAL_REQUIREMENTS.md`.
 
 
-## 20. Cash reconciliation timestamp validation\n- [x] API validates SQL datetime fields, requires open/close not future-dated using database current time, and close cannot precede opening.\n- [ ] Controlled TiDB tests still required for server/client timezone behavior, account-ledger mapping, receipts/refunds/expenses/purchases/supplier payments/remittances, and inter-account transfers.\n- [ ] Per-cash-account sessions do not yet isolate cashier, physical drawer, or source category.\n\n## 19. TiDB Migration Audit Handoff
+## 19. TiDB Migration Audit Handoff
+
+## 20. Cash reconciliation timestamp validation
+- [x] API validates SQL datetime fields, requires open/close not future-dated using database current time, and close cannot precede opening.
+- [ ] Controlled TiDB tests still required for server/client timezone behavior, account-ledger mapping, receipts/refunds/expenses/purchases/supplier payments/remittances, and inter-account transfers.
+- [ ] Per-cash-account sessions do not yet isolate cashier, physical drawer, or source category.
+
 
 The user requested code hardening to continue until the next user action is a manual TiDB migration audit. The migration audit checklist and expected preflight/migration/postflight deliverables are documented in `docs/TIDB_MIGRATION_AUDIT_HANDOFF.md`. This is a handoff checklist only; it does not indicate migration readiness. All remaining application blockers must be fixed or explicitly documented, and latest CI must pass before requesting the user to inspect or execute SQL.
