@@ -356,8 +356,8 @@ Recent branch work adds distributor delivery line history, sell-through report s
 - [x] Payment submission history with status and aggregate allocated/unapplied amounts.
 - [x] Unsold consignment return request workflow and owner queue/detail; approve/reject routes.
 - [x] Approval posts stock movements per request item; good stock returns to warehouse, damaged stock to damaged location; no automatic refund.
-- [ ] Note-level grouping/totals, note financial status (unpaid/partial/paid), allocation drill-down, persistent print/reprint.
-- [ ] Distributor stock-custody reconciliation and dashboard (handover − approved sales − approved returns; physical variance proposal).
+- [x] Note-level grouping/totals, note financial status (unpaid/partial/paid), verified allocation drill-down, delivery note browser print/reprint with audit log (pending CI and reconciliation review).
+- [x] Distributor stock-custody reconciliation dashboard (handover − approved sales − approved unsold returns; pending reports/returns and ledger stock/variance shown). Validate edge cases involving customer sales returns and adjustments.
 - [ ] Return evidence, inspection note, source delivery note, and better traceability.
 - [ ] Investor report drill-down and stock card reconciliation of return movements.
 - [ ] Integration/concurrency tests for IDOR, stock reservations, duplicate posting, and return approvals.
