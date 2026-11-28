@@ -276,3 +276,8 @@ The application must support two separate price segments per product, with diffe
 - [x] Added migration 013 for persisted owner-configurable thresholds: retail decline percentage, sales-channel rise percentage, and rapid-note time window.
 - [x] Added owner-only GET/PUT endpoints and UI controls to update audit thresholds; changes are written to audit_logs.
 - [ ] Verify settings migration and endpoint query behavior against isolated TiDB; settings persistence is not yet environment-tested.
+
+### SQL migration order update
+- [ ] On an isolated TiDB test database, review and apply server/migrations/012_sales_audit_data_capture.sql after existing migrations 001 and 003–011 (verify actual prior migration history first; do not assume it is complete).
+- [ ] Apply server/migrations/013_audit_rule_settings.sql after 012. These migrations are manual and are not automatically executed by app startup.
+- [ ] Verify SHOW CREATE TABLE distributor_sales_reports includes sales_area_label and audit_rule_settings has row id=1; test GET/PUT settings and channel/remittance audit endpoints.
