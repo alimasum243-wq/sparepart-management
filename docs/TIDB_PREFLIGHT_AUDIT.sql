@@ -51,7 +51,17 @@ WHERE TABLE_SCHEMA=DATABASE()
  )
 ORDER BY TABLE_NAME, ORDINAL_POSITION;
 
--- Duplicate-value checks on legacy master tables expected to exist before migrations.\n-- Conditional checks for purchase/report/allocation tables are listed in the audit handoff\n-- and must be run only when information_schema confirms the table and columns exist.\nSELECT 'products.sku' check_name,sku duplicate_value,COUNT(*) duplicate_count FROM products WHERE sku IS NOT NULL AND TRIM(sku)<>'' GROUP BY sku HAVING COUNT(*)>1\nUNION ALL SELECT 'products.product_name',product_name,COUNT(*) FROM products WHERE product_name IS NOT NULL AND TRIM(product_name)<>'' GROUP BY product_name HAVING COUNT(*)>1\nUNION ALL SELECT 'suppliers.supplier_code',supplier_code,COUNT(*) FROM suppliers WHERE supplier_code IS NOT NULL AND TRIM(supplier_code)<>'' GROUP BY supplier_code HAVING COUNT(*)>1\nUNION ALL SELECT 'suppliers.supplier_name',supplier_name,COUNT(*) FROM suppliers WHERE supplier_name IS NOT NULL AND TRIM(supplier_name)<>'' GROUP BY supplier_name HAVING COUNT(*)>1\nUNION ALL SELECT 'users.username',username,COUNT(*) FROM users WHERE username IS NOT NULL AND TRIM(username)<>'' GROUP BY username HAVING COUNT(*)>1\nORDER BY check_name,duplicate_value;\n\n-- Required additive columns introduced by migrations 017-022; reports missing column names.
+-- Duplicate-value checks on legacy master tables expected to exist before migrations.
+-- Conditional checks for purchase/report/allocation tables are listed in the audit handoff
+-- and must be run only when information_schema confirms the table and columns exist.
+SELECT 'products.sku' check_name,sku duplicate_value,COUNT(*) duplicate_count FROM products WHERE sku IS NOT NULL AND TRIM(sku)<>'' GROUP BY sku HAVING COUNT(*)>1
+UNION ALL SELECT 'products.product_name',product_name,COUNT(*) FROM products WHERE product_name IS NOT NULL AND TRIM(product_name)<>'' GROUP BY product_name HAVING COUNT(*)>1
+UNION ALL SELECT 'suppliers.supplier_code',supplier_code,COUNT(*) FROM suppliers WHERE supplier_code IS NOT NULL AND TRIM(supplier_code)<>'' GROUP BY supplier_code HAVING COUNT(*)>1
+UNION ALL SELECT 'suppliers.supplier_name',supplier_name,COUNT(*) FROM suppliers WHERE supplier_name IS NOT NULL AND TRIM(supplier_name)<>'' GROUP BY supplier_name HAVING COUNT(*)>1
+UNION ALL SELECT 'users.username',username,COUNT(*) FROM users WHERE username IS NOT NULL AND TRIM(username)<>'' GROUP BY username HAVING COUNT(*)>1
+ORDER BY check_name,duplicate_value;
+
+-- Required additive columns introduced by migrations 017-022; reports missing column names.
 SELECT expected.table_name,expected.column_name,
        CASE WHEN actual.COLUMN_NAME IS NULL THEN 'MISSING' ELSE 'PRESENT' END AS status
 FROM (
