@@ -51,6 +51,42 @@ WHERE TABLE_SCHEMA=DATABASE()
  )
 ORDER BY TABLE_NAME, ORDINAL_POSITION;
 
+-- Required additive columns introduced by migrations 017-021; reports missing column names.
+SELECT expected.table_name,expected.column_name,
+       CASE WHEN actual.COLUMN_NAME IS NULL THEN 'MISSING' ELSE 'PRESENT' END AS status
+FROM (
+ SELECT 'distributor_sales_reports' table_name,'print_requested_at' column_name UNION ALL
+ SELECT 'distributor_sales_reports','print_requested_by_user_id' UNION ALL
+ SELECT 'distributor_sales_reports','print_request_count' UNION ALL
+ SELECT 'distributor_consignment_return_requests','request_code' UNION ALL
+ SELECT 'distributor_consignment_return_requests','status' UNION ALL
+ SELECT 'distributor_consignment_return_requests','reviewed_by_user_id' UNION ALL
+ SELECT 'distributor_consignment_return_requests','posted_at' UNION ALL
+ SELECT 'distributor_consignment_return_request_items','item_condition' UNION ALL
+ SELECT 'distributor_consignment_return_request_items','unit_cost_snapshot' UNION ALL
+ SELECT 'distributor_consignment_return_request_items','distributor_price_snapshot' UNION ALL
+ SELECT 'cash_reconciliation_sessions','session_code' UNION ALL
+ SELECT 'cash_reconciliation_sessions','cash_account_id' UNION ALL
+ SELECT 'cash_reconciliation_sessions','opening_count' UNION ALL
+ SELECT 'cash_reconciliation_sessions','system_opening' UNION ALL
+ SELECT 'cash_reconciliation_sessions','opening_variance' UNION ALL
+ SELECT 'cash_reconciliation_sessions','expected_closing' UNION ALL
+ SELECT 'cash_reconciliation_sessions','variance' UNION ALL
+ SELECT 'retail_sale_items','sku_snapshot' UNION ALL
+ SELECT 'retail_sale_print_logs','sale_id' UNION ALL
+ SELECT 'retail_sale_print_logs','user_id' UNION ALL
+ SELECT 'retail_sale_print_logs','printed_at' UNION ALL
+ SELECT 'consignment_delivery_print_logs','delivery_id' UNION ALL
+ SELECT 'consignment_delivery_print_logs','distributor_id' UNION ALL
+ SELECT 'consignment_delivery_print_logs','user_id' UNION ALL
+ SELECT 'consignment_delivery_print_logs','printed_at'
+) expected
+LEFT JOIN information_schema.COLUMNS actual
+ ON actual.TABLE_SCHEMA=DATABASE()
+ AND actual.TABLE_NAME=expected.table_name
+ AND actual.COLUMN_NAME=expected.column_name
+ORDER BY expected.table_name,expected.column_name;
+
 -- Index/unique-constraint inspection; identify duplicate indexes and missing uniqueness.
 SELECT TABLE_NAME, INDEX_NAME, NON_UNIQUE, SEQ_IN_INDEX, COLUMN_NAME, INDEX_TYPE
 FROM information_schema.STATISTICS
