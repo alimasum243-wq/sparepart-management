@@ -326,7 +326,7 @@ app.post("/api/suppliers", async (req, res) => {
     const duplicate=(error as {code?:string})?.code==='ER_DUP_ENTRY';
     return res.status(duplicate?409:500).json({
       ok: false,
-      message:duplicate?"Kode pemasok sudah digunakan.":error instanceof Error?error.message:"Terjadi kesalahan saat menambahkan pemasok."
+      message:duplicate?"Kode pemasok sudah digunakan.":safeOperationalMessage(error,"Terjadi kesalahan saat menambahkan pemasok.")
     });
   } finally {
     connection.release();
@@ -583,9 +583,7 @@ app.post("/api/purchases", async (req, res) => {
     return res.status(500).json({
       ok: false,
       message:
-        error instanceof Error
-          ? error.message
-          : "Terjadi kesalahan saat menyimpan pembelian."
+        safeOperationalMessage(error,"Terjadi kesalahan saat menyimpan pembelian.")
     });
   } finally {
     connection.release();
