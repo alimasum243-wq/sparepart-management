@@ -170,7 +170,7 @@ router.post('/admin/distributors',authMiddleware,ownerMiddleware,async(req:Authe
     await conn.execute(`INSERT INTO audit_logs (user_id,action,entity_type,entity_id,description) VALUES (?,'CREATE','DISTRIBUTOR',?,?)`,[req.identity!.id,distributorId,`Distributor dibuat: ${distributorCode} - ${String(distributor_name).trim()}; username ${username}`]);
     await conn.commit();
     return res.status(201).json({ok:true,distributor:{id:distributorId,distributor_code:distributorCode,distributor_name,stock_location_id:l.insertId,username}});
-  } catch(e){await conn.rollback();return res.status(500).json({ok:false,message:e instanceof Error?e.message:'Gagal membuat distributor.'});} finally{conn.release();}
+  } catch(e){await conn.rollback();const duplicate=(e as {code?:string})?.code==='ER_DUP_ENTRY';return res.status(duplicate?409:500).json({ok:false,message:duplicate?'Kode distributor, username, email, atau nomor telepon sudah digunakan.':e instanceof Error?e.message:'Gagal membuat distributor.'});} finally{conn.release();}
 });
 
 router.get('/admin/distributors',authMiddleware,ownerMiddleware,async(_req,res)=>{const [rows]=await pool.query<RowDataPacket[]>(`SELECT id,distributor_code,distributor_name,phone,address,is_active FROM distributors ORDER BY distributor_name`);return res.json({ok:true,distributors:rows});});
