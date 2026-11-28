@@ -257,7 +257,7 @@ router.post('/distributor/sales-reports',authMiddleware,distributor,async(req:Au
    await conn.execute(`INSERT INTO distributor_sales_report_items (report_id,product_id,product_name_snapshot,quantity_sold,unit_price_snapshot,unit_cost_snapshot,line_total,cost_total,sales_moq_snapshot) VALUES (?,?,?,?,?,?,?,?,?)`,[reportId,pid,pRows[0].product_name,qty,price,cost,line,costTotal,minimumQty]);
   }
   await conn.execute(`INSERT INTO audit_logs (user_id,action,entity_type,entity_id,description) VALUES (?,'SUBMIT','DISTRIBUTOR_SALES_REPORT',?,?)`,[req.identity!.id,reportId,`Laporan penjualan ${reportCode} diajukan; total ${reportTotal}; HPP ${reportCostTotal}`]);
-  await conn.commit();return res.status(201).json({ok:true,message:'Laporan dikirim dan menunggu pemeriksaan pemilik.',report:{id:reportId,report_code:reportCode,status:'SUBMITTED',total:reportTotal,items:receiptItems}});
+  await conn.commit();return res.status(201).json({ok:true,message:'Laporan dikirim dan menunggu pemeriksaan pemilik.',report:{id:reportId,report_code:reportCode,status:'SUBMITTED',report_date,sales_area_label:salesAreaLabel||null,total:reportTotal,items:receiptItems}});
  }catch(e){await conn.rollback();return res.status(400).json({ok:false,message:e instanceof Error?e.message:'Gagal mengirim laporan.'});}finally{conn.release();}
 });
 
