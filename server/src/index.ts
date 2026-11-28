@@ -19,6 +19,7 @@ const WAREHOUSE_ID = 1;
 app.use(helmet());
 if (process.env.NODE_ENV !== "production" || process.env.CLIENT_ORIGIN) {
   app.use(cors({
+    credentials: true,
     origin: (origin, callback) => {
       if (!origin || allowedOrigins.includes(origin)) return callback(null, true);
       return callback(new Error("Origin tidak diizinkan oleh CLIENT_ORIGIN."));
@@ -293,77 +294,6 @@ const purchaseSchema = z.object({
   ).min(1)
 });
 
-// Impor satu kali belanja KAK ALI dari lembar Excel: dua pemasok, barang diterima, pembayaran tunai.
-const batchImportSchema = z.object({
-  purchase_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
-  suppliers: z.array(z.object({
-    supplier_name: z.string().trim().min(1).max(150),
-    invoice_no: z.string().trim().min(1).max(100),
-    items: z.array(z.object({ product_name: z.string().trim().min(1).max(150), quantity: z.number().positive(), unit_cost: z.number().nonnegative() })).min(1)
-  })).min(1)
-});
-
-app.post("/api/purchases/import-batch", async (req, res) => {
-  const parsed = batchImportSchema.safeParse(req.body);
-  if (!parsed.success) return res.status(400).json({ ok: false, message: "Data impor pembelian tidak valid." });
-  const data = parsed.data;
-  const conn = await pool.getConnection();
-  try {
-    await conn.beginTransaction();
-    const [inventory] = await conn.execute<RowDataPacket[]>(`SELECT id FROM accounts WHERE account_code='1300' AND is_active=1 LIMIT 1`);
-    const [cash] = await conn.execute<RowDataPacket[]>(`SELECT id FROM accounts WHERE account_code='1100' AND is_active=1 LIMIT 1`);
-    if (!inventory.length || !cash.length) throw new Error("Akun persediaan atau kas utama belum tersedia.");
-    const imported: Array<{supplier_name:string;purchase_code:string;total:number;items:number}> = [];
-    for (const supplierData of data.suppliers) {
-      const [duplicate] = await conn.execute<RowDataPacket[]>(`SELECT id FROM purchases WHERE supplier_invoice_no=? LIMIT 1`, [supplierData.invoice_no]);
-      if (duplicate.length) throw new Error(`Faktur ${supplierData.invoice_no} sudah pernah dicatat. Impor dibatalkan agar tidak menggandakan stok.`);
-      let [supplierRows] = await conn.execute<RowDataPacket[]>(`SELECT id,supplier_name FROM suppliers WHERE LOWER(TRIM(supplier_name))=LOWER(TRIM(?)) AND is_active=1 LIMIT 1 FOR UPDATE`, [supplierData.supplier_name]);
-      let supplierId:number;
-      if (supplierRows.length) supplierId=Number(supplierRows[0].id);
-      else {
-        const code=`SUP-${randomUUID().slice(0,8).toUpperCase()}`;
-        const [created]=await conn.execute<ResultSetHeader>(`INSERT INTO suppliers (supplier_code,supplier_name,is_active) VALUES (?,?,1)`,[code,supplierData.supplier_name]);
-        supplierId=created.insertId;
-      }
-      const subtotal=Math.round(supplierData.items.reduce((sum,item)=>sum+item.quantity*item.unit_cost,0)*100)/100;
-      const purchaseCode=`PB-${new Date().toISOString().replace(/[-:.TZ]/g,'').slice(0,14)}-${randomUUID().slice(0,6).toUpperCase()}`;
-      const [purchase]=await conn.execute<ResultSetHeader>(`INSERT INTO purchases (purchase_code,supplier_invoice_no,supplier_id,purchase_date,subtotal,discount,shipping_cost,grand_total,notes,status) VALUES (?,?,?,?,?,0,0,?,?,'POSTED')`,[purchaseCode,supplierData.invoice_no,supplierId,data.purchase_date,subtotal,subtotal,`Impor Excel KAK ALI-2; barang diterima dan dibayar tunai.`]);
-      for (let i=0;i<supplierData.items.length;i++) {
-        const item=supplierData.items[i];
-        let [products]=await conn.execute<RowDataPacket[]>(`SELECT id,product_name,is_active FROM products WHERE LOWER(TRIM(product_name))=LOWER(TRIM(?)) LIMIT 1 FOR UPDATE`,[item.product_name]);
-        let productId:number;
-        if(products.length) { productId=Number(products[0].id); if(Number(products[0].is_active)!==1) await conn.execute(`UPDATE products SET is_active=1 WHERE id=?`,[productId]); }
-        else {
-          const sku=`SKU-${randomUUID().slice(0,10).toUpperCase()}`;
-          const [created]=await conn.execute<ResultSetHeader>(`INSERT INTO products (sku,product_name,unit,purchase_cost,last_purchase_cost,average_cost,distributor_price,retail_price,is_active) VALUES (?,?, 'pcs', ?, ?, ?, 0, 0, 1)`,[sku,item.product_name,item.unit_cost,item.unit_cost,item.unit_cost]);
-          productId=created.insertId;
-        }
-        const [stock]=await conn.execute<RowDataPacket[]>(`SELECT COALESCE(SUM(CASE WHEN to_location_id IS NOT NULL THEN quantity ELSE 0 END),0)-COALESCE(SUM(CASE WHEN from_location_id IS NOT NULL THEN quantity ELSE 0 END),0) current_qty, COALESCE(SUM(CASE WHEN to_location_id IS NOT NULL THEN quantity*unit_cost ELSE 0 END),0)-COALESCE(SUM(CASE WHEN from_location_id IS NOT NULL THEN quantity*unit_cost ELSE 0 END),0) current_value FROM stock_movements WHERE product_id=?`,[productId]);
-        const oldQty=Number(stock[0].current_qty||0), oldValue=Number(stock[0].current_value||0), newQty=oldQty+item.quantity;
-        const avg=newQty>0?(oldValue+item.quantity*item.unit_cost)/newQty:item.unit_cost;
-        const lineTotal=Math.round(item.quantity*item.unit_cost*100)/100;
-        const [productNameRows]=await conn.execute<RowDataPacket[]>(`SELECT product_name FROM products WHERE id=?`,[productId]);
-        await conn.execute(`INSERT INTO purchase_items (purchase_id,product_id,product_name_snapshot,quantity,unit_cost,line_total) VALUES (?,?,?,?,?,?)`,[purchase.insertId,productId,productNameRows[0].product_name,item.quantity,item.unit_cost,lineTotal]);
-        await conn.execute(`INSERT INTO stock_movements (movement_code,product_id,from_location_id,to_location_id,movement_type,quantity,unit_cost,reference_type,reference_id,note) VALUES (?, ?, NULL, ?, 'PURCHASE_IN', ?, ?, 'PURCHASE', ?, ?)`,[`${purchaseCode}-${i+1}`,productId,WAREHOUSE_ID,item.quantity,item.unit_cost,purchase.insertId,`Penerimaan impor KAK ALI ${purchaseCode}`]);
-        await conn.execute(`UPDATE products SET purchase_cost=?,last_purchase_cost=?,average_cost=? WHERE id=?`,[item.unit_cost,item.unit_cost,Math.round(avg*100)/100,productId]);
-      }
-      const journalCode=`JU-${new Date().toISOString().replace(/[-:.TZ]/g,'').slice(0,14)}-${randomUUID().slice(0,6).toUpperCase()}`;
-      const [journal]=await conn.execute<ResultSetHeader>(`INSERT INTO journal_entries (journal_code,journal_date,source_type,source_id,description,status) VALUES (?,?, 'PURCHASE', ?, ?, 'POSTED')`,[journalCode,data.purchase_date,purchase.insertId,`Pembelian ${purchaseCode} - lunas tunai (impor KAK ALI-2)`]);
-      await conn.execute(`INSERT INTO journal_lines (journal_entry_id,account_id,debit,credit,description) VALUES (?,?,?,0,?), (?,?,0,?,?)`,[journal.insertId,inventory[0].id,subtotal,'Penambahan persediaan',journal.insertId,cash[0].id,subtotal,'Pembayaran tunai']);
-      const paymentCode=`BAY-${new Date().toISOString().replace(/[-:.TZ]/g,'').slice(0,14)}-${randomUUID().slice(0,6).toUpperCase()}`;
-      const [payment]=await conn.execute<ResultSetHeader>(`INSERT INTO supplier_payments (payment_code,supplier_id,payment_date,payment_method,amount,notes,posted_at) VALUES (?,?,?,'CASH',?,?,CURRENT_TIMESTAMP)`,[paymentCode,supplierId,data.purchase_date,subtotal,`Pelunasan faktur ${supplierData.invoice_no}`]);
-      await conn.execute(`INSERT INTO supplier_payment_allocations (supplier_payment_id,purchase_id,allocated_amount) VALUES (?,?,?)`,[payment.insertId,purchase.insertId,subtotal]);
-      imported.push({supplier_name:supplierData.supplier_name,purchase_code:purchaseCode,total:subtotal,items:supplierData.items.length});
-    }
-    await conn.commit();
-    return res.status(201).json({ok:true,message:"Belanja KAK ALI berhasil diimpor. Stok bertambah dan pembayaran tunai tercatat lunas.",total:imported.reduce((a,b)=>a+b.total,0),purchases:imported});
-  } catch(error) {
-    await conn.rollback();
-    console.error("Gagal impor belanja KAK ALI:",error);
-    return res.status(400).json({ok:false,message:error instanceof Error?error.message:"Gagal mengimpor pembelian."});
-  } finally { conn.release(); }
-});
-
 // Mencatat pembelian dan menerima barang ke gudang.
 app.post("/api/purchases", async (req, res) => {
   const parsed = purchaseSchema.safeParse(req.body);
@@ -528,8 +458,8 @@ app.post("/api/purchases", async (req, res) => {
         `INSERT INTO stock_movements
          (movement_code, product_id, from_location_id,
           to_location_id, movement_type, quantity,
-          unit_cost, reference_type, reference_id, note)
-         VALUES (?, ?, NULL, ?, 'PURCHASE_IN', ?, ?, 'PURCHASE', ?, ?)`,
+          unit_cost, reference_type, reference_id, note, created_by_user_id)
+         VALUES (?, ?, NULL, ?, 'PURCHASE_IN', ?, ?, 'PURCHASE', ?, ?, ?)`,
         [
           `${purchaseCode}-${i + 1}`,
           item.product_id,
@@ -537,7 +467,8 @@ app.post("/api/purchases", async (req, res) => {
           item.quantity,
           item.unit_cost,
           purchaseId,
-          `Penerimaan dari pembelian ${purchaseCode}`
+          `Penerimaan dari pembelian ${purchaseCode}`,
+          (req as any).identity?.id || null
         ]
       );
 
@@ -563,8 +494,8 @@ app.post("/api/purchases", async (req, res) => {
     const journalCode = `JU-${new Date().toISOString().replace(/[-:.TZ]/g, '').slice(0,14)}-${randomUUID().slice(0,6).toUpperCase()}`;
     const description = data.payment_method === "CASH" ? `Pembelian ${purchaseCode} - dibayar tunai` : `Pembelian ${purchaseCode} - utang pemasok`;
     const [journalResult] = await connection.execute<ResultSetHeader>(
-      `INSERT INTO journal_entries (journal_code,journal_date,source_type,source_id,description,status) VALUES (?,?, 'PURCHASE', ?, ?, 'POSTED')`,
-      [journalCode,data.purchase_date,purchaseId,description]
+      `INSERT INTO journal_entries (journal_code,journal_date,source_type,source_id,description,status,created_by_user_id) VALUES (?,?, 'PURCHASE', ?, ?, 'POSTED', ?)`,
+      [journalCode,data.purchase_date,purchaseId,description,(req as any).identity?.id || null]
     );
     await connection.execute(
       `INSERT INTO journal_lines (journal_entry_id,account_id,debit,credit,description) VALUES (?,?,?,0,?), (?,?,0,?,?)`,
@@ -716,16 +647,16 @@ app.post("/api/retail/sales", async (req,res) => {
         [sale.insertId,item.productId,item.productName,item.quantity,item.unitPrice,item.unitCost,item.lineTotal,item.lineCost]
       );
       await conn.execute(
-        `INSERT INTO stock_movements (movement_code,product_id,from_location_id,to_location_id,movement_type,quantity,unit_cost,reference_type,reference_id,note)
-         VALUES (?, ?, ?, NULL, 'RETAIL_SALE_OUT', ?, ?, 'RETAIL_SALE', ?, ?)`,
-        [`${saleCode}-${n+1}`,item.productId,WAREHOUSE_ID,item.quantity,item.unitCost,sale.insertId,`Penjualan retail ${saleCode}`]
+        `INSERT INTO stock_movements (movement_code,product_id,from_location_id,to_location_id,movement_type,quantity,unit_cost,reference_type,reference_id,note,created_by_user_id)
+         VALUES (?, ?, ?, NULL, 'RETAIL_SALE_OUT', ?, ?, 'RETAIL_SALE', ?, ?, ?)`,
+        [`${saleCode}-${n+1}`,item.productId,WAREHOUSE_ID,item.quantity,item.unitCost,sale.insertId,`Penjualan retail ${saleCode}`,(req as any).identity?.id || null]
       );
     }
     const journalCode=`JRN-${Date.now()}-${randomUUID().slice(0,6).toUpperCase()}`;
     const [journal]=await conn.execute<ResultSetHeader>(
-      `INSERT INTO journal_entries (journal_code,journal_date,source_type,source_id,description,status)
-       VALUES (?,?, 'RETAIL_SALE', ?, ?, 'POSTED')`,
-      [journalCode,saleDate,sale.insertId,`Penjualan retail ${saleCode}`]
+      `INSERT INTO journal_entries (journal_code,journal_date,source_type,source_id,description,status,created_by_user_id)
+       VALUES (?,?, 'RETAIL_SALE', ?, ?, 'POSTED', ?)`,
+      [journalCode,saleDate,sale.insertId,`Penjualan retail ${saleCode}`,(req as any).identity?.id || null]
     );
     await conn.execute(
       `INSERT INTO journal_lines (journal_entry_id,account_id,debit,credit,description)
@@ -754,7 +685,7 @@ app.post('/api/expenses', async (req,res) => {
     const expenseCode = `BEB-${new Date().toISOString().replace(/[-:.TZ]/g,'').slice(0,14)}-${randomUUID().slice(0,6).toUpperCase()}`;
     const [result] = await conn.execute<ResultSetHeader>(`INSERT INTO expenses (expense_code,expense_date,category,description,amount,payment_method,posted_at) VALUES (?,?,?,?,?,?,CURRENT_TIMESTAMP)`,[expenseCode,data.expense_date,data.category,data.description||null,data.amount,data.payment_method]);
     const journalCode = `JU-${new Date().toISOString().replace(/[-:.TZ]/g,'').slice(0,14)}-${randomUUID().slice(0,6).toUpperCase()}`;
-    const [j] = await conn.execute<ResultSetHeader>(`INSERT INTO journal_entries (journal_code,journal_date,source_type,source_id,description,status) VALUES (?,?, 'EXPENSE', ?, ?, 'POSTED')`,[journalCode,data.expense_date,result.insertId,`Pengeluaran ${data.category}`]);
+    const [j] = await conn.execute<ResultSetHeader>(`INSERT INTO journal_entries (journal_code,journal_date,source_type,source_id,description,status,created_by_user_id) VALUES (?,?, 'EXPENSE', ?, ?, 'POSTED', ?)`,[journalCode,data.expense_date,result.insertId,`Pengeluaran ${data.category}`,(req as any).identity?.id || null]);
     await conn.execute(`INSERT INTO journal_lines (journal_entry_id,account_id,debit,credit,description) VALUES (?,?,?,0,?), (?,?,0,?,?)`,[j.insertId,expenseAccount[0].id,data.amount,data.category,j.insertId,cashAccount[0].id,data.amount,'Pengeluaran kas/bank']);
     await conn.commit(); return res.status(201).json({ok:true,message:'Pengeluaran dan jurnal berhasil dicatat.',expense_code:expenseCode});
   } catch(error) { await conn.rollback(); return res.status(400).json({ok:false,message:error instanceof Error?error.message:'Gagal mencatat pengeluaran.'}); }
@@ -860,9 +791,9 @@ app.post("/api/supplier-payments", async (req,res) => {
     }
     const journalCode=`JU-${new Date().toISOString().replace(/[-:.TZ]/g,'').slice(0,14)}-${randomUUID().slice(0,6).toUpperCase()}`;
     const [journal]=await conn.execute<ResultSetHeader>(
-      `INSERT INTO journal_entries (journal_code,journal_date,source_type,source_id,description,status)
-       VALUES (?,?,'SUPPLIER_PAYMENT',?,?,'POSTED')`,
-      [journalCode,date,payment.insertId,`Pembayaran utang pemasok ${paymentCode}`]
+      `INSERT INTO journal_entries (journal_code,journal_date,source_type,source_id,description,status,created_by_user_id)
+       VALUES (?,?,'SUPPLIER_PAYMENT',?,?,'POSTED',?)`,
+      [journalCode,date,payment.insertId,`Pembayaran utang pemasok ${paymentCode}`,(req as any).identity?.id || null]
     );
     await conn.execute(
       `INSERT INTO journal_lines (journal_entry_id,account_id,debit,credit,description)
@@ -974,7 +905,7 @@ app.post("/api/returns/purchase",async(req,res)=>{
   for(let i=0;i<prepared.length;i++){
    const x=prepared[i];
    await conn.execute(`INSERT INTO purchase_return_items (purchase_return_id,purchase_item_id,product_id,product_name_snapshot,quantity,unit_cost,line_total) VALUES (?,?,?,?,?,?,?)`,[ret.insertId,x.purchaseItemId,x.line.product_id,x.line.product_name_snapshot,x.quantity,x.line.unit_cost,x.amount]);
-   await conn.execute(`INSERT INTO stock_movements (movement_code,product_id,from_location_id,to_location_id,movement_type,quantity,unit_cost,reference_type,reference_id,note) VALUES (?,?,?,NULL,'PURCHASE_RETURN_OUT',?,?,'PURCHASE_RETURN',?,?)`,[`${code}-${i+1}`,x.line.product_id,WAREHOUSE_ID,x.quantity,x.line.unit_cost,ret.insertId,`Retur pembelian ${code}`]);
+   await conn.execute(`INSERT INTO stock_movements (movement_code,product_id,from_location_id,to_location_id,movement_type,quantity,unit_cost,reference_type,reference_id,note,created_by_user_id) VALUES (?,?,?,NULL,'PURCHASE_RETURN_OUT',?,?,'PURCHASE_RETURN',?,?,?)`,[`${code}-${i+1}`,x.line.product_id,WAREHOUSE_ID,x.quantity,x.line.unit_cost,ret.insertId,`Retur pembelian ${code}`,(req as any).identity?.id || null]);
   }
   for(const productId of new Set(prepared.map((x:any)=>Number(x.line.product_id)))){
    const [balance]=await conn.execute<RowDataPacket[]>(`SELECT COALESCE(SUM(CASE WHEN to_location_id IS NOT NULL THEN quantity ELSE 0 END),0)-COALESCE(SUM(CASE WHEN from_location_id IS NOT NULL THEN quantity ELSE 0 END),0) qty,COALESCE(SUM(CASE WHEN to_location_id IS NOT NULL THEN quantity*unit_cost ELSE 0 END),0)-COALESCE(SUM(CASE WHEN from_location_id IS NOT NULL THEN quantity*unit_cost ELSE 0 END),0) value FROM stock_movements WHERE product_id=?`,[productId]);
@@ -982,7 +913,7 @@ app.post("/api/returns/purchase",async(req,res)=>{
    await conn.execute(`UPDATE products SET average_cost=? WHERE id=?`,[qty>0?Math.round(value/qty*100)/100:0,productId]);
   }
   const journalCode=`JU-${Date.now()}-${randomUUID().slice(0,6).toUpperCase()}`;
-  const [j]=await conn.execute<ResultSetHeader>(`INSERT INTO journal_entries (journal_code,journal_date,source_type,source_id,description,status) VALUES (?,?, 'PURCHASE_RETURN', ?, ?, 'POSTED')`,[journalCode,date,ret.insertId,`Retur pembelian ${purchases[0].purchase_code}`]);
+  const [j]=await conn.execute<ResultSetHeader>(`INSERT INTO journal_entries (journal_code,journal_date,source_type,source_id,description,status,created_by_user_id) VALUES (?,?, 'PURCHASE_RETURN', ?, ?, 'POSTED', ?)`,[journalCode,date,ret.insertId,`Retur pembelian ${purchases[0].purchase_code}`,(req as any).identity?.id || null]);
   await conn.execute(`INSERT INTO journal_lines (journal_entry_id,account_id,debit,credit,description) VALUES (?,?,?,0,'Pengurangan utang pemasok karena retur'),(?,?,0,?,'Pengurangan persediaan karena retur')`,[j.insertId,payable[0].id,total,j.insertId,inventory[0].id,total]);
   await conn.commit();res.status(201).json({ok:true,message:"Retur pembelian berhasil dicatat. Stok gudang dan saldo utang pemasok telah disesuaikan.",return:{id:ret.insertId,return_code:code,total}});
  }catch(error){await conn.rollback();res.status(400).json({ok:false,message:error instanceof Error?error.message:"Retur pembelian gagal."});}finally{conn.release();}
@@ -1023,7 +954,7 @@ app.post("/api/returns/retail-sale",async(req,res)=>{
   for(let i=0;i<prepared.length;i++){
    const x=prepared[i];
    await conn.execute(`INSERT INTO retail_sale_return_items (retail_sale_return_id,retail_sale_item_id,product_id,product_name_snapshot,quantity,unit_price,unit_cost,refund_total,cost_total) VALUES (?,?,?,?,?,?,?,?,?)`,[ret.insertId,x.saleItemId,x.line.product_id,x.line.product_name_snapshot,x.quantity,x.line.unit_price,x.line.unit_cost,x.refundLine,x.costLine]);
-   await conn.execute(`INSERT INTO stock_movements (movement_code,product_id,from_location_id,to_location_id,movement_type,quantity,unit_cost,reference_type,reference_id,note) VALUES (?,?,NULL,?,'RETAIL_SALE_RETURN_IN',?,?,'RETAIL_SALE_RETURN',?,?)`,[`${code}-${i+1}`,x.line.product_id,WAREHOUSE_ID,x.quantity,x.line.unit_cost,ret.insertId,`Retur penjualan retail ${code}`]);
+   await conn.execute(`INSERT INTO stock_movements (movement_code,product_id,from_location_id,to_location_id,movement_type,quantity,unit_cost,reference_type,reference_id,note,created_by_user_id) VALUES (?,?,NULL,?,'RETAIL_SALE_RETURN_IN',?,?,'RETAIL_SALE_RETURN',?,?,?)`,[`${code}-${i+1}`,x.line.product_id,WAREHOUSE_ID,x.quantity,x.line.unit_cost,ret.insertId,`Retur penjualan retail ${code}`,(req as any).identity?.id || null]);
   }
   for(const productId of new Set(prepared.map((x:any)=>Number(x.line.product_id)))){
    const [balance]=await conn.execute<RowDataPacket[]>(`SELECT COALESCE(SUM(CASE WHEN to_location_id IS NOT NULL THEN quantity ELSE 0 END),0)-COALESCE(SUM(CASE WHEN from_location_id IS NOT NULL THEN quantity ELSE 0 END),0) qty,COALESCE(SUM(CASE WHEN to_location_id IS NOT NULL THEN quantity*unit_cost ELSE 0 END),0)-COALESCE(SUM(CASE WHEN from_location_id IS NOT NULL THEN quantity*unit_cost ELSE 0 END),0) value FROM stock_movements WHERE product_id=?`,[productId]);
@@ -1031,7 +962,7 @@ app.post("/api/returns/retail-sale",async(req,res)=>{
    await conn.execute(`UPDATE products SET average_cost=? WHERE id=?`,[qty>0?Math.round(value/qty*100)/100:0,productId]);
   }
   const journalCode=`JU-${Date.now()}-${randomUUID().slice(0,6).toUpperCase()}`;
-  const [j]=await conn.execute<ResultSetHeader>(`INSERT INTO journal_entries (journal_code,journal_date,source_type,source_id,description,status) VALUES (?,?, 'RETAIL_SALE_RETURN', ?, ?, 'POSTED')`,[journalCode,date,ret.insertId,`Retur penjualan ${sales[0].sale_code}`]);
+  const [j]=await conn.execute<ResultSetHeader>(`INSERT INTO journal_entries (journal_code,journal_date,source_type,source_id,description,status,created_by_user_id) VALUES (?,?, 'RETAIL_SALE_RETURN', ?, ?, 'POSTED', ?)`,[journalCode,date,ret.insertId,`Retur penjualan ${sales[0].sale_code}`,(req as any).identity?.id || null]);
   await conn.execute(`INSERT INTO journal_lines (journal_entry_id,account_id,debit,credit,description) VALUES (?,?,?,0,'Pengembalian uang penjualan'),(?,?,0,?,'Pengurangan kas/bank untuk refund'),(?,?,?,0,'Persediaan dari barang retur'),(?,?,0,?,'Pembalikan HPP barang retur')`,[j.insertId,returnsAccount,refund,j.insertId,cash[0].ledger_id,refund,j.insertId,inventory,cost,j.insertId,cogs,cost]);
   await conn.commit();res.status(201).json({ok:true,message:"Retur penjualan berhasil dicatat. Refund, stok, dan jurnal sudah diperbarui.",return:{id:ret.insertId,return_code:code,refund_total:refund,cost_total:cost}});
  }catch(error){await conn.rollback();res.status(400).json({ok:false,message:error instanceof Error?error.message:"Retur penjualan gagal."});}finally{conn.release();}
@@ -1080,7 +1011,7 @@ app.post("/api/returns/distributor-sale",async(req,res)=>{
    await conn.execute(`UPDATE products SET average_cost=? WHERE id=?`,[qty>0?Math.round(value/qty*100)/100:0,productId]);
   }
   const journalCode=`JU-${Date.now()}-${randomUUID().slice(0,6).toUpperCase()}`;
-  const [j]=await conn.execute<ResultSetHeader>(`INSERT INTO journal_entries (journal_code,journal_date,source_type,source_id,description,status) VALUES (?,?, 'DISTRIBUTOR_SALE_RETURN', ?, ?, 'POSTED')`,[journalCode,date,ret.insertId,`Retur penjualan distributor ${reports[0].report_code}`]);
+  const [j]=await conn.execute<ResultSetHeader>(`INSERT INTO journal_entries (journal_code,journal_date,source_type,source_id,description,status,created_by_user_id) VALUES (?,?, 'DISTRIBUTOR_SALE_RETURN', ?, ?, 'POSTED', ?)`,[journalCode,date,ret.insertId,`Retur penjualan distributor ${reports[0].report_code}`,(req as any).identity?.id || null]);
   await conn.execute(`INSERT INTO journal_lines (journal_entry_id,account_id,debit,credit,description) VALUES (?,?,?,0,'Retur penjualan distributor'),(?,?,0,?,'Pengurangan piutang distributor'),(?,?,?,0,'Persediaan barang retur distributor'),(?,?,0,?,'Pembalikan HPP barang retur distributor')`,[j.insertId,returnsAccount,refund,j.insertId,receivable,refund,j.insertId,inventory,cost,j.insertId,cogs,cost]);
   await conn.commit();res.status(201).json({ok:true,message:"Retur penjualan distributor berhasil dicatat. Stok titipan, piutang, dan jurnal telah disesuaikan.",return:{id:ret.insertId,return_code:code,refund_total:refund,cost_total:cost}});
  }catch(error){await conn.rollback();res.status(400).json({ok:false,message:error instanceof Error?error.message:"Retur distributor gagal dicatat."});}finally{conn.release();}
