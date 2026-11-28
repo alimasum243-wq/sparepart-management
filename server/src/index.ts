@@ -726,7 +726,7 @@ app.post("/api/retail/sales", async (req,res) => {
     return res.status(201).json({ok:true,message:"Penjualan retail tersimpan; stok gudang dan jurnal sudah diperbarui.",sale:{id:sale.insertId,sale_code:saleCode,total:subtotal,cost_total:costTotal,gross_profit:Math.round((subtotal-costTotal)*100)/100}});
   }catch(error){
     await conn.rollback();
-    return res.status(400).json({ok:false,message:error instanceof Error?error.message:"Penjualan retail gagal disimpan."});
+    return res.status(400).json({ok:false,message:safeOperationalMessage(error,"Penjualan retail gagal disimpan.")});
   }finally{conn.release();}
 });
 
@@ -867,7 +867,7 @@ app.post("/api/supplier-payments", async (req,res) => {
     return res.status(201).json({ok:true,message:"Pembayaran utang pemasok berhasil dicatat dan dialokasikan ke faktur.",payment:{id:payment.insertId,payment_code:paymentCode,amount:total,journal_id:journal.insertId}});
   } catch(error) {
     await conn.rollback();
-    return res.status(400).json({ok:false,message:error instanceof Error?error.message:"Gagal mencatat pembayaran utang pemasok."});
+    return res.status(400).json({ok:false,message:safeOperationalMessage(error,"Gagal mencatat pembayaran utang pemasok.")});
   } finally { conn.release(); }
 });
 
@@ -1106,7 +1106,7 @@ app.post("/api/returns/purchase",async(req,res)=>{
   await conn.execute(`INSERT INTO journal_lines (journal_entry_id,account_id,debit,credit,description) VALUES (?,?,?,0,'Pengurangan utang pemasok karena retur'),(?,?,0,?,'Pengurangan persediaan karena retur')`,[j.insertId,payable[0].id,total,j.insertId,inventory[0].id,total]);
   await conn.execute(`INSERT INTO audit_logs (user_id,action,entity_type,entity_id,description) VALUES (?,'POST','PURCHASE_RETURN',?,?)`,[(req as any).identity?.id||null,ret.insertId,`Retur pembelian ${code}; total ${total}`]);
   await conn.commit();res.status(201).json({ok:true,message:"Retur pembelian berhasil dicatat. Stok gudang dan saldo utang pemasok telah disesuaikan.",return:{id:ret.insertId,return_code:code,total}});
- }catch(error){await conn.rollback();res.status(400).json({ok:false,message:error instanceof Error?error.message:"Retur pembelian gagal."});}finally{conn.release();}
+ }catch(error){await conn.rollback();res.status(400).json({ok:false,message:safeOperationalMessage(error,"Retur pembelian gagal.")});}finally{conn.release();}
 });
 
 app.post("/api/returns/retail-sale",async(req,res)=>{
@@ -1162,7 +1162,7 @@ app.post("/api/returns/retail-sale",async(req,res)=>{
   await conn.execute(`INSERT INTO journal_lines (journal_entry_id,account_id,debit,credit,description) VALUES (?,?,?,0,'Pengembalian uang penjualan'),(?,?,0,?,'Pengurangan kas/bank untuk refund'),(?,?,?,0,'Persediaan dari barang retur'),(?,?,0,?,'Pembalikan HPP barang retur')`,[j.insertId,returnsAccount,refund,j.insertId,cash[0].ledger_id,refund,j.insertId,inventory,cost,j.insertId,cogs,cost]);
   await conn.execute(`INSERT INTO audit_logs (user_id,action,entity_type,entity_id,description) VALUES (?,'POST','RETAIL_SALE_RETURN',?,?)`,[(req as any).identity?.id||null,ret.insertId,`Retur penjualan retail ${code}; refund ${refund}; HPP ${cost}`]);
   await conn.commit();res.status(201).json({ok:true,message:"Retur penjualan berhasil dicatat. Refund, stok, dan jurnal sudah diperbarui.",return:{id:ret.insertId,return_code:code,refund_total:refund,cost_total:cost}});
- }catch(error){await conn.rollback();res.status(400).json({ok:false,message:error instanceof Error?error.message:"Retur penjualan gagal."});}finally{conn.release();}
+ }catch(error){await conn.rollback();res.status(400).json({ok:false,message:safeOperationalMessage(error,"Retur penjualan gagal.")});}finally{conn.release();}
 });
 
 app.post("/api/returns/distributor-sale",async(req,res)=>{
@@ -1226,7 +1226,7 @@ app.post("/api/returns/distributor-sale",async(req,res)=>{
   await conn.execute(`INSERT INTO journal_lines (journal_entry_id,account_id,debit,credit,description) VALUES (?,?,?,0,'Retur penjualan distributor'),(?,?,0,?,'Pengurangan piutang distributor'),(?,?,?,0,'Persediaan barang retur distributor'),(?,?,0,?,'Pembalikan HPP barang retur distributor')`,[j.insertId,returnsAccount,refund,j.insertId,receivable,refund,j.insertId,inventory,cost,j.insertId,cogs,cost]);
   await conn.execute(`INSERT INTO audit_logs (user_id,action,entity_type,entity_id,description) VALUES (?,'POST','DISTRIBUTOR_SALE_RETURN',?,?)`,[(req as any).identity?.id||null,ret.insertId,`Retur penjualan distributor ${code}; refund ${refund}; HPP ${cost}`]);
   await conn.commit();res.status(201).json({ok:true,message:"Retur penjualan distributor berhasil dicatat. Stok titipan, piutang, dan jurnal telah disesuaikan.",return:{id:ret.insertId,return_code:code,refund_total:refund,cost_total:cost}});
- }catch(error){await conn.rollback();res.status(400).json({ok:false,message:error instanceof Error?error.message:"Retur distributor gagal dicatat."});}finally{conn.release();}
+ }catch(error){await conn.rollback();res.status(400).json({ok:false,message:safeOperationalMessage(error,"Retur distributor gagal dicatat.")});}finally{conn.release();}
 });
 
 // Histori gabungan transaksi operasional.
