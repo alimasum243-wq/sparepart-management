@@ -36,3 +36,7 @@ export const detectLappingRiskFlags = (reports:RemittanceAuditReport[],from:stri
 
 export const needsRetailPriceOverride = (retailPrice:number,transactionPrice:number):boolean => Number.isFinite(retailPrice)&&Number.isFinite(transactionPrice)&&retailPrice>0&&transactionPrice<retailPrice;
 export const validRetailOverrideReason = (reason:unknown):boolean => typeof reason==='string'&&reason.trim().length>=10&&reason.trim().length<=500;
+export const channelNetContribution = (retailGross:number,salesGross:number,retailCosts:number,salesCosts:number) => {
+  const retailNet=money2(retailGross-retailCosts),salesNet=money2(salesGross-salesCosts),total=money2(retailNet+salesNet);
+  return {retail_net_contribution:retailNet,sales_net_contribution:salesNet,total_net_contribution:total,retail_net_share:total>0?money2(retailNet/total*100):null,sales_net_share:total>0?money2(salesNet/total*100):null};
+};
