@@ -136,6 +136,7 @@ app.post("/api/products", async (req, res) => {
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1)`,
       [sku, data.product_name, data.unit, data.purchase_cost, data.purchase_cost, data.purchase_cost, data.distributor_price, data.retail_price]
     );
+    await conn.execute(`INSERT INTO product_price_history (product_id,effective_date,purchase_cost,last_purchase_cost,average_cost,distributor_price,retail_price,source,changed_by_user_id) VALUES (?,CURRENT_DATE,?,?, ?,?,?, 'MANUAL',?)`,[result.insertId,data.purchase_cost,data.purchase_cost,data.purchase_cost,data.distributor_price,data.retail_price,(req as any).identity?.id||null]);
     await conn.execute(`INSERT INTO audit_logs (user_id,action,entity_type,entity_id,description) VALUES (?,"CREATE","PRODUCT",?,?)`,[(req as any).identity?.id||null,result.insertId,`Produk dibuat: ${sku} - ${data.product_name}`]);
     await conn.commit();
     res.status(201).json({ ok: true, message: "Produk berhasil ditambahkan.", product_id: result.insertId });
@@ -160,6 +161,9 @@ app.put("/api/products/:id", async (req, res) => {
       [sku, d.product_name, d.unit, d.purchase_cost, d.distributor_price, d.retail_price, id]
     );
     if(!result.affectedRows){await conn.rollback();return res.status(404).json({ok:false,message:"Produk tidak ditemukan atau nonaktif."});}
+    const [current]=await conn.execute<RowDataPacket[]>(`SELECT purchase_cost,last_purchase_cost,average_cost,distributor_price,retail_price FROM products WHERE id=?`,[id]);
+    await conn.execute(`INSERT INTO product_price_history (product_id,effective_date,purchase_cost,last_purchase_cost,average_cost,distributor_price,retail_price,source,changed_by_user_id) VALUES (?,CURRENT_DATE,?,?,?,?,?,'MANUAL',?)`,[id,current[0].purchase_cost,current[0].last_purchase_cost,current[0].average_cost,current[0].distributor_price,current[0].retail_price,(req as any).identity?.id||null]);
+
     await conn.execute(`INSERT INTO audit_logs (user_id,action,entity_type,entity_id,description) VALUES (?,"UPDATE","PRODUCT",?,?)`,[(req as any).identity?.id||null,id,`Produk diperbarui: ${sku} - ${d.product_name}`]);
     await conn.commit();
     res.json({ ok: true, message: "Produk berhasil diperbarui." });
@@ -501,6 +505,7 @@ app.post("/api/purchases", async (req, res) => {
           item.product_id
         ]
       );
+      await connection.execute(`INSERT INTO product_price_history (product_id,effective_date,purchase_cost,last_purchase_cost,average_cost,distributor_price,retail_price,source,changed_by_user_id) SELECT id,CURRENT_DATE,purchase_cost,?, ?,distributor_price,retail_price,'PURCHASE',? FROM products WHERE id=?`,[item.unit_cost,Math.round(newAverageCost*100)/100,(req as any).identity?.id||null,item.product_id]);
     }
 
     // Pembelian tunai langsung mengurangi kas; pembelian kredit membentuk utang.
