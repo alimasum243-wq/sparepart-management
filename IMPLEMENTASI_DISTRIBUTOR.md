@@ -40,6 +40,9 @@ Tidak ada perintah DROP, TRUNCATE, atau penghapusan master data. Jangan menjalan
 
 ## Konfigurasi server
 
+Production: `AUTH_TOKEN_SECRET` wajib minimal 32 karakter, `DB_SSL=true`; saat bootstrap owner aktif, `OWNER_SETUP_KEY` wajib minimal 32 karakter. Setelah akun pemilik dibuat, set `OWNER_SETUP_ENABLED=false` dan hapus `OWNER_SETUP_KEY` agar endpoint bootstrap dinonaktifkan. Restart server setelah perubahan environment.
+
+
 Tambahkan ke `server/.env` (jangan kirim file `.env` atau password ke siapa pun):
 
 - `AUTH_TOKEN_SECRET`: secret acak minimal 64 karakter.
