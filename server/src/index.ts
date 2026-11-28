@@ -1230,8 +1230,8 @@ app.post("/api/returns/distributor-sale",async(req,res)=>{
 // Histori gabungan transaksi operasional.
 app.post('/api/retail/sales/:id/print-request',authMiddleware,ownerMiddleware,async(req,res)=>{const id=Number(req.params.id);if(!Number.isInteger(id)||id<=0)return res.status(400).json({ok:false,message:'ID transaksi retail tidak valid.'});const conn=await pool.getConnection();try{await conn.beginTransaction();const [sales]=await conn.execute<RowDataPacket[]>(`SELECT rs.id,rs.sale_code,rs.sale_date,rs.subtotal,rs.total,rs.status,rs.created_at,ca.account_name cash_account FROM retail_sales rs JOIN cash_accounts ca ON ca.id=rs.cash_account_id WHERE rs.id=? AND rs.status='POSTED' FOR UPDATE`,[id]);if(!sales.length)throw new Error('Transaksi retail tidak ditemukan atau belum posted.');const [items]=await conn.execute<RowDataPacket[]>(`SELECT product_name_snapshot,sku_snapshot,quantity,unit_price,line_total,price_override_reason FROM retail_sale_items WHERE sale_id=? ORDER BY id`,[id]);if(!items.length)throw new Error('Rincian transaksi tidak ditemukan.');await conn.execute(`INSERT INTO retail_sale_print_logs (sale_id,user_id) VALUES (?,?)`,[id,(req as any).identity!.id]);const [counts]=await conn.execute<RowDataPacket[]>(`SELECT COUNT(*) print_count,MAX(printed_at) printed_at FROM retail_sale_print_logs WHERE sale_id=?`,[id]);await conn.execute(`INSERT INTO audit_logs (user_id,action,entity_type,entity_id,description) VALUES (?,'PRINT','RETAIL_SALE',?,?)`,[(req as any).identity!.id,id,`Cetak/cetak ulang nota retail ${sales[0].sale_code}; cetak ke-${counts[0].print_count}`]);await conn.commit();return res.json({ok:true,sale:sales[0],items,print_count:Number(counts[0].print_count),printed_at:counts[0].printed_at,message:'Permintaan cetak dicatat; ini bukan bukti printer fisik.'});}catch(e){await conn.rollback();return res.status(400).json({ok:false,message:e instanceof Error?e.message:'Gagal mencetak nota retail.'});}finally{conn.release();}});
 app.get("/api/transactions/history",async(req,res)=>{
- const from=String(req.query.from||"2000-01-01"),to=String(req.query.to||"2099-12-31");
- if(!isDateOnly(from)||!isDateOnly(to)||from>to)return res.status(400).json({ok:false,message:"Rentang tanggal tidak valid."});
+ const from=String(req.query.from||"2000-01-01"),to=String(req.query.to||"2099-12-31"),limit=Number(req.query.limit||500),offset=Number(req.query.offset||0);
+ if(!isDateOnly(from)||!isDateOnly(to)||from>to||!Number.isInteger(limit)||limit<1||limit>500||!Number.isInteger(offset)||offset<0||offset>100000)return res.status(400).json({ok:false,message:"Rentang tanggal atau pagination tidak valid."});
  try{
   const [rows]=await pool.query<RowDataPacket[]>(`
    SELECT transaction_date,transaction_code,transaction_type,party_name,amount,status,description,source_id,source_type FROM (
@@ -1244,9 +1244,9 @@ app.get("/api/transactions/history",async(req,res)=>{
     UNION ALL SELECT r.report_date,r.report_code,'PENJUALAN DISTRIBUTOR',d.distributor_name,SUM(i.line_total),r.status,r.notes,r.id,'DISTRIBUTOR_REPORT' FROM distributor_sales_reports r JOIN distributors d ON d.id=r.distributor_id JOIN distributor_sales_report_items i ON i.report_id=r.id GROUP BY r.id,r.report_date,r.report_code,d.distributor_name,r.status,r.notes
     UNION ALL SELECT ps.payment_date,ps.submission_code,'PEMBAYARAN DISTRIBUTOR',d.distributor_name,ps.amount,ps.status,ps.proof_reference,ps.id,'DISTRIBUTOR_PAYMENT' FROM distributor_payment_submissions ps JOIN distributors d ON d.id=ps.distributor_id
     UNION ALL SELECT dr.return_date,dr.return_code,'RETUR PENJUALAN DISTRIBUTOR',d.distributor_name,dr.total,dr.status,dr.notes,dr.id,'DISTRIBUTOR_RETURN' FROM distributor_sales_returns dr JOIN distributors d ON d.id=dr.distributor_id
-   ) history WHERE transaction_date BETWEEN ? AND ? ORDER BY transaction_date DESC,transaction_code DESC LIMIT 1000
-  `,[from,to]);
-  res.json({ok:true,transactions:rows});
+   ) history WHERE transaction_date BETWEEN ? AND ? ORDER BY transaction_date DESC,transaction_code DESC LIMIT ? OFFSET ?
+  `,[from,to,limit+1,offset]);
+  res.json({ok:true,transactions:rows.slice(0,limit),has_more:rows.length>limit,limit,offset});
  }catch(error){console.error("Gagal memuat histori transaksi:",error);res.status(500).json({ok:false,message:"Gagal memuat histori transaksi."});}
 });
 
