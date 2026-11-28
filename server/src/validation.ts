@@ -65,5 +65,6 @@ export const rapidPrintWithinThreshold = (secondsAfterHandover:number,thresholdM
 // Preserve intentional business-validation messages while hiding database/internal error details.
 export const safeOperationalMessage = (error:unknown,fallback:string):string => {
   if(error&&typeof error==='object'&&'code' in error)return fallback;
+  if(error instanceof Error&&error.name!=='Error')return fallback;
   return error instanceof Error?error.message:fallback;
 };
