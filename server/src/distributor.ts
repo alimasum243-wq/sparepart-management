@@ -278,7 +278,7 @@ router.post('/admin/sales-reports/:id/reject',authMiddleware,ownerMiddleware,asy
 router.post('/distributor/payments',authMiddleware,distributor,async(req:AuthedRequest,res)=>{
  const {payment_date,amount,payment_method,proof_reference,notes}=req.body||{};
  const paymentAmount=Number(amount);
- if(!/^\\d{4}-\\d{2}-\\d{2}$/.test(payment_date||'')||!Number.isFinite(paymentAmount)||paymentAmount<=0||Math.round(paymentAmount*100)!==paymentAmount*100)
+ if(!/^\d{4}-\d{2}-\d{2}$/.test(payment_date||'')||!Number.isFinite(paymentAmount)||paymentAmount<=0||Math.round(paymentAmount*100)!==paymentAmount*100)
   return res.status(400).json({ok:false,message:'Tanggal dan nominal pembayaran wajib benar (nominal maksimal 2 angka desimal).'});
  const conn=await pool.getConnection();
  try{
