@@ -340,8 +340,8 @@ const purchaseSchema = z.object({
   items: z.array(
     z.object({
       product_id: z.number().int().positive(),
-      quantity: z.number().positive().max(1000000).refine(v=>Math.round(v*1000)===v*1000),
-      unit_cost: z.number().nonnegative().max(1000000000).refine(v=>Math.round(v*100)===v*100)
+      quantity: z.number().positive().max(1000000).refine(v=>hasAtMost3Decimals(v)),
+      unit_cost: z.number().nonnegative().max(1000000000).refine(v=>hasAtMost2Decimals(v))
     })
   ).min(1).max(100)
 });
@@ -1095,7 +1095,7 @@ app.post("/api/returns/retail-sale",async(req,res)=>{
  if(!Number.isInteger(saleId)||saleId<1||!isDateOnly(date)||!Array.isArray(items)||!items.length||items.length>100)
   return res.status(400).json({ok:false,message:"Transaksi penjualan, tanggal retur, dan rincian barang wajib diisi."});
  const normalized=items.map((x:any)=>({saleItemId:Number(x.retail_sale_item_id),quantity:Number(x.quantity)}));
- if(normalized.some((x:any)=>!Number.isInteger(x.saleItemId)||x.saleItemId<1||!Number.isFinite(x.quantity)||x.quantity<=0||x.quantity>1000000||Math.round(x.quantity*1000)!==x.quantity*1000)||new Set(normalized.map((x:any)=>x.saleItemId)).size!==normalized.length)
+ if(normalized.some((x:any)=>!Number.isInteger(x.saleItemId)||x.saleItemId<1||!Number.isFinite(x.quantity)||x.quantity<=0||x.quantity>1000000||!hasAtMost3Decimals(x.quantity))||new Set(normalized.map((x:any)=>x.saleItemId)).size!==normalized.length)
   return res.status(400).json({ok:false,message:"Rincian retur penjualan tidak valid atau barang tercantum ganda."});
  const conn=await pool.getConnection();
  try{
