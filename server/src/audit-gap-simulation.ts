@@ -17,7 +17,7 @@ export const validShortageDecision = (claimedQty:number, approvedQty:number, uni
 export const shortageChargeCap = (approvedQty:number, unitCost:number) =>
   Math.round((approvedQty*unitCost+Number.EPSILON)*100)/100;
 
-export const bankRowNet = (row:BankRow) => {
+export const validBankBalanceSequence = (rows:Array<{debit:number;credit:number;running_balance:number|null}>) => {\n if(!rows.length)return false;const has=rows.some(r=>r.running_balance!==null);if(!has)return true;if(rows.some(r=>r.running_balance===null||!Number.isFinite(r.debit)||!Number.isFinite(r.credit)||r.debit<0||r.credit<0||r.debit>0&&r.credit>0))return false;for(let i=1;i<rows.length;i++){const expected=Math.round((Number(rows[i-1].running_balance)+rows[i].credit-rows[i].debit)*100)/100;if(Math.abs(expected-Number(rows[i].running_balance))>0.01)return false;}return true;\n};\n\nexport const bankRowNet = (row:BankRow) => {
   if(!Number.isFinite(row.debit)||!Number.isFinite(row.credit)||row.debit<0||row.credit<0||row.debit>0&&row.credit>0)
     throw new Error('Statement row must have non-negative debit/credit and only one side populated.');
   return Math.round((row.credit-row.debit+Number.EPSILON)*100)/100;
