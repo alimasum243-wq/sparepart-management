@@ -314,7 +314,7 @@ The application must support two separate price segments per product, with diffe
 ### Transaction and stock documents
 - [x] Retail direct-sale receipt print/PDF and reprint from transaction history, including sale code/date, SKU snapshot, quantity, price, subtotal, cash account, total, override reason when applicable, and print-request count/time audit (migration 021).
 - [x] Sales sell-through report note print/PDF and reprint from report history, report ID/status, area label, items/qty/price, total, and print-request count/time audit (migration 017).
-- [ ] Warehouse-to-Sales consignment handover receipt print/PDF is available for the latest note; history-based reprint and print count/time UI need completion/acceptance. It clearly states **NOT A SALE — CONSIGNMENT STOCK**.
+- [x] Code: warehouse-to-Sales consignment handover receipt print/PDF available after dispatch; owner history list with historical line items and audited reprint (migration 019 print log) now implemented in branch. CI and UI acceptance still pending.
 - [ ] Returns, stock opname/adjustments, supplier purchases/payments, distributor payments/remittances, and expense/owner capital/draw/transfer documents should have print/PDF detail slips where relevant, with unique reference and audit status.
 - [ ] All print views must be usable on mobile and desktop; paper/PDF layout must exclude navigation and unrelated controls; reprints are recorded and preserve original transaction data.
 
