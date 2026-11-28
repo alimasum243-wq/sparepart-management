@@ -38,14 +38,14 @@ Every delivery, sales report, approval/rejection, payment submission/verificatio
 ### Implemented in the branch; pending CI/end-to-end review
 - Distributor-visible persistent delivery-note line history (date, delivery code, product, qty, price snapshot, line value).
 - Distributor-visible sell-through report history with pending/approved/rejected status and rejection reason.
-- Distributor-visible payment history with submission amount/method/status, allocated amount and unapplied amount.
+- Distributor-visible payment history with submission amount/method/status, allocated amount and unapplied amount.\n- Per-note receivable summary with sales total, sales returns, verified allocated payments, outstanding, due date and Unpaid/Partial/Paid status; payment-allocation drill-down.
 - Unsold consignment return request schema (migration 018), distributor request UI/API, history, Owner queue/detail, reject reason and approval posting.
 - Return approval moves good items to the warehouse and damaged items to the damaged location; approval is single-transition and does not create automatic refunds.
 - Server-side return input validation and unit test for malformed item/quantity/condition.
 
 ### Still incomplete / not yet certified
-- Handover history currently lists line items; note-level grouping, note total, persistent print/reprint and print audit history remain to be completed/reviewed.
-- Payment history shows aggregate allocation/unapplied amount per payment; per-note balances/status (Unpaid/Partial/Paid) and full allocation drill-down remain incomplete.
+- Handover history now groups notes with totals and browser print/reprint; print requests are logged via migration 019. PDF is browser print-to-PDF, and audit log review still required.
+- Payment history shows allocation/unapplied totals; note-level due/status and allocation detail are implemented in code, pending CI and reconciliation testing.
 - Distributor dashboard must reconcile handed-over, approved sold, pending reports, approved returned, expected stock, and physical variance.
 - Return request evidence/photo, inspection note, source delivery-note linkage and stronger per-batch traceability are not yet present.
 - Investor/reporting drilldown and return movement-to-stock-card reconciliation must be tested.
