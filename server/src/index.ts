@@ -900,6 +900,15 @@ app.post("/api/returns/purchase",async(req,res)=>{
    const amount=Math.round(item.quantity*Number(line.unit_cost)*100)/100;
    total=Math.round((total+amount)*100)/100;prepared.push({...item,line,amount});
   }
+  // Returns reduce supplier payable. Do not post a credit to payable beyond its open balance.
+  const [payableBalance]=await conn.execute<RowDataPacket[]>(`
+   SELECT p.grand_total-COALESCE(a.paid_total,0)-COALESCE(r.returned_total,0) outstanding
+   FROM purchases p
+   LEFT JOIN (SELECT purchase_id,SUM(allocated_amount) paid_total FROM supplier_payment_allocations GROUP BY purchase_id) a ON a.purchase_id=p.id
+   LEFT JOIN (SELECT purchase_id,SUM(total) returned_total FROM purchase_returns WHERE status='POSTED' GROUP BY purchase_id) r ON r.purchase_id=p.id
+   WHERE p.id=? FOR UPDATE`,[purchaseId]);
+  const openPayable=Math.round(Number(payableBalance[0]?.outstanding||0)*100)/100;
+  if(total>openPayable+0.009) throw new Error(`Retur melebihi sisa utang pemasok (Rp${Math.max(0,openPayable).toLocaleString('id-ID')}). Retur pembelian yang sudah lunas belum dapat diposting karena alur pengembalian dana pemasok belum tersedia.`);
   const code=`RB-${Date.now()}-${randomUUID().slice(0,6).toUpperCase()}`;
   const [ret]=await conn.execute<ResultSetHeader>(`INSERT INTO purchase_returns (return_code,purchase_id,return_date,total,status,notes) VALUES (?,?,?,?,'POSTED',?)`,[code,purchaseId,date,total,String(req.body?.notes||"").slice(0,500)||null]);
   for(let i=0;i<prepared.length;i++){
@@ -998,6 +1007,16 @@ app.post("/api/returns/distributor-sale",async(req,res)=>{
    const refundLine=Math.round(item.quantity*Number(line.unit_price_snapshot)*100)/100,costLine=Math.round(item.quantity*Number(line.unit_cost_snapshot)*100)/100;
    refund=Math.round((refund+refundLine)*100)/100;cost=Math.round((cost+costLine)*100)/100;prepared.push({...item,line,refundLine,costLine});
   }
+  // Returns reduce receivables. Until a cash-refund workflow exists, block returns beyond open AR.
+  const [receivableBalance]=await conn.execute<RowDataPacket[]>(`
+   SELECT COALESCE(s.sales_total,0)-COALESCE(a.paid_total,0)-COALESCE(r.returned_total,0) outstanding
+   FROM distributor_sales_reports sr
+   LEFT JOIN (SELECT report_id,SUM(line_total) sales_total FROM distributor_sales_report_items GROUP BY report_id) s ON s.report_id=sr.id
+   LEFT JOIN (SELECT sales_report_id,SUM(allocated_amount) paid_total FROM distributor_payment_allocations GROUP BY sales_report_id) a ON a.sales_report_id=sr.id
+   LEFT JOIN (SELECT sales_report_id,SUM(total) returned_total FROM distributor_sales_returns WHERE status='POSTED' GROUP BY sales_report_id) r ON r.sales_report_id=sr.id
+   WHERE sr.id=? FOR UPDATE`,[reportId]);
+  const openReceivable=Math.round(Number(receivableBalance[0]?.outstanding||0)*100)/100;
+  if(refund>openReceivable+0.009) throw new Error(`Retur melebihi sisa piutang distributor (Rp${Math.max(0,openReceivable).toLocaleString('id-ID')}). Retur setelah tagihan lunas belum dapat diposting karena alur pengembalian dana distributor belum tersedia.`);
   const code=`RJD-${Date.now()}-${randomUUID().slice(0,6).toUpperCase()}`;
   const [ret]=await conn.execute<ResultSetHeader>(`INSERT INTO distributor_sales_returns (return_code,sales_report_id,distributor_id,return_date,total,cost_total,status,notes) VALUES (?,?,?,?,?,?,'POSTED',?)`,[code,reportId,reports[0].distributor_id,date,refund,cost,String(req.body?.notes||"").slice(0,500)||null]);
   for(let i=0;i<prepared.length;i++){
