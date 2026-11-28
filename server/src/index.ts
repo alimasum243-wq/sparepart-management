@@ -564,7 +564,8 @@ const expenseSchema = z.object({
   category: z.string().trim().min(1).max(100),
   description: z.string().trim().max(1000).optional(),
   amount: z.number().positive().max(100000000000).refine(v=>Math.round(v*100)===v*100),
-  payment_method: z.enum(['CASH','BANK']).default('CASH')
+  payment_method: z.enum(['CASH','BANK']).default('CASH'),
+  cash_account_id: z.number().int().positive().optional()
 });
 // Kasir retail: harga jual dimasukkan manual pada setiap transaksi.
 app.get("/api/retail/options", async (_req, res) => {
@@ -615,17 +616,17 @@ app.post("/api/retail/sales", async (req,res) => {
   try{
     await conn.beginTransaction();
     const [cash]=await conn.execute<RowDataPacket[]>(
-      `SELECT id,account_type FROM cash_accounts WHERE id=? AND is_active=1 FOR UPDATE`,[cashAccountId]
+      `SELECT ca.id,ca.account_type,COALESCE(ca.ledger_account_id,a.id) ledger_id FROM cash_accounts ca LEFT JOIN accounts a ON a.account_code=IF(UPPER(ca.account_type)='BANK','1110','1100') AND a.is_active=1 WHERE ca.id=? AND ca.is_active=1 FOR UPDATE`,[cashAccountId]
     );
     if(!cash.length) throw new Error("Akun kas/bank tidak aktif atau tidak ditemukan.");
     const warehouseId=await getWarehouseLocationId(conn);
     const cashCode=String(cash[0].account_type).toUpperCase()==="BANK"?"1110":"1100";
-    const accountCodes=[cashCode,"4100","5100","1300"];
+    const accountCodes=["4100","5100","1300"];
     const [accounts]=await conn.query<RowDataPacket[]>(
       `SELECT id,account_code FROM accounts WHERE account_code IN (?,?,?,?) AND is_active=1`,accountCodes
     );
     const accountId=(code:string)=>Number(accounts.find((a:any)=>String(a.account_code)===code)?.id||0);
-    const cashAccount=accountId(cashCode),revenueAccount=accountId("4100"),cogsAccount=accountId("5100"),inventoryAccount=accountId("1300");
+    const cashAccount=Number(cash[0].ledger_id||accountId(cashCode)),revenueAccount=accountId("4100"),cogsAccount=accountId("5100"),inventoryAccount=accountId("1300");
     if(!cashAccount||!revenueAccount||!cogsAccount||!inventoryAccount) throw new Error("Akun akuntansi kas, penjualan, HPP, atau persediaan belum lengkap.");
     const prepared:any[]=[];
     let subtotal=0,costTotal=0;
@@ -698,14 +699,13 @@ app.post('/api/expenses', async (req,res) => {
   try {
     await conn.beginTransaction();
     const [expenseAccount] = await conn.execute<RowDataPacket[]>(`SELECT id FROM accounts WHERE account_code='6100' AND is_active=1 LIMIT 1`);
-    const cashCode = data.payment_method === 'BANK' ? '1110' : '1100';
-    const [cashAccount] = await conn.execute<RowDataPacket[]>(`SELECT id FROM accounts WHERE account_code=? AND is_active=1 LIMIT 1`,[cashCode]);
-    if (!expenseAccount.length || !cashAccount.length) throw new Error('Akun beban atau kas/bank belum tersedia.');
+    const [cashAccount] = await conn.execute<RowDataPacket[]>(`SELECT ca.id,ca.account_type,COALESCE(ca.ledger_account_id,a.id) ledger_id FROM cash_accounts ca LEFT JOIN accounts a ON a.account_code=IF(UPPER(ca.account_type)='BANK','1110','1100') AND a.is_active=1 WHERE ca.id=COALESCE(?,(SELECT id FROM cash_accounts WHERE account_type=? AND is_active=1 ORDER BY id LIMIT 1)) AND ca.is_active=1 FOR UPDATE`,[data.cash_account_id||null,data.payment_method]);
+    if (!expenseAccount.length || !cashAccount.length || String(cashAccount[0].account_type).toUpperCase()!==data.payment_method) throw new Error('Akun beban atau kas/bank belum tersedia.');
     const expenseCode = `BEB-${new Date().toISOString().replace(/[-:.TZ]/g,'').slice(0,14)}-${randomUUID().slice(0,6).toUpperCase()}`;
-    const [result] = await conn.execute<ResultSetHeader>(`INSERT INTO expenses (expense_code,expense_date,category,description,amount,payment_method,posted_at) VALUES (?,?,?,?,?,?,CURRENT_TIMESTAMP)`,[expenseCode,data.expense_date,data.category,data.description||null,data.amount,data.payment_method]);
+    const [result] = await conn.execute<ResultSetHeader>(`INSERT INTO expenses (expense_code,expense_date,category,description,amount,payment_method,cash_account_id,posted_at) VALUES (?,?,?,?,?,?,?,CURRENT_TIMESTAMP)`,[expenseCode,data.expense_date,data.category,data.description||null,data.amount,data.payment_method,cashAccount[0].id]);
     const journalCode = `JU-${new Date().toISOString().replace(/[-:.TZ]/g,'').slice(0,14)}-${randomUUID().slice(0,6).toUpperCase()}`;
     const [j] = await conn.execute<ResultSetHeader>(`INSERT INTO journal_entries (journal_code,journal_date,source_type,source_id,description,status,created_by_user_id) VALUES (?,?, 'EXPENSE', ?, ?, 'POSTED', ?)`,[journalCode,data.expense_date,result.insertId,`Pengeluaran ${data.category}`,(req as any).identity?.id || null]);
-    await conn.execute(`INSERT INTO journal_lines (journal_entry_id,account_id,debit,credit,description) VALUES (?,?,?,0,?), (?,?,0,?,?)`,[j.insertId,expenseAccount[0].id,data.amount,data.category,j.insertId,cashAccount[0].id,data.amount,'Pengeluaran kas/bank']);
+    await conn.execute(`INSERT INTO journal_lines (journal_entry_id,account_id,debit,credit,description) VALUES (?,?,?,0,?), (?,?,0,?,?)`,[j.insertId,expenseAccount[0].id,data.amount,data.category,j.insertId,cashAccount[0].ledger_id,data.amount,'Pengeluaran kas/bank']);
     await conn.execute(`INSERT INTO audit_logs (user_id,action,entity_type,entity_id,description) VALUES (?,'POST','EXPENSE',?,?)`,[(req as any).identity?.id||null,result.insertId,`Pengeluaran ${expenseCode}; kategori ${data.category}; jumlah ${data.amount}`]);
   await conn.commit(); return res.status(201).json({ok:true,message:'Pengeluaran dan jurnal berhasil dicatat.',expense_code:expenseCode});
   } catch(error) { await conn.rollback(); return res.status(400).json({ok:false,message:error instanceof Error?error.message:'Gagal mencatat pengeluaran.'}); }
