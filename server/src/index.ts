@@ -11,7 +11,7 @@ import type { RowDataPacket, ResultSetHeader } from "mysql2";
 import type { PoolConnection } from "mysql2/promise";
 import { pool } from "./db.js";
 import distributorRouter, { authMiddleware, ownerMiddleware } from "./distributor.js";
-import { money2, isDateOnly, hasAtMost2Decimals } from "./validation.js";
+import { money2, isDateOnly, hasAtMost2Decimals, hasAtMost3Decimals } from "./validation.js";
 
 const app = express();
 const port = Number(process.env.PORT || 4000);
@@ -125,9 +125,9 @@ const productSchema = z.object({
   product_name: z.string().trim().min(1).max(150),
   unit: z.string().trim().min(1).max(30).default("pcs"),
   purchase_cost: z.number().nonnegative().max(1000000000).refine(v=>hasAtMost2Decimals(v)).default(0),
-  distributor_price: z.number().nonnegative().max(1000000000).refine(v=>Math.round(v*100)===v*100).default(0),
-  retail_price: z.number().nonnegative().max(1000000000).refine(v=>Math.round(v*100)===v*100).default(0),
-  min_stock: z.number().nonnegative().max(1000000).refine(v=>Math.round(v*1000)===v*1000).default(0)
+  distributor_price: z.number().nonnegative().max(1000000000).refine(v=>hasAtMost2Decimals(v)).default(0),
+  retail_price: z.number().nonnegative().max(1000000000).refine(v=>hasAtMost2Decimals(v)).default(0),
+  min_stock: z.number().nonnegative().max(1000000).refine(v=>hasAtMost3Decimals(v)).default(0)
 });
 
 app.get("/api/products/:id/price-history",async(req,res)=>{
@@ -638,7 +638,7 @@ app.post("/api/retail/sales", async (req,res) => {
   }
   const items=rawItems.map((x:any)=>({productId:Number(x.product_id),quantity:Number(x.quantity),unitPrice:Number(x.unit_price)}));
   if(items.length>100)return res.status(400).json({ok:false,message:'Maksimal 100 baris barang per transaksi.'});
-  if(items.some((x:any)=>!Number.isInteger(x.productId)||x.productId<1||!Number.isFinite(x.quantity)||x.quantity<=0||x.quantity>1000000||Math.round(x.quantity*1000)!==x.quantity*1000||!Number.isFinite(x.unitPrice)||x.unitPrice<=0||x.unitPrice>1000000000||Math.round(x.unitPrice*100)!==x.unitPrice*100)){
+  if(items.some((x:any)=>!Number.isInteger(x.productId)||x.productId<1||!Number.isFinite(x.quantity)||x.quantity<=0||x.quantity>1000000||!hasAtMost3Decimals(x.quantity)||!Number.isFinite(x.unitPrice)||x.unitPrice<=0||x.unitPrice>1000000000||!hasAtMost2Decimals(x.unitPrice))){
     return res.status(400).json({ok:false,message:"Setiap barang wajib memiliki produk, jumlah positif, dan harga jual manual lebih dari nol."});
   }
   if(new Set(items.map((x:any)=>x.productId)).size!==items.length) return res.status(400).json({ok:false,message:'Produk yang sama tidak boleh dicantumkan dua kali; gabungkan jumlah dan harga.'});
@@ -791,7 +791,7 @@ app.post("/api/supplier-payments", async (req,res) => {
     return res.status(400).json({ok:false,message:"Tanggal, pemasok, akun kas/bank, dan alokasi faktur wajib diisi dengan benar."});
   }
   const normalized=allocations.map((x:any)=>({purchaseId:Number(x.purchase_id),amount:Number(x.amount)}));
-  if(normalized.some((x:any)=>!Number.isInteger(x.purchaseId)||x.purchaseId<1||!Number.isFinite(x.amount)||x.amount<=0||x.amount>1000000000000||Math.round(x.amount*100)!==x.amount*100) ||
+  if(normalized.some((x:any)=>!Number.isInteger(x.purchaseId)||x.purchaseId<1||!Number.isFinite(x.amount)||x.amount<=0||x.amount>1000000000000||!hasAtMost2Decimals(x.amount)) ||
      new Set(normalized.map((x:any)=>x.purchaseId)).size!==normalized.length) {
     return res.status(400).json({ok:false,message:"Rincian alokasi tidak valid atau faktur tercantum lebih dari sekali."});
   }
@@ -1030,7 +1030,7 @@ app.post("/api/returns/purchase",async(req,res)=>{
  if(!Number.isInteger(purchaseId)||purchaseId<1||!isDateOnly(date)||!Array.isArray(items)||!items.length||items.length>100)
   return res.status(400).json({ok:false,message:"Faktur, tanggal retur, dan rincian barang wajib diisi."});
  const normalized=items.map((x:any)=>({purchaseItemId:Number(x.purchase_item_id),quantity:Number(x.quantity)}));
- if(normalized.some((x:any)=>!Number.isInteger(x.purchaseItemId)||x.purchaseItemId<1||!Number.isFinite(x.quantity)||x.quantity<=0||x.quantity>1000000||Math.round(x.quantity*1000)!==x.quantity*1000)||new Set(normalized.map((x:any)=>x.purchaseItemId)).size!==normalized.length)
+ if(normalized.some((x:any)=>!Number.isInteger(x.purchaseItemId)||x.purchaseItemId<1||!Number.isFinite(x.quantity)||x.quantity<=0||x.quantity>1000000||!hasAtMost3Decimals(x.quantity))||new Set(normalized.map((x:any)=>x.purchaseItemId)).size!==normalized.length)
   return res.status(400).json({ok:false,message:"Rincian retur tidak valid atau barang tercantum ganda."});
  const conn=await pool.getConnection();
  try{
@@ -1299,7 +1299,7 @@ app.post("/api/inventory-adjustments",async(req,res)=>{
   const {adjustment_type,adjustment_date,location_id,reason,items}=req.body||{};const type=String(adjustment_type||'').toUpperCase(),locationId=Number(location_id);
   if(!['OPNAME','OPENING','LOSS','DAMAGE','WRITE_OFF'].includes(type)||!isDateOnly(adjustment_date)||!Number.isInteger(locationId)||locationId<=0||!String(reason||'').trim()||String(reason||'').length>1000||!Array.isArray(items)||!items.length||items.length>100)return res.status(400).json({ok:false,message:'Jenis, tanggal, lokasi, alasan, dan rincian valid (maksimal 100 barang) wajib diisi.'});
   const seen=new Set<number>();const normalized=items.map((x:any)=>({productId:Number(x.product_id),quantity:Number(x.quantity),countedQty:x.counted_qty==null?null:Number(x.counted_qty)}));
-  if(normalized.some((x:any)=>!Number.isInteger(x.productId)||x.productId<=0||seen.has(x.productId)||(type==='OPNAME'&&(!Number.isFinite(x.countedQty)||x.countedQty<0||x.countedQty>1000000||Math.round(x.countedQty*1000)!==x.countedQty*1000))||(type!=='OPNAME'&&(!Number.isFinite(x.quantity)||x.quantity<=0||x.quantity>1000000||Math.round(x.quantity*1000)!==x.quantity*1000))))return res.status(400).json({ok:false,message:'Jumlah atau produk penyesuaian tidak valid; kuantitas maksimal 3 desimal.'});
+  if(normalized.some((x:any)=>!Number.isInteger(x.productId)||x.productId<=0||seen.has(x.productId)||(type==='OPNAME'&&(!Number.isFinite(x.countedQty)||x.countedQty<0||x.countedQty>1000000||!hasAtMost3Decimals(x.countedQty)))||(type!=='OPNAME'&&(!Number.isFinite(x.quantity)||x.quantity<=0||x.quantity>1000000||Math.round(x.quantity*1000)!==x.quantity*1000))))return res.status(400).json({ok:false,message:'Jumlah atau produk penyesuaian tidak valid; kuantitas maksimal 3 desimal.'});
   for(const x of normalized)seen.add(x.productId);
   const conn=await pool.getConnection();try{await conn.beginTransaction();const [loc]=await conn.execute<RowDataPacket[]>(`SELECT id,location_type FROM stock_locations WHERE id=? AND is_active=1 FOR UPDATE`,[locationId]);if(!loc.length)throw new Error('Lokasi stok tidak aktif atau tidak ditemukan.');if(type==='DAMAGE'&&loc[0].location_type==='DAMAGED')throw new Error('Barang rusak harus dipindahkan dari lokasi stok layak jual.');if(type==='OPENING'&&loc[0].location_type!=='WAREHOUSE')throw new Error('Opening stock hanya boleh dicatat pada gudang utama.');if(type==='WRITE_OFF'&&loc[0].location_type!=='DAMAGED')throw new Error('Write-off harus dilakukan dari lokasi barang rusak.');
     const [damaged]=await conn.execute<RowDataPacket[]>(`SELECT id FROM stock_locations WHERE location_type='DAMAGED' AND is_active=1 ORDER BY id LIMIT 1 FOR UPDATE`);if(type==='DAMAGE'&&!damaged.length)throw new Error('Lokasi barang rusak belum tersedia; jalankan migration 008.');
